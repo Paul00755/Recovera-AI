@@ -1,137 +1,114 @@
-# Recovera AI (Version 3.0) — Complete Setup & Developer Guide
+# 🏥 Recovera AI
 
-Recovera AI is a hospital-supervised post-discharge recovery management platform featuring clinical document ingestion via PaddleOCR, doctor review/approval workflows, dynamic recovery plan generation, medication scheduling and adherence tracking, daily symptom check-ins, conflict-free appointments, immediate 15-minute consultations, outbound SMS notifications via OnePlus 10T 5G (Android 15), and explainable recovery-risk prioritization.
-
----
-
-## 💻 Running on Another Computer (Sharing with a Friend)
-
-### ⚠️ Golden Rule: What to Copy vs What NOT to Copy
-When sharing the project via ZIP, USB drive, or Git:
-
-| Share These Files / Folders | DO NOT Copy (Delete before sharing) | Why? |
-| :--- | :--- | :--- |
-| `backend/` (code, scripts, schemas) | ❌ `backend/.venv` | Virtual environments contain machine-specific hardcoded paths. |
-| `frontend/` (src, public, configs) | ❌ `frontend/node_modules` | Node packages are huge and platform-specific. |
-| `docs/` & `tests/` | ❌ `frontend/dist` | Build artifacts will be generated freshly. |
-| `docker-compose.yml` | ❌ `__pycache__` / `.pytest_cache` | Temporary Python bytecode. |
-| `setup.bat` & `run.bat` | ❌ `storage/*` (keep empty folder) | Confidential patient uploads. |
-| `README.md` | | |
+> **Continuous, hospital-supervised post-discharge recovery management.**  
+> Bridging the critical care gap between hospital discharge and full healing at home.
 
 ---
 
-## 🛠️ Prerequisites on the Target Computer
+## 🌟 Why Recovera AI?
 
-Before running, make sure the computer has:
-1. **Python 3.11 or 3.12**: Download from [python.org](https://www.python.org/).  
-   *(CRITICAL: Ensure the **"Add python.exe to PATH"** checkbox is ticked during installation!)*
-2. **Node.js 18+ or 20+ LTS**: Download from [nodejs.org](https://nodejs.org/).
-3. **Database (PostgreSQL 15+)**:
-   - **Option A (Recommended & Easiest)**: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and start it.
-   - **Option B (Native)**: Install [PostgreSQL](https://www.postgresql.org/download/) locally and create a database named `recovera` with user `recovera` and password `change-me`.
+When patients leave the hospital after surgery or intensive treatment, they face a stressful transition:
+- **Complex paper prescriptions:** Handwriting is difficult to interpret, dosages are confusing, and timing rules are easy to forget.
+- **Unnoticed warning signs:** Early symptoms of infection or complications often go unmonitored until a patient ends up back in the emergency room.
+- **Communication barriers:** Many patients and families prefer receiving reminders and instructions in their local language.
 
----
-
-## ⚡ Option 1: Automated 1-Click Setup (Windows)
-
-1. **Extract/Open** the project root folder.
-2. If using Docker for PostgreSQL, start Docker Desktop and run:
-   ```cmd
-   docker compose up -d
-   ```
-3. Double-click **`setup.bat`**:
-   - Automatically validates Python and Node.js.
-   - Creates the Python virtual environment (`backend\.venv`).
-   - Installs all backend packages from `backend\requirements.txt`.
-   - Runs database migrations (`migrate_v3.py`) and seeds the default doctor account.
-   - Runs `npm install` inside `frontend`.
-4. Double-click **`run.bat`**:
-   - Spawns the Backend API and the Frontend Web Portal in two separate windows.
-   - Open your browser at: **[http://localhost:5173](http://localhost:5173)**.
+**Recovera AI solves this.** It transforms static paper discharge documents into an interactive, clinician-verified digital recovery plan that guides patients step-by-step through their healing journey while keeping doctors and nurses connected.
 
 ---
 
-## 🔧 Option 2: Step-by-Step Manual Setup
+## 🔄 How It Works
 
-### 1. Database Setup
-Using Docker (one-liner):
-```cmd
+```mermaid
+flowchart LR
+    A["1. Discharge & Upload<br/>(Scan/Upload Prescription)"] --> B["2. Doctor Verification<br/>(Review & Approve Plan)"]
+    B --> C["3. Guided Home Care<br/>(Dose Tracker & SMS Reminders)"]
+    C --> D["4. Continuous Safety<br/>(Daily Check-ins & AI Digital Twin)"]
+```
+
+### 1. 📄 Smart Prescription Digitization
+The patient or care coordinator uploads a photo or PDF of the paper prescription or discharge summary. The system automatically reads the medications, dosages, frequency, and care instructions.
+
+### 2. 👨‍⚕️ Clinician-in-the-Loop Approval
+Safety comes first. AI extractions are never published blindly. Attending doctors or clinical staff review, adjust, and formally approve the extracted medications and schedule before it reaches the patient.
+
+### 3. ⏰ Interactive Home Recovery Tracker
+Patients receive an easy-to-use daily schedule showing exactly when to take each medicine with clear instructions (e.g. *after food*, *before sleep*). 
+- **SMS Reminders:** Important medicine alerts are sent directly to the patient's phone.
+- **Multilingual Read-Aloud:** Audio playback of instructions in **English, Tamil, and Hindi**.
+
+### 4. 📈 Proactive Recovery Digital Twin
+Patients log a quick daily check-in (pain level, temperature, mobility, wound condition). The clinical digital twin compares actual recovery data against expected clinical milestones. If symptoms diverge or red flags appear, the hospital care team is immediately alerted to intervene before complications escalate.
+
+---
+
+## ✨ Key Features
+
+- **🔍 Intelligent Document Extraction:** Converts handwritten or printed clinical prescriptions into structured digital schedules.
+- **🛡️ Safety-First Human Verification:** Every medication plan requires verified doctor/nurse authorization.
+- **💊 Real-Time Medication Adherence:** Simple 1-tap dose logging with visual calendar history and adherence scores.
+- **🗣️ Multilingual Support:** Tailored instructions and SMS notifications in English, Tamil, and Hindi.
+- **🩺 Quick Clinical Consultations:** Built-in conflict-free doctor scheduling and 15-minute video teleconsultations.
+- **📊 Hospital Clinical Command Center:** Triage dashboard prioritizing patients by recovery risk, adherence gaps, or acute symptoms.
+- **🔐 Secure Role-Based Access:** Isolated views and strict permissions for Doctors, Nurses, Administrators, and Patients.
+
+---
+
+## 🚀 Getting Started
+
+### ⚡ Quick Launch (Windows 1-Click)
+1. Double-click **`run.bat`** in the project folder.
+2. It automatically starts both the backend API and frontend portal.
+3. Open your browser at: **[http://localhost:5173](http://localhost:5173)**
+
+---
+
+### 🐳 Run with Docker
+You can also launch the full stack (PostgreSQL database, FastAPI backend, and frontend) with Docker Compose:
+```bash
 docker compose up -d
 ```
-*Or ensure your local PostgreSQL service is running on port `5432` with connection URL: `postgresql+psycopg://recovera:change-me@localhost:5432/recovera`.*
+Visit **[http://localhost:80](http://localhost)** to use the platform.
 
-### 2. Backend Setup
-Open a terminal in the project root:
-```powershell
+---
+
+### 💻 Manual Startup
+
+#### Terminal 1: Backend API (FastAPI)
+```bash
 cd backend
-
-# 1. Create environment file if missing
-copy .env.example .env
-
-# 2. Create virtual environment
-python -m venv .venv
-
-# 3. Upgrade pip and install dependencies
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\pip.exe install -r requirements.txt
-
-# 4. Run schema migration & seed initial admin doctor
-.\.venv\Scripts\python.exe scripts/migrate_v3.py
-.\.venv\Scripts\python.exe scripts/create_admin.py
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+* **API Documentation:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+* **Health Check:** [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
 
-### 3. Frontend Setup
-Open another terminal:
-```powershell
+#### Terminal 2: Web Portal (React / Vite)
+```bash
 cd frontend
-npm.cmd install
+npm run dev
 ```
+* **Web App:** [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## 🚀 Running the Servers Manually
+## 👥 User Roles & Portals
 
-Open **two separate terminals**:
-
-### Terminal 1: Backend Server (FastAPI)
-```powershell
-cd backend
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-- **API Root**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
-- **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Health Check**: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
-
-### Terminal 2: Frontend Server (Vite / React)
-```powershell
-cd frontend
-npm.cmd run dev
-```
-- **Web Portal**: [http://localhost:5173](http://localhost:5173)
+- **Doctor:** Reviews digitized prescriptions, manages treatment plans, conducts follow-up consultations, and inspects high-risk patient alerts.
+- **Nurse / Care Coordinator:** Enrolls patients upon discharge, coordinates care, assists triage, and monitors daily check-in adherence.
+- **Patient:** Views daily medication schedules, logs doses, submits symptom check-ins, and connects with their clinical team.
+- **Hospital Administrator:** Manages staff accounts, security audit logs, system configurations, and facility-wide analytics.
 
 ---
 
-## 🔑 Default Credentials & Role Testing
+## 🏗️ Technology Stack
 
-### 1. Doctor / Clinical Staff Portal
-- **URL**: [http://localhost:5173](http://localhost:5173) (Select **"Staff Sign In"**)
-- **Email**: `doctor@recovera.local`
-- **Password**: `HospitalStaff@2026`
-- **Staff Registration Secret** (if creating new staff): `RECOVERA-STAFF-2026`
-
-### 2. Patient Portal
-- Select **"Patient Sign In"** or register a new patient via **"Register as Patient"**.
-- Patients can view their doctor-published recovery plan, listen with Multilingual TTS (English, Tamil, Hindi), track scheduled medication doses via the interactive Website Intake Tracker, request 15-minute consultations, and submit daily check-ins.
+- **Frontend:** React 18, Vite, Lucide Icons, Responsive CSS
+- **Backend API:** FastAPI (Python 3.12), SQLAlchemy 2.0, Pydantic V2
+- **Intelligence:** Multimodal OCR, Machine Learning handwriting pipeline, Google Gemini API
+- **Databases:** PostgreSQL (Production / Neon) with automatic local SQLite fallback
+- **Messaging & Notifications:** Unified Outbound SMS Bridge & Real-Time Staff WebSockets
 
 ---
 
-## 🧪 Running Automated Tests
-Run all 21 automated system and contract test cases:
-```powershell
-.\backend\.venv\Scripts\python.exe -m pytest tests/ -v
-```
-Tests verify:
-1. `tests/test_contract_phase0.py`: Zero WhatsApp rule, OnePlus 10T 5G SMS gateway, schema enums, bcrypt 72-byte safety.
-2. `tests/test_phase1_auth_rbac.py`: JWT tokens, password hashing, RBAC role gates (Doctor, Nurse, Patient), registration secrets.
-3. `tests/test_phase2_phase3.py`: Patient workspace, document upload, PaddleOCR extraction, approval workflows.
-4. `tests/test_phase4_phase5.py`: Recovery plan generation & doctor approval, plan invalidation on document updates, multi-session medication schedules, exact occurrence calculation, historical adherence preservation.
+## 📄 Clinical Decision Support Notice
+
+*Recovera AI provides explainable statistical telemetry and digital recovery guidance for post-discharge care. It does not replace independent clinical judgment. All care plans, medication updates, and medical interventions require authorization from qualified healthcare practitioners.*
