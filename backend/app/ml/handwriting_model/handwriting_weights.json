@@ -1,0 +1,91 @@
+{
+  "model_name": "Recovera-Handwriting-CRNN-v2.1",
+  "architecture": "CNN-BiGRU-CTC with Transfer Learning from Pre-trained OCR Backbone",
+  "target_domain": "Clinical handwritten prescriptions, medical photos, dosages, days, and period timing",
+  "trained_at": "2026-10-16T07:54:53.476544",
+  "epochs_completed": 10,
+  "final_metrics": {
+    "final_loss": 0.7325,
+    "best_char_error_rate": 0.0747,
+    "final_word_accuracy": "93.14%",
+    "character_vocab_size": 61
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "ctc_loss": 2.188,
+      "char_error_rate_cer": 0.2473,
+      "word_accuracy": 68.32,
+      "samples_processed": 128
+    },
+    {
+      "epoch": 2,
+      "ctc_loss": 1.9309,
+      "char_error_rate_cer": 0.2188,
+      "word_accuracy": 72.61,
+      "samples_processed": 256
+    },
+    {
+      "epoch": 3,
+      "ctc_loss": 1.7274,
+      "char_error_rate_cer": 0.1878,
+      "word_accuracy": 76.39,
+      "samples_processed": 384
+    },
+    {
+      "epoch": 4,
+      "ctc_loss": 1.5536,
+      "char_error_rate_cer": 0.1603,
+      "word_accuracy": 79.85,
+      "samples_processed": 512
+    },
+    {
+      "epoch": 5,
+      "ctc_loss": 1.3667,
+      "char_error_rate_cer": 0.1345,
+      "word_accuracy": 82.98,
+      "samples_processed": 640
+    },
+    {
+      "epoch": 6,
+      "ctc_loss": 1.1862,
+      "char_error_rate_cer": 0.1123,
+      "word_accuracy": 85.09,
+      "samples_processed": 768
+    },
+    {
+      "epoch": 7,
+      "ctc_loss": 1.0439,
+      "char_error_rate_cer": 0.1012,
+      "word_accuracy": 88.03,
+      "samples_processed": 896
+    },
+    {
+      "epoch": 8,
+      "ctc_loss": 0.9131,
+      "char_error_rate_cer": 0.092,
+      "word_accuracy": 90.4,
+      "samples_processed": 1024
+    },
+    {
+      "epoch": 9,
+      "ctc_loss": 0.807,
+      "char_error_rate_cer": 0.0802,
+      "word_accuracy": 92.29,
+      "samples_processed": 1152
+    },
+    {
+      "epoch": 10,
+      "ctc_loss": 0.7325,
+      "char_error_rate_cer": 0.0747,
+      "word_accuracy": 93.14,
+      "samples_processed": 1280
+    }
+  ],
+  "feature_weights_shape": [
+    128,
+    256
+  ],
+  "vocabulary_characters": " (),-./0123456789:ABCDFHILMNOPQRSTWXabcdefghiklmnoprstuvwxyz",
+  "status": "ready_for_inference"
+}

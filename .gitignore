@@ -1,0 +1,156 @@
+# ==============================================================================
+# Recovera AI - Comprehensive Production Deployment .gitignore
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Python Bytecode, Compilations & Virtual Environments
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.manifest
+*.spec
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+backend/.venv/
+backend/venv/
+backend/env/
+AI/
+.pytest_cache/
+
+# Distribution, Packaging & Wheels
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ------------------------------------------------------------------------------
+# 2. Testing, Code Coverage & Profiling
+# ------------------------------------------------------------------------------
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# ------------------------------------------------------------------------------
+# 3. Node, Vite & Frontend Build Artifacts
+# ------------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+.npm
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------------------------------------------------------
+# 4. Environment Variables, Secrets & Credentials (DEPLOYMENT CRITICAL)
+# ------------------------------------------------------------------------------
+# Never commit real credentials, tokens, or JWT secrets to repository
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Certificates & Private Keys
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+
+# ------------------------------------------------------------------------------
+# 5. Databases, Local SQLite Fallbacks & Volume Data
+# ------------------------------------------------------------------------------
+# Exclude binary SQLite databases and temporary journals
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+test_*.db
+postgres_data/
+
+# ------------------------------------------------------------------------------
+# 6. Storage & Uploads (Preserve directory structure via .gitkeep)
+# ------------------------------------------------------------------------------
+storage/*
+!storage/.gitkeep
+backend/storage/*
+!backend/storage/.gitkeep
+
+# ------------------------------------------------------------------------------
+# 7. Operating System & Local IDE Configuration
+# ------------------------------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors & IDEs
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------------------------
+# 8. Temporary Files & Logs
+# ------------------------------------------------------------------------------
+*.log
+logs/
+*.tmp
+*.temp
+scratch/

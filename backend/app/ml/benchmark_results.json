@@ -1,0 +1,85 @@
+{
+  "benchmark_timestamp": "2026-11-02T08:36:16Z",
+  "total_patients_evaluated": 200,
+  "splits_info": {
+    "num_train_patients": 140,
+    "num_val_patients": 30,
+    "num_test_patients": 30,
+    "train_samples": 1091,
+    "val_samples": 234,
+    "test_samples": 240
+  },
+  "primary_prediction_target": "Next-Day Pain Score (0 - 10 Visual Analog Scale)",
+  "window_size_days": 5,
+  "execution_duration_sec": 5.79,
+  "recommended_production_model": "Random Forest (Classical ML)",
+  "scientific_recommendation": "The Random Forest (Classical ML) achieved the lowest Test MAE (0.244 pts) on unseen patients, outperforming the Persistence Baseline by 0.26 pts. In accordance with clinical safety bounds, this forecast serves as decision support only.",
+  "models": [
+    {
+      "id": "random_forest",
+      "name": "Random Forest (Classical ML)",
+      "type": "Classical ML",
+      "parameters": 9726,
+      "test_mae": 0.244,
+      "test_rmse": 0.384,
+      "pearson_r": 0.991,
+      "latency_ms": 0.048,
+      "status": "Classical Standard"
+    },
+    {
+      "id": "lstm",
+      "name": "LSTM (Long Short-Term Memory)",
+      "type": "Recurrent DL",
+      "parameters": 3001,
+      "test_mae": 0.322,
+      "test_rmse": 0.461,
+      "pearson_r": 0.987,
+      "latency_ms": 0.008,
+      "status": "Candidate Evaluated"
+    },
+    {
+      "id": "gru",
+      "name": "GRU (Gated Recurrent Unit)",
+      "type": "Recurrent DL",
+      "parameters": 2257,
+      "test_mae": 0.327,
+      "test_rmse": 0.473,
+      "pearson_r": 0.986,
+      "latency_ms": 0.008,
+      "status": "Candidate Evaluated"
+    },
+    {
+      "id": "temporal_cnn",
+      "name": "1D Temporal CNN",
+      "type": "Convolutional DL",
+      "parameters": 1061,
+      "test_mae": 0.33,
+      "test_rmse": 0.48,
+      "pearson_r": 0.986,
+      "latency_ms": 0.025,
+      "status": "Top Candidate"
+    },
+    {
+      "id": "trend",
+      "name": "Historical Mean / Trend",
+      "type": "Heuristic Baseline",
+      "parameters": 0,
+      "test_mae": 0.373,
+      "test_rmse": 0.503,
+      "pearson_r": 0.987,
+      "latency_ms": 0.0,
+      "status": "Heuristic Reference"
+    },
+    {
+      "id": "persistence",
+      "name": "Persistence",
+      "type": "Naive Baseline",
+      "parameters": 0,
+      "test_mae": 0.499,
+      "test_rmse": 0.612,
+      "pearson_r": 0.983,
+      "latency_ms": 0.0,
+      "status": "Baseline Reference"
+    }
+  ]
+}

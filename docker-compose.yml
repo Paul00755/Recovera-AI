@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: recovera-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-recovera}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-recovera}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recovera -d recovera"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: recovera-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://recovera:change-me@postgres:5432/recovera
+      JWT_SECRET: ${JWT_SECRET:-recovera-super-secret-jwt-key-2026-production}
+      CORS_ORIGINS: http://localhost,http://localhost:5173,http://localhost:80
+      FRONTEND_URL: http://localhost
+      UPLOAD_DIR: /app/storage
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - ./storage:/app/storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: recovera-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
