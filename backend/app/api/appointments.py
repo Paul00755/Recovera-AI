@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, text, func
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.constants import Role, AppointmentStatus, SMSCategory
 from app.core.audit import record_audit
@@ -415,13 +416,13 @@ def update_appointment_status(
                 appt.decision_status = "nurse_declined"
                 notif_title = "Appointment Request Not Forwarded"
                 notif_msg = f"Your appointment request for {time_str} was not forwarded to Dr. {doctor_name} by the clinical nursing staff.{reason_txt} Kindly retry or choose another available time slot."
-                sms_msg = f"RecoveraAI: Your appointment request for {time_str} was not forwarded to Dr. {doctor_name} by nursing staff.{reason_txt} Kindly retry in portal: http://localhost:5173/#/patient/appointments"
+                sms_msg = f"RecoveraAI: Your appointment request for {time_str} was not forwarded to Dr. {doctor_name} by nursing staff.{reason_txt} Kindly retry in portal: {settings.FRONTEND_URL.rstrip('/')}/#/patient/appointments"
             else:
                 appt.decision_status = "cancelled"
                 canceller_title = "Doctor" if current_user.role == Role.DOCTOR.value else "Clinical Staff"
                 notif_title = "Appointment Cancelled by Doctor" if current_user.role == Role.DOCTOR.value else "Appointment Cancelled"
                 notif_msg = f"Your appointment with Dr. {doctor_name} on {time_str} was cancelled by the doctor.{reason_txt} Kindly retry or choose an alternative available slot in the portal."
-                sms_msg = f"RecoveraAI: Your appointment with Dr. {doctor_name} on {time_str} was cancelled by the doctor.{reason_txt} Please rebook in portal: http://localhost:5173/#/patient/appointments"
+                sms_msg = f"RecoveraAI: Your appointment with Dr. {doctor_name} on {time_str} was cancelled by the doctor.{reason_txt} Please rebook in portal: {settings.FRONTEND_URL.rstrip('/')}/#/patient/appointments"
 
             if patient_user:
                 create_in_app_notification(
@@ -566,7 +567,7 @@ def doctor_appointment_decision(
                 send_sms_job(
                     db=db,
                     phone=patient.phone,
-                    message_text=f"RecoveraAI: Your appointment with Dr. {doctor.name} on {time_str} was cancelled by the doctor. Reason: {reason_txt}. Please rebook in portal: http://localhost:5173/#/patient/appointments",
+                    message_text=f"RecoveraAI: Your appointment with Dr. {doctor.name} on {time_str} was cancelled by the doctor. Reason: {reason_txt}. Please rebook in portal: {settings.FRONTEND_URL.rstrip('/')}/#/patient/appointments",
                     category=SMSCategory.APPOINTMENT.value,
                     patient_id=patient.id
                 )
@@ -849,7 +850,7 @@ def nurse_decline_appointment(
             send_sms_job(
                 db=db,
                 phone=patient.phone,
-                message_text=f"RecoveraAI: Your appointment request for {time_str} was not forwarded to Dr. {doctor_name} by nursing staff. Reason: {reason_clean}. Kindly retry in portal: http://localhost:5173/#/patient/appointments",
+                message_text=f"RecoveraAI: Your appointment request for {time_str} was not forwarded to Dr. {doctor_name} by nursing staff. Reason: {reason_clean}. Kindly retry in portal: {settings.FRONTEND_URL.rstrip('/')}/#/patient/appointments",
                 category=SMSCategory.APPOINTMENT.value,
                 patient_id=patient.id
             )

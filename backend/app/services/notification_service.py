@@ -15,6 +15,12 @@ from app.models.patient import Patient
 
 logger = logging.getLogger("recovera.notifications")
 
+def _get_portal_url() -> str:
+    """Return dynamically configured frontend portal URL without trailing slash."""
+    url = getattr(settings, "FRONTEND_URL", "{_get_portal_url()}")
+    return (url or "{_get_portal_url()}").rstrip("/")
+
+
 
 def create_in_app_notification(
     db: Session,
@@ -146,15 +152,15 @@ def localize_sms_message(text: str, lang: str) -> str:
             t = t.replace("with food", "உணவுடன்").replace("before meals", "உணவுக்கு முன்").replace("after meals", "உணவுக்குப் பின்").replace("on empty stomach", "வெறும் வயிற்றில்")
             return t
         elif "We hope you have taken your" in text or "We hope you have taken your medicines" in text:
-            return "உங்கள் மருந்துகளை உட்கொண்டிருப்பீர்கள் என நம்புகிறோம். Recovera செயலியைத் திறந்து மருந்து உட்கொண்ட நிலையைப் பதிவு செய்யவும்: http://localhost:5173"
+            return f"உங்கள் மருந்துகளை உட்கொண்டிருப்பீர்கள் என நம்புகிறோம். Recovera செயலியைத் திறந்து மருந்து உட்கொண்ட நிலையைப் பதிவு செய்யவும்: {_get_portal_url()}"
         elif "scheduled intake for" in text.lower() or "overdue" in text.lower():
             t = text.replace("RecoveraAI Alert:", "RecoveraAI எச்சரிக்கை:")
             t = t.replace("is overdue. Please take your medicine or contact hospital nursing staff.", "நேரம் கடந்துவிட்டது. தயவுசெய்து மருந்தை உட்கொள்ளவும் அல்லது மருத்துவமனை ஊழியர்களைத் தொடர்பு கொள்ளவும்.")
             t = t.replace("RecoveraAI: You have an overdue dose of", "RecoveraAI: மருந்து உட்கொள்ளும் நேரம் கடந்துவிட்டது:")
-            t = t.replace("If you are experiencing side effects or need help, contact your nursing team or open the app: http://localhost:5173", "உதவி தேவைப்பட்டால் செவிலியர் குழுவை தொடர்பு கொள்ளவும்: http://localhost:5173")
+            t = t.replace("If you are experiencing side effects or need help, contact your nursing team or open the app: {_get_portal_url()}", "உதவி தேவைப்பட்டால் செவிலியர் குழுவை தொடர்பு கொள்ளவும்: {_get_portal_url()}")
             return t
         elif "Daily Recovery Check-in" in text or "daily recovery check-in" in text.lower():
-            return "RecoveraAI: இன்றைய தினசரி மீட்பு சரிபார்ப்பை (வலி அளவு, காய்ச்சல், இயக்கம்) பூர்த்தி செய்யவும்: http://localhost:5173/#/patient/checkin"
+            return f"RecoveraAI: இன்றைய தினசரி மீட்பு சரிபார்ப்பை (வலி அளவு, காய்ச்சல், இயக்கம்) பூர்த்தி செய்யவும்: {_get_portal_url()}/#/patient/checkin"
         # Context-aware: appointment cancelled by doctor
         elif "cancelled by the doctor" in text.lower() or "cancelled appointment on" in text.lower() or ("cancelled" in text.lower() and "doctor" in text.lower()):
             t = text.replace("RecoveraAI: Your appointment with", "RecoveraAI: மருத்துவ சந்திப்பு ரத்து —")
@@ -200,7 +206,7 @@ def localize_sms_message(text: str, lang: str) -> str:
             t = t.replace("Reason:", "காரணம்:")
             return t
         elif "Welcome to Recovera AI" in text:
-            return "Recovera AI-க்கு நல்வரவு. உங்கள் மருத்துவமனை மீட்பு கண்காணிப்பு செயலில் உள்ளது. மருந்துகள் மற்றும் தினசரி சரிபார்ப்பை கண்காணிக்க: http://localhost:5173"
+            return f"Recovera AI-க்கு நல்வரவு. உங்கள் மருத்துவமனை மீட்பு கண்காணிப்பு செயலில் உள்ளது. மருந்துகள் மற்றும் தினசரி சரிபார்ப்பை கண்காணிக்க: {_get_portal_url()}"
         elif "published your updated" in text:
             t = text.replace("RecoveraAI: Dr.", "RecoveraAI: டாக்டர்")
             t = t.replace("published your updated", "உங்கள் புதிய மீட்பு வழிகாட்டுதல்களை வெளியிட்டுள்ளார்:")
@@ -231,15 +237,15 @@ def localize_sms_message(text: str, lang: str) -> str:
             t = t.replace("with food", "भोजन के साथ").replace("before meals", "भोजन से पहले").replace("after meals", "भोजन के बाद").replace("on empty stomach", "खाली पेट")
             return t
         elif "We hope you have taken your" in text or "We hope you have taken your medicines" in text:
-            return "हमें उम्मीद है कि आपने दवा ले ली होगी। कृपया Recovera खोलें और दवा सेवन ट्रैकर भरें: http://localhost:5173"
+            return f"हमें उम्मीद है कि आपने दवा ले ली होगी। कृपया Recovera खोलें और दवा सेवन ट्रैकर भरें: {_get_portal_url()}"
         elif "scheduled intake for" in text.lower() or "overdue" in text.lower():
             t = text.replace("RecoveraAI Alert:", "RecoveraAI चेतावनी:")
             t = t.replace("is overdue. Please take your medicine or contact hospital nursing staff.", "समय बीत चुका है। कृपया दवा लें या अस्पताल स्टाफ से संपर्क करें।")
             t = t.replace("RecoveraAI: You have an overdue dose of", "RecoveraAI: आपकी दवा की खुराक का समय बीत चुका है:")
-            t = t.replace("If you are experiencing side effects or need help, contact your nursing team or open the app: http://localhost:5173", "यदि सहायता चाहिए तो नर्सिंग स्टाफ से संपर्क करें: http://localhost:5173")
+            t = t.replace("If you are experiencing side effects or need help, contact your nursing team or open the app: {_get_portal_url()}", "यदि सहायता चाहिए तो नर्सिंग स्टाफ से संपर्क करें: {_get_portal_url()}")
             return t
         elif "Daily Recovery Check-in" in text or "daily recovery check-in" in text.lower():
-            return "RecoveraAI: कृपया आज के लिए अपना दैनिक रिकवरी चेक-इन (दर्द, बुखार, गतिशीलता) पूरा करें: http://localhost:5173/#/patient/checkin"
+            return f"RecoveraAI: कृपया आज के लिए अपना दैनिक रिकवरी चेक-इन (दर्द, बुखार, गतिशीलता) पूरा करें: {_get_portal_url()}/#/patient/checkin"
         # Context-aware: appointment cancelled by doctor
         elif "cancelled by the doctor" in text.lower() or "cancelled appointment on" in text.lower() or ("cancelled" in text.lower() and "doctor" in text.lower()):
             t = text.replace("RecoveraAI: Your appointment with", "RecoveraAI: अपॉइंटमेंट रद्द —")
@@ -285,7 +291,7 @@ def localize_sms_message(text: str, lang: str) -> str:
             t = t.replace("Reason:", "कारण:")
             return t
         elif "Welcome to Recovera AI" in text:
-            return "Recovera AI में आपका स्वागत है। आपकी अस्पताल रिकवरी निगरानी सक्रिय है। अपनी दवाएं और चेक-इन यहां ट्रैक करें: http://localhost:5173"
+            return f"Recovera AI में आपका स्वागत है। आपकी अस्पताल रिकवरी निगरानी सक्रिय है। अपनी दवाएं और चेक-इन यहां ट्रैक करें: {_get_portal_url()}"
         elif "published your updated" in text:
             t = text.replace("RecoveraAI: Dr.", "RecoveraAI: डॉ.")
             t = t.replace("published your updated", "ने आपकी अद्यतन रिकवरी योजना प्रकाशित की है:")
@@ -454,7 +460,7 @@ def notify_doctor_consultation_requested(
     patient_user = db.get(User, patient.user_id) if patient.user_id else None
     patient_name = patient_user.name if patient_user else patient.patient_code
 
-    base_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip('/')
+    base_url = getattr(settings, "FRONTEND_URL", "{_get_portal_url()}").rstrip('/')
     if initiator_name:
         title = f"Telehealth Bridge: {initiator_name}"
         msg = f"{initiator_name} initiated an immediate {mode.upper()} consultation with Patient {patient_name}. Click to join room."
@@ -499,7 +505,7 @@ def notify_patient_consultation_called(db: Session, patient: Patient, doctor: Us
         send_sms_job(
             db=db,
             phone=patient.phone,
-            message_text=f"RecoveraAI: Dr. {doctor.name} is calling you for an immediate {mode} consultation. Join now: http://localhost:5173/#/consultation/{room_id}",
+            message_text=f"RecoveraAI: Dr. {doctor.name} is calling you for an immediate {mode} consultation. Join now: {_get_portal_url()}/#/consultation/{room_id}",
             category=SMSCategory.CONSULTATION.value,
             patient_id=patient.id
         )
@@ -720,7 +726,7 @@ def notify_clinical_staff_critical_checkin(db: Session, patient: Patient, checki
             send_sms_job(
                 db=db,
                 phone=doc.phone,
-                message_text=f"RecoveraAI CRITICAL: Patient {pat_name} submitted high-risk vitals (Pain {checkin.pain_level}/10, Fever: {'Yes' if checkin.fever else 'No'}). Review at: http://localhost:5173/#/staff/patients/{patient.id}/overview",
+                message_text=f"RecoveraAI CRITICAL: Patient {pat_name} submitted high-risk vitals (Pain {checkin.pain_level}/10, Fever: {'Yes' if checkin.fever else 'No'}). Review at: {_get_portal_url()}/#/staff/patients/{patient.id}/overview",
                 category=SMSCategory.CHECKIN_REMINDER.value,
                 patient_id=patient.id
             )
@@ -749,7 +755,7 @@ def notify_patient_evening_checkin_reminder(db: Session, patient: Patient, idemp
         send_sms_job(
             db=db,
             phone=patient.phone,
-            message_text=f"RecoveraAI: Hi {pat_name}, please take 1 minute to complete your daily recovery check-in for today: http://localhost:5173/#/patient/checkin",
+            message_text=f"RecoveraAI: Hi {pat_name}, please take 1 minute to complete your daily recovery check-in for today: {_get_portal_url()}/#/patient/checkin",
             category=SMSCategory.CHECKIN_REMINDER.value,
             patient_id=patient.id,
             idempotency_key=idempotency_key
@@ -811,7 +817,7 @@ def notify_staff_and_patient_missed_medication(
         send_sms_job(
             db=db,
             phone=patient.phone,
-            message_text=f"RecoveraAI: You have an overdue dose of {med_name}. If you are experiencing side effects or need help, contact your nursing team or open the app: http://localhost:5173",
+            message_text=f"RecoveraAI: You have an overdue dose of {med_name}. If you are experiencing side effects or need help, contact your nursing team or open the app: {_get_portal_url()}",
             category=SMSCategory.MEDICATION_REMINDER.value,
             patient_id=patient.id,
             idempotency_key=idempotency_key
@@ -843,7 +849,7 @@ def notify_patient_recovery_plan_updated(
         send_sms_job(
             db=db,
             phone=patient.phone,
-            message_text=f"RecoveraAI: Dr. {doctor.name} published your updated {plan_title}. Please review your schedule and recovery guidelines at: http://localhost:5173",
+            message_text=f"RecoveraAI: Dr. {doctor.name} published your updated {plan_title}. Please review your schedule and recovery guidelines at: {_get_portal_url()}",
             category=SMSCategory.REGISTRATION.value,
             patient_id=patient.id
         )
@@ -890,7 +896,7 @@ def notify_patient_medication_prescribed(
         send_sms_job(
             db=db,
             phone=patient.phone,
-            message_text=f"RecoveraAI: {clinician_label} has {action_verb}: {med_name} ({dose}). Please check your medication schedule: http://localhost:5173",
+            message_text=f"RecoveraAI: {clinician_label} has {action_verb}: {med_name} ({dose}). Please check your medication schedule: {_get_portal_url()}",
             category=SMSCategory.MEDICATION_REMINDER.value,
             patient_id=patient.id
         )
@@ -933,7 +939,7 @@ def notify_appointment_upcoming_reminder(
         send_sms_job(
             db=db,
             phone=patient.phone,
-            message_text=f"RecoveraAI Reminder: Your appointment with Dr. {doctor.name} is scheduled for {date_str} at {time_str}. Open portal to view: http://localhost:5173",
+            message_text=f"RecoveraAI Reminder: Your appointment with Dr. {doctor.name} is scheduled for {date_str} at {time_str}. Open portal to view: {_get_portal_url()}",
             category=SMSCategory.APPOINTMENT.value,
             patient_id=patient.id,
             idempotency_key=key
@@ -1005,7 +1011,7 @@ def notify_clinical_staff_emergency_chat(
             send_sms_job(
                 db=db,
                 phone=doc.phone,
-                message_text=f"RecoveraAI URGENT: Patient {pat_name} triggered emergency triage in AI chat (\"{clean_snippet[:80]}\"). Check record: http://localhost:5173",
+                message_text=f"RecoveraAI URGENT: Patient {pat_name} triggered emergency triage in AI chat (\"{clean_snippet[:80]}\"). Check record: {_get_portal_url()}",
                 category=SMSCategory.CONSULTATION.value,
                 patient_id=patient.id
             )
@@ -1058,7 +1064,7 @@ def notify_document_approved(
         send_sms_job(
             db=db,
             phone=patient.phone,
-            message_text=f"RecoveraAI: Your latest {doc_label} has been reviewed and approved by Dr. {doctor.name}. View in your portal: http://localhost:5173",
+            message_text=f"RecoveraAI: Your latest {doc_label} has been reviewed and approved by Dr. {doctor.name}. View in your portal: {_get_portal_url()}",
             category=SMSCategory.REGISTRATION.value,
             patient_id=patient.id
         )
@@ -1101,7 +1107,7 @@ def schedule_appointment_patient_notifications(
 
     job1 = None
     if patient.phone:
-        sms_msg1 = f"RecoveraAI: Your appointment with Dr. {doctor.name} has been confirmed for {date_str} at {time_str}. Details: http://localhost:5173"
+        sms_msg1 = f"RecoveraAI: Your appointment with Dr. {doctor.name} has been confirmed for {date_str} at {time_str}. Details: {_get_portal_url()}"
         job1 = send_sms_job(
             db=db,
             phone=patient.phone,
@@ -1116,7 +1122,7 @@ def schedule_appointment_patient_notifications(
     sched_24h = start_dt - dt.timedelta(days=1)
     job2 = None
     if patient.phone:
-        sms_msg2 = f"RecoveraAI: Reminder — You have an upcoming appointment with Dr. {doctor.name} tomorrow at {time_str}. Open portal: http://localhost:5173"
+        sms_msg2 = f"RecoveraAI: Reminder — You have an upcoming appointment with Dr. {doctor.name} tomorrow at {time_str}. Open portal: {_get_portal_url()}"
         job2 = send_sms_job(
             db=db,
             phone=patient.phone,
@@ -1131,7 +1137,7 @@ def schedule_appointment_patient_notifications(
     sched_2h = start_dt - dt.timedelta(hours=2)
     job3 = None
     if patient.phone:
-        sms_msg3 = f"RecoveraAI: Reminder — You have an upcoming appointment with Dr. {doctor.name} in 2 hours at {time_str}. Open portal: http://localhost:5173"
+        sms_msg3 = f"RecoveraAI: Reminder — You have an upcoming appointment with Dr. {doctor.name} in 2 hours at {time_str}. Open portal: {_get_portal_url()}"
         job3 = send_sms_job(
             db=db,
             phone=patient.phone,

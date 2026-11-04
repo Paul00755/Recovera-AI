@@ -154,3 +154,4 @@ logs/
 *.tmp
 *.temp
 scratch/
+.neon

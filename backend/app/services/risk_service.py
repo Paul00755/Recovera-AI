@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, or_, func
 
+from app.core.config import settings
 from app.core.constants import RiskLevel, OccurrenceState, AppointmentStatus, SMSCategory
 from app.models.risk_history import RiskClassificationHistory
 from app.models.medication import Medication, MedicationOccurrence
@@ -351,7 +352,7 @@ def evaluate_patient_risk(
                     send_sms_job(
                         db=db,
                         phone=doctor.phone,
-                        message_text=f"RecoveraAI Urgent: Patient {patient_name} ({patient.patient_code}) is categorized as RED (High Risk). Reason: {primary_reason}. Review chart: http://localhost:5173/#/doctor/patients/{patient.id}",
+                        message_text=f"RecoveraAI Urgent: Patient {patient_name} ({patient.patient_code}) is categorized as RED (High Risk). Reason: {primary_reason}. Review chart: {settings.FRONTEND_URL.rstrip('/')}/#/doctor/patients/{patient.id}",
                         category=SMSCategory.TRACKER_FOLLOWUP.value,
                         patient_id=patient.id,
                         idempotency_key=f"red_alert_{patient.id}_{now.strftime('%Y%m%d_%H')}"

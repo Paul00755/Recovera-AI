@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_, func
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.constants import Role, AppointmentStatus, RiskLevel, DocStatus
 from app.core.audit import record_audit
@@ -300,7 +301,7 @@ def create_patient(
         from app.core.constants import SMSCategory
         welcome_text = (
             f"Welcome to Recovera AI, {req.name.strip()}. Your hospital recovery oversight is active. "
-            f"Access your recovery plan and medication schedule at: http://localhost:5173"
+            f"Access your recovery plan and medication schedule at: {settings.FRONTEND_URL.rstrip('/')}"
         )
         try:
             queue_and_send_sms(
