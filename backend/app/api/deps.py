@@ -1,5 +1,5 @@
-from typing import List
-from fastapi import Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -12,15 +12,17 @@ from app.core.constants import Role
 bearer_scheme = HTTPBearer(auto_error=False)
 
 def get_current_user(
-    creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    token: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ) -> User:
-    if not creds:
+    raw_token = creds.credentials if creds else token
+    if not raw_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication credentials were not provided."
         )
-    payload = decode_access_token(creds.credentials)
+    payload = decode_access_token(raw_token)
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(

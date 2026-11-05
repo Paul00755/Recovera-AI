@@ -11,7 +11,7 @@ export function DigitalTwinBenchmarkStudio({ session }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
-  const token = session?.token || JSON.parse(localStorage.getItem('recovera_session') || '{}')?.token;
+  const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
   const headers = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'

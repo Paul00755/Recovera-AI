@@ -36,6 +36,7 @@ origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if orig
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://([a-zA-Z0-9\-]+\.)*pages\.dev$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -124,6 +125,7 @@ def on_startup():
                 conn.execute(text("ALTER TABLE clinical_documents ADD COLUMN IF NOT EXISTS assigned_doctor_id VARCHAR(36);"))
                 conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS care_status VARCHAR(20) DEFAULT 'active';"))
                 conn.execute(text("ALTER TABLE sms_jobs ADD COLUMN IF NOT EXISTS first_failed_at TIMESTAMP;"))
+                conn.execute(text("ALTER TABLE staff_conversations ADD COLUMN IF NOT EXISTS direct_key VARCHAR(75);"))
     except Exception as e:
         pass
 
@@ -202,6 +204,7 @@ def root():
         "health_url": "/api/health"
     }
 
+@app.get("/health")
 @app.get("/api/health")
 def health_check():
     return {

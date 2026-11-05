@@ -83,7 +83,7 @@ export function StaffChatPage({ session, navigate }) {
   };
 
   const currentUserId = session?.user?.id;
-  const token = session?.token;
+  const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
 
   const messagesEndRef = useRef(null);
   const chatBodyRef = useRef(null);

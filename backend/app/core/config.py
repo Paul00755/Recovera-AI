@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://recovera:change-me@localhost:5432/recovera"
     JWT_SECRET: str = "recovera-super-secret-jwt-key-2026-production"
     JWT_EXPIRE_MINUTES: int = 1440
-    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
-    FRONTEND_URL: str = "http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://recovera-ai.pages.dev"
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://recovera-ai.pages.dev" if (os.getenv("RENDER") or os.getenv("ENVIRONMENT") == "production") else "http://localhost:5173")
     UPLOAD_DIR: str = "./storage"
     STAFF_REGISTRATION_CODE: str = "RECOVERA-STAFF-2026"
 

@@ -32,7 +32,7 @@ export function StaffAnnouncementsPage({ session, navigate }) {
   const [error, setError] = useState('');
 
   const isAdmin = session?.user?.role === 'admin';
-  const token = session?.token;
+  const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
 
   useEffect(() => {
     loadAnnouncements();

@@ -2119,7 +2119,7 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Badge status={doc.status}>{doc.status}</Badge>
             <a
-              href={`${API}/api/documents/${doc.id}/download`}
+              href={`${API}/api/documents/${doc.id}/download${session?.token ? `?token=${encodeURIComponent(session.token)}` : ''}`}
               target="_blank"
               rel="noreferrer"
               className="btn btn-ghost btn-xs"
@@ -10524,7 +10524,7 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
                           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <span>Source: <span style={{ fontFamily: 'monospace' }}>{doc.filename}</span></span>
                             <a
-                              href={`${API}/api/documents/${doc.id}/download`}
+                              href={`${API}/api/documents/${doc.id}/download${session?.token ? `?token=${encodeURIComponent(session.token)}` : ''}`}
                               target="_blank"
                               rel="noreferrer"
                               style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--p)', textDecoration: 'none' }}
