@@ -28,7 +28,34 @@ import { DigitalTwinBenchmarkStudio } from './components/digital-twin/DigitalTwi
 import { PatientRecoveryJourneyCard } from './components/digital-twin/PatientRecoveryJourneyCard';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const getSession = () => JSON.parse(localStorage.getItem('recovera_session') || 'null');
+
+const getSession = () => {
+  try {
+    const s = sessionStorage.getItem('recovera_session');
+    if (s) return JSON.parse(s);
+  } catch {}
+  try {
+    const l = localStorage.getItem('recovera_session');
+    if (l) {
+      sessionStorage.setItem('recovera_session', l);
+      return JSON.parse(l);
+    }
+  } catch {}
+  return null;
+};
+
+const saveSession = (sess) => {
+  try {
+    if (sess) {
+      const serialized = typeof sess === 'string' ? sess : JSON.stringify(sess);
+      sessionStorage.setItem('recovera_session', serialized);
+      localStorage.setItem('recovera_session', serialized);
+    } else {
+      sessionStorage.removeItem('recovera_session');
+      localStorage.removeItem('recovera_session');
+    }
+  } catch {}
+};
 
 const SPECIALIZATIONS = [
   { value: 'general_medicine', label: 'General Medicine (MBBS)', color: 'var(--spec-general)' },
@@ -723,7 +750,7 @@ async function api(path, opts = {}) {
     // If the token is invalid or expired, gracefully log out and prompt re-authentication
     if (r.status === 401 && !path.includes('/login') && !path.includes('/forgot-password') && !path.includes('/register')) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('recovera_session');
+        saveSession(null);
         window.dispatchEvent(new CustomEvent('recovera_session_expired', {
           detail: { message: m || 'Your session has expired. Please log in again to continue.' }
         }));
@@ -2471,7 +2498,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       let role = 'admin';
       try {
-        const sess = JSON.parse(localStorage.getItem('recovera_session') || '{}');
+        const sess = getSession() || {};
         role = sess?.user?.role || 'admin';
       } catch {}
       const targetHash = role === 'patient' ? '#/patient/overview' : role === 'admin' ? '#/staff/admin' : '#/staff/overview';
@@ -2587,14 +2614,14 @@ function App() {
             setSession(prev => {
               if (!prev) return prev;
               const updated = { ...prev, user: { ...prev.user, ...freshUser } };
-              localStorage.setItem('recovera_session', JSON.stringify(updated));
+              saveSession(updated);
               return updated;
             });
           }
         })
         .catch(err => {
           if (err.message && (err.message.includes('expired') || err.message.includes('token') || err.message.includes('Could not validate'))) {
-            localStorage.removeItem('recovera_session');
+            saveSession(null);
             setSession(null);
             setSessionNotice('Your session has expired. Please sign in again.');
           }
@@ -2623,7 +2650,7 @@ function App() {
             if (curr) {
               curr.token = res.access_token;
               if (res.user) curr.user = { ...curr.user, ...res.user };
-              localStorage.setItem('recovera_session', JSON.stringify(curr));
+              saveSession(curr);
               setSession(curr);
             }
           }
@@ -2642,7 +2669,7 @@ function App() {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('recovera_session');
+    saveSession(null);
     setSession(null);
     setSessionNotice('');
     window.location.hash = '#/home';
@@ -2734,7 +2761,7 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      localStorage.setItem('recovera_session', JSON.stringify(res));
+      saveSession(res);
       if (res.user?.role === 'admin') {
         window.location.hash = '#/staff/admin';
       } else if (res.user?.role === 'patient') {
@@ -5536,7 +5563,7 @@ function AppShell({ session, logout, theme, setTheme }) {
               const s = getSession();
               if (s) {
                 s.user = { ...s.user, ...updated };
-                localStorage.setItem('recovera_session', JSON.stringify(s));
+                saveSession(s);
               }
               setDoctorStatus(updated.availability_status || 'online');
             }}
@@ -20349,7 +20376,7 @@ function ForceChangePasswordModal({ session, onSuccess }) {
       const curr = getSession();
       if (curr && curr.user) {
         curr.user.must_change_password = false;
-        localStorage.setItem('recovera_session', JSON.stringify(curr));
+        saveSession(curr);
       }
       sessionStorage.setItem('recovera_password_retrieved_alert', 'true');
       onSuccess(curr);
@@ -20549,7 +20576,7 @@ function UserProfilePage({ session, patientId, lang = 'en' }) {
             const curr = getSession();
             if (curr) {
               curr.user = { ...curr.user, ...freshUser };
-              localStorage.setItem('recovera_session', JSON.stringify(curr));
+              saveSession(curr);
               window.dispatchEvent(new CustomEvent('recovera_session_updated', { detail: curr }));
             }
           }
@@ -21018,7 +21045,7 @@ function RequestsCenterPage({ session, navigate }) {
             const curr = getSession();
             if (curr) {
               curr.user = { ...curr.user, ...freshUser };
-              localStorage.setItem('recovera_session', JSON.stringify(curr));
+              saveSession(curr);
               window.dispatchEvent(new CustomEvent('recovera_session_updated', { detail: curr }));
             }
           }
@@ -22251,7 +22278,7 @@ function AdminPanel({ session }) {
             const curr = getSession();
             if (curr) {
               curr.user = { ...curr.user, ...freshUser };
-              localStorage.setItem('recovera_session', JSON.stringify(curr));
+              saveSession(curr);
               window.dispatchEvent(new CustomEvent('recovera_session_updated', { detail: curr }));
             }
           }
