@@ -2461,12 +2461,27 @@ h3 {
 .home-nav-links {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
+}
+
+.home-nav-desktop-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 @media (max-width: 900px) {
   .home-nav-links {
-    display: none;
+    display: none !important;
+  }
+  .home-nav-desktop-actions {
+    display: none !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .home-brand-sub {
+    display: none !important;
   }
 }
 

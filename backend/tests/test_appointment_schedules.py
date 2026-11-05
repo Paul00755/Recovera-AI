@@ -75,8 +75,8 @@ def test_followup_appointment_three_notification_schedules(client: TestClient, d
         token = create_access_token(data={"sub": nurse_user.id, "role": Role.NURSE.value})
         headers = {"Authorization": f"Bearer {token}"}
 
-        # Schedule appointment 3 days in the future
-        future_start = (dt.datetime.utcnow() + dt.timedelta(days=3)).replace(minute=0, second=0, microsecond=0)
+        # Schedule appointment 3 days in the future (10:00 AM)
+        future_start = (dt.datetime.utcnow() + dt.timedelta(days=3)).replace(hour=10, minute=0, second=0, microsecond=0)
         payload = {
             "patient_id": patient.id,
             "doctor_id": doc_user.id,
@@ -93,20 +93,26 @@ def test_followup_appointment_three_notification_schedules(client: TestClient, d
         assert data["doctor_name"] == doc_user.name
         assert data["patient_name"] == patient_user.name
 
+        # Standard clinical workflow: Doctor accepts appointment to trigger confirmation schedules
+        doc_token = create_access_token(data={"sub": doc_user.id, "role": Role.DOCTOR.value})
+        doc_headers = {"Authorization": f"Bearer {doc_token}"}
+        dec_resp = client.put(f"/api/appointments/{created_appt_id}/doctor-decision", json={"decision": "accept"}, headers=doc_headers)
+        assert dec_resp.status_code == 200, dec_resp.text
+
         # Ensure session sees committed transactions
         db_session.expire_all()
 
         # 1. Verify in-app notifications
-        # Patient in-app notification
-        patient_notif = db_session.scalar(
+        # Patient in-app notification (must receive request acknowledged + accepted confirmation)
+        patient_notifs = db_session.scalars(
             select(Notification).where(
                 Notification.user_id == patient_user.id,
                 Notification.category == "appointment"
             )
-        )
-        assert patient_notif is not None
-        assert "Follow-up Appointment Scheduled" in patient_notif.title
-        assert doc_user.name in patient_notif.message
+        ).all()
+        assert len(patient_notifs) >= 1
+        assert any("Follow-up Appointment Scheduled" in n.title for n in patient_notifs)
+        assert any(doc_user.name in n.message for n in patient_notifs)
 
         # Doctor in-app notification
         doc_notif = db_session.scalar(

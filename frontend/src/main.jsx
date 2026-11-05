@@ -3320,18 +3320,18 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 Recovera <span style={{ color: 'var(--p)' }}>AI</span>
                 <span className="badge badge-teal" style={{ fontSize: 9.5, padding: '2px 6px', fontWeight: 700 }}>2.0</span>
               </div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div className="home-brand-sub" style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Continuous Post-Discharge Telemetry
               </div>
             </div>
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="home-nav-links" style={{ display: 'flex', gap: 20, alignItems: 'center', fontSize: 13, fontWeight: 600 }}>
-            <a href="#features" className="home-nav-link" style={{ color: 'var(--text-dim)', textDecoration: 'none' }}>Platform Features</a>
-            <a href="#simulators" className="home-nav-link" style={{ color: 'var(--text-dim)', textDecoration: 'none' }}>Clinical Simulators</a>
-            <a href="#workflow" className="home-nav-link" style={{ color: 'var(--text-dim)', textDecoration: 'none' }}>Care Workflow</a>
-            <a href="#governance" className="home-nav-link" style={{ color: 'var(--text-dim)', textDecoration: 'none' }}>Governance &amp; Safety</a>
+          <nav className="home-nav-links">
+            <a href="#features" className="home-nav-link">Platform Features</a>
+            <a href="#simulators" className="home-nav-link">Clinical Simulators</a>
+            <a href="#workflow" className="home-nav-link">Care Workflow</a>
+            <a href="#governance" className="home-nav-link">Governance &amp; Safety</a>
           </nav>
 
           {/* Right Action Bar */}
@@ -3345,34 +3345,36 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            {session ? (
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => {
-                  window.location.hash = session.user.role === 'admin' ? '#/staff/admin' : session.user.role === 'patient' ? '#/patient/overview' : '#/staff/overview';
-                }}
-                style={{ fontWeight: 700 }}
-              >
-                <LayoutDashboard size={14} /> My Dashboard →
-              </button>
-            ) : (
-              <>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => { window.location.hash = '#/login'; }}
-                  style={{ fontWeight: 700 }}
-                >
-                  <LogIn size={14} /> Sign In
-                </button>
+            <div className="home-nav-desktop-actions">
+              {session ? (
                 <button
                   className="btn btn-primary btn-sm"
-                  onClick={() => { window.location.hash = '#/register'; }}
+                  onClick={() => {
+                    window.location.hash = session.user.role === 'admin' ? '#/staff/admin' : session.user.role === 'patient' ? '#/patient/overview' : '#/staff/overview';
+                  }}
                   style={{ fontWeight: 700 }}
                 >
-                  <UserPlus size={14} /> Staff Register
+                  <LayoutDashboard size={14} /> My Dashboard →
                 </button>
-              </>
-            )}
+              ) : (
+                <>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => { window.location.hash = '#/login'; }}
+                    style={{ fontWeight: 700 }}
+                  >
+                    <LogIn size={14} /> Sign In
+                  </button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => { window.location.hash = '#/register'; }}
+                    style={{ fontWeight: 700 }}
+                  >
+                    <UserPlus size={14} /> Staff Register
+                  </button>
+                </>
+              )}
+            </div>
 
             {/* Mobile Hamburger Menu Toggle */}
             <button
@@ -4079,6 +4081,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                           checked={med.checked}
                           onChange={(e) => {
                             const val = e.target.checked;
+                            setOcrApproved(false);
                             setOcrMedications(prev => prev.map(m => m.id === med.id ? { ...m, checked: val } : m));
                           }}
                         />
@@ -4095,7 +4098,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 {/* Deduplication Confirmation & Clinical Conflict Banner */}
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--p)', fontWeight: 700 }}>
                   <span>✓ Hospital Medicine Library: 0 duplicates detected.</span>
-                  <span>4 Verified Compounds Staged</span>
+                  <span>{ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} Verified Compounds Selected</span>
                 </div>
 
                 <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.35 }}>
@@ -4105,16 +4108,37 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 {/* Approve & Add button (Sample preview only) */}
                 <div style={{ marginTop: 10 }}>
                   {ocrApproved ? (
-                    <div style={{ background: 'rgba(0, 229, 192, 0.12)', border: '1px solid var(--p)', borderRadius: 6, padding: '7px 10px', fontSize: 11.5, color: 'var(--p)', fontWeight: 700, textAlign: 'center' }}>
-                      ✓ 4 Medications Approved in Sample Preview! (Client-Side Simulation)
+                    <div style={{ background: 'rgba(0, 229, 192, 0.12)', border: '1px solid var(--p)', borderRadius: 6, padding: '9px 12px', display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'center' }}>
+                      <span style={{ fontSize: 12, color: 'var(--p)', fontWeight: 700 }}>
+                        ✓ {ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} Medications Approved in Sample Preview! (Client-Side Simulation)
+                      </span>
+                      <button
+                        className="btn btn-ghost btn-xs"
+                        style={{ alignSelf: 'center', fontSize: 11, padding: '2px 8px', textDecoration: 'underline', color: 'var(--text-dim)' }}
+                        onClick={() => setOcrApproved(false)}
+                      >
+                        Reset / Edit Selection
+                      </button>
                     </div>
                   ) : (
-                    <button
-                      className="btn btn-primary btn-sm btn-full"
-                      onClick={() => setOcrApproved(true)}
-                    >
-                      <Check size={14} /> Review &amp; Approve Extracted Medications (Sample Preview)
-                    </button>
+                    <>
+                      {ocrMedications.filter(m => m.checked).length === 0 && (
+                        <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid var(--rose)', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: 'var(--rose)', fontWeight: 700, marginBottom: 6, textAlign: 'center' }}>
+                          ⚠️ Please select at least 1 verified medication to approve.
+                        </div>
+                      )}
+                      <button
+                        className="btn btn-primary btn-sm btn-full"
+                        disabled={ocrMedications.filter(m => m.checked).length === 0}
+                        onClick={() => {
+                          if (ocrMedications.filter(m => m.checked).length > 0) {
+                            setOcrApproved(true);
+                          }
+                        }}
+                      >
+                        <Check size={14} /> Review &amp; Approve {ocrMedications.filter(m => m.checked).length} Selected Medications (Sample Preview)
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -6558,7 +6582,9 @@ function DoctorRescheduleModal({ appt, onClose, onSuccess }) {
         const raw = res?.available_slots || (Array.isArray(res) ? res : []);
         const now = new Date();
         const valid = raw.filter(s => {
-          if (new Date(s) <= now) return false;
+          const d = new Date(s);
+          if (d <= now) return false;
+          if (d.getHours() > 21 || (d.getHours() === 21 && (d.getMinutes() > 0 || d.getSeconds() > 0))) return false;
           if (s === appt?.start_time) return false;
           return true;
         });
@@ -17852,7 +17878,12 @@ function BookAppointmentModal({ patientId, onClose, onSuccess, session }) {
       .then(res => {
         const raw = res?.available_slots || (Array.isArray(res) ? res : []);
         const now = new Date();
-        const valid = raw.filter(s => new Date(s) > now);
+        const valid = raw.filter(s => {
+          const d = new Date(s);
+          if (d <= now) return false;
+          if (d.getHours() > 21 || (d.getHours() === 21 && (d.getMinutes() > 0 || d.getSeconds() > 0))) return false;
+          return true;
+        });
         setSlots(valid);
       })
       .catch(() => setSlots([]))
@@ -17997,7 +18028,9 @@ function NurseForwardAppointmentModal({ open, appt, onClose, onSuccess, session 
         const raw = res?.available_slots || (Array.isArray(res) ? res : []);
         const now = new Date();
         const valid = raw.filter(s => {
-          if (new Date(s) <= now) return false;
+          const d = new Date(s);
+          if (d <= now) return false;
+          if (d.getHours() > 21 || (d.getHours() === 21 && (d.getMinutes() > 0 || d.getSeconds() > 0))) return false;
           if ((appt?.decision_status === 'reschedule_requested' || appt?.decision_status === 'denied') && s === appt?.start_time) return false;
           return true;
         });

@@ -88,7 +88,7 @@ class AssignDoctorRequest(BaseModel):
 
 SLOT_DURATION = dt.timedelta(hours=1)
 WORK_START = dt.time(8, 0)
-WORK_END = dt.time(20, 0)
+WORK_END = dt.time(22, 0)
 
 
 def _appointment_to_dict(appt: Appointment, db: Session) -> dict:
@@ -197,6 +197,11 @@ def book_appointment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The selected time slot has already passed. Please select an upcoming time slot."
         )
+    if start_time.time() > dt.time(21, 0) or start_time.time() < WORK_START:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Appointment slots cannot start before 8:00 AM or beyond 9:00 PM."
+        )
 
     # Overlap check (SELECT FOR UPDATE via raw SQL for safety)
     if _check_overlap(db, req.doctor_id, start_time, end_time):
@@ -205,7 +210,6 @@ def book_appointment(
             detail="The requested time slot overlaps with an existing appointment for this doctor.",
         )
 
-    is_patient_booking = current_user.role == Role.PATIENT.value
     appt = Appointment(
         patient_id=req.patient_id,
         doctor_id=req.doctor_id,
@@ -214,7 +218,7 @@ def book_appointment(
         end_time=end_time,
         status=AppointmentStatus.SCHEDULED.value,
         appointment_type=req.appointment_type or "follow_up",
-        decision_status="nurse_review" if is_patient_booking else "accepted",
+        decision_status="nurse_review",
         notes=req.notes,
         created_at=dt.datetime.utcnow(),
         updated_at=dt.datetime.utcnow(),
@@ -233,14 +237,11 @@ def book_appointment(
             "doctor_id": req.doctor_id,
             "start_time": start_time.isoformat(),
             "appointment_type": req.appointment_type,
-            "decision_status": "nurse_review" if is_patient_booking else "accepted",
+            "decision_status": "nurse_review",
         },
     )
-    if is_patient_booking:
-        notify_nurses_appointment_requested(db=db, appointment=appt, patient=patient)
-    else:
-        notify_doctor_appointment_booked(db=db, doctor_id=req.doctor_id, patient=patient, start_time=start_time)
-        schedule_appointment_patient_notifications(db=db, appointment=appt)
+    # Forward all bookings to Nurse Triage first (standard clinical workflow)
+    notify_nurses_appointment_requested(db=db, appointment=appt, patient=patient)
     db.commit()
     return _appointment_to_dict(appt, db)
 
@@ -510,6 +511,9 @@ def doctor_appointment_decision(
         # Send official confirmation + schedule 24h & 2h reminders to patient
         schedule_appointment_patient_notifications(db=db, appointment=appt)
 
+        # Send official confirmation to doctor (in-app + SMS)
+        notify_doctor_appointment_booked(db=db, doctor_id=appt.doctor_id, patient=patient, start_time=appt.start_time)
+
         # Notify forwarding nurse / nurse triage pool
         forwarder = db.get(User, appt.booked_by)
         nurses = db.scalars(select(User).where(User.role == Role.NURSE.value, User.active == True)).all()
@@ -598,6 +602,11 @@ def doctor_appointment_decision(
                 detail="reschedule_date is mandatory when requesting a reschedule."
             )
         new_start = req.reschedule_date.replace(tzinfo=None)
+        if new_start.time() > dt.time(21, 0) or new_start.time() < WORK_START:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Appointment slots cannot start before 8:00 AM or beyond 9:00 PM."
+            )
         new_end = new_start + SLOT_DURATION
 
         now_local = dt.datetime.now()
@@ -719,6 +728,11 @@ def nurse_forward_appointment(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot forward an appointment to a date or time that has already passed."
+        )
+    if new_start.time() > dt.time(21, 0) or new_start.time() < WORK_START:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Appointment slots cannot start before 8:00 AM or beyond 9:00 PM."
         )
 
     # If the doctor rejected or requested reschedule for the original slot, do not permit re-assigning that exact rejected slot
@@ -954,6 +968,8 @@ def get_doctor_slots(
     free_slots: List[str] = []
     slot_start = day_start
     while slot_start + SLOT_DURATION <= day_end:
+        if slot_start.time() > dt.time(21, 0):
+            break
         slot_end = slot_start + SLOT_DURATION
         overlaps = any(
             s < slot_end and e > slot_start for s, e in booked_ranges
