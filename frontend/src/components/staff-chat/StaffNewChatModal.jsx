@@ -28,9 +28,9 @@ export function StaffNewChatModal({
       if (currentUserId && staff.id === currentUserId) return false;
 
       const matchesSearch =
-        staff.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (staff.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (staff.specialization && staff.specialization.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        staff.role.toLowerCase().includes(searchTerm.toLowerCase());
+        (staff.role || '').toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesRole =
         roleFilter === 'all' ||

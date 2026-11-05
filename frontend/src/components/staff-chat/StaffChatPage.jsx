@@ -4,7 +4,7 @@ import {
   Check, CheckCheck, X, Reply, Copy, Edit2, Trash2, ChevronLeft,
   ChevronRight, Volume2, Shield, AlertCircle, Ban, BellOff, Bell
 } from 'lucide-react';
-import { formatMessageDateSeparator, formatMessageTime, formatDuration } from './staffChatUtils';
+import { formatMessageDateSeparator, formatMessageTime, formatDuration, API, getWsBaseUrl } from './staffChatUtils';
 import { StaffVoiceRecorder } from './StaffVoiceRecorder';
 import { StaffVoicePlayer } from './StaffVoicePlayer';
 import { StaffNewChatModal } from './StaffNewChatModal';
@@ -112,7 +112,7 @@ export function StaffChatPage({ session, navigate }) {
 
   const loadDirectory = async () => {
     try {
-      const res = await fetch('/api/staff-chat/directory', {
+      const res = await fetch(`${API}/api/staff-chat/directory`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -126,7 +126,7 @@ export function StaffChatPage({ session, navigate }) {
 
   const loadConversations = async () => {
     try {
-      const res = await fetch('/api/staff-chat/conversations', {
+      const res = await fetch(`${API}/api/staff-chat/conversations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -150,7 +150,7 @@ export function StaffChatPage({ session, navigate }) {
 
   const loadMessages = async (convId) => {
     try {
-      const res = await fetch(`/api/staff-chat/conversations/${convId}/messages`, {
+      const res = await fetch(`${API}/api/staff-chat/conversations/${convId}/messages`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -165,7 +165,7 @@ export function StaffChatPage({ session, navigate }) {
 
   const markConversationAsRead = async (convId) => {
     try {
-      await fetch(`/api/staff-chat/conversations/${convId}/read`, {
+      await fetch(`${API}/api/staff-chat/conversations/${convId}/read`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -179,8 +179,7 @@ export function StaffChatPage({ session, navigate }) {
   useEffect(() => {
     if (!token) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/staff-chat?token=${token}`;
+    const wsUrl = `${getWsBaseUrl()}/ws/staff-chat?token=${token}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -339,7 +338,7 @@ export function StaffChatPage({ session, navigate }) {
     if (editingMsg) {
       // Edit existing message
       try {
-        const res = await fetch(`/api/staff-chat/messages/${editingMsg.id}`, {
+        const res = await fetch(`${API}/api/staff-chat/messages/${editingMsg.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -360,7 +359,7 @@ export function StaffChatPage({ session, navigate }) {
     }
 
     try {
-      const res = await fetch(`/api/staff-chat/conversations/${activeConvId}/messages`, {
+      const res = await fetch(`${API}/api/staff-chat/conversations/${activeConvId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -394,7 +393,7 @@ export function StaffChatPage({ session, navigate }) {
       const formData = new FormData();
       formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
 
-      const uploadRes = await fetch('/api/staff-chat/voice', {
+      const uploadRes = await fetch(`${API}/api/staff-chat/voice`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -403,7 +402,7 @@ export function StaffChatPage({ session, navigate }) {
       if (!uploadRes.ok) throw new Error('Voice upload failed');
       const { voice_url } = await uploadRes.json();
 
-      const res = await fetch(`/api/staff-chat/conversations/${activeConvId}/messages`, {
+      const res = await fetch(`${API}/api/staff-chat/conversations/${activeConvId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -435,7 +434,7 @@ export function StaffChatPage({ session, navigate }) {
   const handleDeleteForMe = async (msgId) => {
     setActiveContextMenuMsgId(null);
     try {
-      const res = await fetch(`/api/staff-chat/messages/${msgId}/delete-for-me`, {
+      const res = await fetch(`${API}/api/staff-chat/messages/${msgId}/delete-for-me`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -451,7 +450,7 @@ export function StaffChatPage({ session, navigate }) {
     setActiveContextMenuMsgId(null);
     if (!window.confirm('Delete this message for everyone in the conversation?')) return;
     try {
-      const res = await fetch(`/api/staff-chat/messages/${msgId}/delete-for-everyone`, {
+      const res = await fetch(`${API}/api/staff-chat/messages/${msgId}/delete-for-everyone`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -477,7 +476,7 @@ export function StaffChatPage({ session, navigate }) {
     if (!activeConv || !peer) return;
 
     if (peer.availability_status === 'offline') {
-      fetch('/api/staff-chat/calls', {
+      fetch(`${API}/api/staff-chat/calls`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -494,7 +493,7 @@ export function StaffChatPage({ session, navigate }) {
     }
 
     try {
-      const res = await fetch('/api/staff-chat/calls', {
+      const res = await fetch(`${API}/api/staff-chat/calls`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -574,7 +573,7 @@ export function StaffChatPage({ session, navigate }) {
     }
 
     try {
-      const res = await fetch('/api/staff-chat/conversations/direct', {
+      const res = await fetch(`${API}/api/staff-chat/conversations/direct`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -606,7 +605,7 @@ export function StaffChatPage({ session, navigate }) {
     if (!activeConvId) return;
     if (!window.confirm('Clear your chat history for this conversation?')) return;
     try {
-      await fetch(`/api/staff-chat/conversations/${activeConvId}/clear`, {
+      await fetch(`${API}/api/staff-chat/conversations/${activeConvId}/clear`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1057,7 +1056,7 @@ export function StaffChatPage({ session, navigate }) {
                         </span>
                       ) : msg.message_type === 'voice' && msg.voice_url ? (
                         <StaffVoicePlayer
-                          voiceUrl={msg.voice_url}
+                          voiceUrl={msg.voice_url.startsWith('http') ? msg.voice_url : `${API}${msg.voice_url}`}
                           duration={msg.voice_duration}
                           isOutgoing={isOutgoing}
                         />

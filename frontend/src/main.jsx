@@ -4998,8 +4998,14 @@ function AppShell({ session, logout, theme, setTheme }) {
   // Global Staff WebSocket listener for incoming calls & unread alerts
   useEffect(() => {
     if (session?.user?.role === 'patient') return;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/staff-chat?token=${session?.token}`;
+    let wsHost = window.location.host;
+    let wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    try {
+      const parsedApi = new URL(API, window.location.href);
+      wsHost = parsedApi.host;
+      wsProtocol = parsedApi.protocol === 'https:' ? 'wss:' : 'ws:';
+    } catch {}
+    const wsUrl = `${wsProtocol}//${wsHost}/ws/staff-chat?token=${session?.token}`;
     let ws;
     try {
       ws = new WebSocket(wsUrl);

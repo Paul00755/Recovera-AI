@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Camera, Lock, CheckCircle2, User, Bell } from 'lucide-react';
 import { StaffAvatar } from './StaffAvatar';
+import { API } from './staffChatUtils';
 
 const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1594824813637-b67272714c6e?w=400&auto=format&fit=crop&q=80',
@@ -26,7 +27,7 @@ export function StaffProfileModal({ profile, token, onClose, onUpdated }) {
     setError(null);
 
     try {
-      const res = await fetch('/api/staff-chat/profile', {
+      const res = await fetch(`${API}/api/staff-chat/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

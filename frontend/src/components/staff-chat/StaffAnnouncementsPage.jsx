@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Bell, Shield, AlertTriangle, BookOpen, Calendar, Users, Edit3, Trash2, CheckCircle, Search, Filter, Image as ImageIcon, X } from 'lucide-react';
 import { StaffAvatar } from './StaffAvatar';
+import { API } from './staffChatUtils';
 
 const CATEGORIES = [
   { id: 'all', label: 'All' },
@@ -40,7 +41,7 @@ export function StaffAnnouncementsPage({ session, navigate }) {
   const loadAnnouncements = async () => {
     setLoading(true);
     try {
-      let url = `/api/announcements?category=${categoryFilter}`;
+      let url = `${API}/api/announcements?category=${categoryFilter}`;
       if (searchTerm.trim()) {
         url += `&search=${encodeURIComponent(searchTerm.trim())}`;
       }
@@ -62,7 +63,7 @@ export function StaffAnnouncementsPage({ session, navigate }) {
 
   const handleMarkAsRead = async (annId) => {
     try {
-      await fetch(`/api/announcements/${annId}/read`, {
+      await fetch(`${API}/api/announcements/${annId}/read`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -75,7 +76,7 @@ export function StaffAnnouncementsPage({ session, navigate }) {
 
   const handleMarkAllRead = async () => {
     try {
-      await fetch('/api/announcements/mark-all-read', {
+      await fetch(`${API}/api/announcements/mark-all-read`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -109,7 +110,7 @@ export function StaffAnnouncementsPage({ session, navigate }) {
   const handleDelete = async (annId) => {
     if (!window.confirm('Are you sure you want to delete this official announcement?')) return;
     try {
-      const res = await fetch(`/api/announcements/${annId}`, {
+      const res = await fetch(`${API}/api/announcements/${annId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -141,7 +142,7 @@ export function StaffAnnouncementsPage({ session, navigate }) {
 
       let res;
       if (editingAnn) {
-        res = await fetch(`/api/announcements/${editingAnn.id}`, {
+        res = await fetch(`${API}/api/announcements/${editingAnn.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -150,7 +151,7 @@ export function StaffAnnouncementsPage({ session, navigate }) {
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch('/api/announcements', {
+        res = await fetch(`${API}/api/announcements`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

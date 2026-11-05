@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, ChevronUp, ChevronDown } from 'lucide-react';
-import { formatMessageDateSeparator, formatMessageTime } from './staffChatUtils';
+import { formatMessageDateSeparator, formatMessageTime, API } from './staffChatUtils';
 
 export function StaffSearchDrawer({
   conversationId,
@@ -22,7 +22,7 @@ export function StaffSearchDrawer({
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/staff-chat/conversations/${conversationId}/search?q=${encodeURIComponent(query)}`, {
+        const res = await fetch(`${API}/api/staff-chat/conversations/${conversationId}/search?q=${encodeURIComponent(query)}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {

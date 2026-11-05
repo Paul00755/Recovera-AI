@@ -54,3 +54,17 @@ export const RTC_CONFIG = {
     { urls: 'stun:stun1.l.google.com:19302' },
   ],
 };
+
+export const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export function getWsBaseUrl() {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  try {
+    const parsed = new URL(apiUrl, window.location.href);
+    const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProto}//${parsed.host}`;
+  } catch {
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProto}//${window.location.host}`;
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Play, Pause } from 'lucide-react';
-import { formatDuration } from './staffChatUtils';
+import { formatDuration, API } from './staffChatUtils';
 
 const SPEEDS = [1, 1.5, 2];
 
@@ -16,17 +16,18 @@ export function StaffVoicePlayer({ voiceUrl, duration = 0, isOutgoing = false })
   // Retrieve auth token for media streaming
   const authenticatedUrl = useMemo(() => {
     if (!voiceUrl) return '';
+    const base = voiceUrl.startsWith('http') ? voiceUrl : `${API}${voiceUrl}`;
     try {
-      const raw = localStorage.getItem('recovera_session');
+      const raw = sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed?.token && !voiceUrl.includes('token=')) {
-          const sep = voiceUrl.includes('?') ? '&' : '?';
-          return `${voiceUrl}${sep}token=${encodeURIComponent(parsed.token)}`;
+        if (parsed?.token && !base.includes('token=')) {
+          const sep = base.includes('?') ? '&' : '?';
+          return `${base}${sep}token=${encodeURIComponent(parsed.token)}`;
         }
       }
     } catch (e) {}
-    return voiceUrl;
+    return base;
   }, [voiceUrl]);
 
   // Static bars representing an audio waveform
