@@ -2195,7 +2195,7 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid var(--warn)', color: 'var(--warn)', marginBottom: 12 }}>
                 <AlertTriangle size={18} color="var(--warn)" style={{ flexShrink: 0 }} />
                 <span style={{ fontSize: 12.5, fontWeight: 700 }}>
-                  ⚠️ Dosage is not listed so please enter dosage manually.
+                  Dosage not detected in source image. Enter dosage manually before approval.
                 </span>
               </div>
             )}
@@ -2826,50 +2826,46 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
 
   return (
     <div className="landing">
-      <div className="landing-bg" style={{ position: 'fixed' }}>
-        <div className="mesh-blob mesh-blob-1" />
-        <div className="mesh-blob mesh-blob-2" />
-        <div className="mesh-blob mesh-blob-3" />
-      </div>
-
       {/* Left: Hospital Overview Banner */}
       <div className="landing-left">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
-            <div className="brand-icon"><HeartPulse size={20} /></div>
-            <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em' }}>Recovera AI</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+            <div className="brand-icon" style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--p)', display: 'grid', placeItems: 'center', boxShadow: 'none' }}>
+              <HeartPulse size={18} />
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text)' }}>Recovera AI</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
                 type="button"
                 className="btn btn-ghost btn-xs"
                 onClick={() => { window.location.hash = '#/home'; }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
                 <ArrowLeft size={13} /> Platform Overview
               </button>
-              <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
-                {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+              <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme" style={{ width: 32, height: 32, borderRadius: 6 }}>
+                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
               </button>
             </div>
           </div>
 
-          <div className="landing-hero-tag">
-            <span className="status-dot online" />
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, fontWeight: 500 }}>
+            <span className="status-dot online" style={{ width: 7, height: 7 }} />
             Hospital-Supervised Recovery System
           </div>
 
-          <h1 className="landing-headline">
+          <h1 className="landing-headline" style={{ fontWeight: 600, fontSize: 'clamp(28px, 3.5vw, 40px)', lineHeight: 1.2, letterSpacing: '-0.02em', color: 'var(--text)' }}>
             Clinical intelligence,<br />
-            <span>connected care.</span>
+            connected care.
           </h1>
 
-          <p className="landing-sub">
+          <p className="landing-sub" style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.55, marginTop: 16, marginBottom: 28, maxWidth: 480 }}>
             Continuous post-discharge patient telemetry, conflict-free doctor scheduling,
-            in-browser teleconsultations, medication adherence countdowns, and explainable
+            in-browser teleconsultations, medication adherence tracking, and explainable
             recovery risk prioritization.
           </p>
 
-          <div className="feature-pills">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 32 }}>
             {[
               { icon: <Stethoscope size={14} />, text: '14 Medical Specialties' },
               { icon: <CalendarDays size={14} />, text: 'Conflict-Free Appointments' },
@@ -2878,40 +2874,41 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
               { icon: <Activity size={14} />, text: 'Recovery Digital Twin Telemetry' },
               { icon: <ShieldCheck size={14} />, text: 'Zero-Trust RBAC Security' },
             ].map(({ icon, text }) => (
-              <div key={text} className="feature-pill">
-                <div className="feature-pill-dot" />
-                {icon}
+              <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12.5, color: 'var(--text)' }}>
+                <span style={{ color: 'var(--text-muted)', display: 'grid', placeItems: 'center' }}>{icon}</span>
                 <span>{text}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+        <p style={{ fontSize: 11.5, color: 'var(--text-muted)', letterSpacing: '0.02em', marginTop: 'auto' }}>
           Hospital Clinical Governance · Post-Discharge Telemetry Oversight
         </p>
       </div>
 
       {/* Right: Auth Form Panel */}
       <div className="landing-right">
-        <div className="auth-panel">
+        <div className="auth-panel" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <button
               type="button"
               className="btn btn-ghost btn-xs"
               onClick={() => { window.location.hash = '#/home'; }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', padding: 0 }}
             >
-              <ArrowLeft size={13} /> ← Return to Platform Overview
+              <ArrowLeft size={13} /> Return to Platform Overview
             </button>
           </div>
 
           <div>
-            <div className="eyebrow" style={{ marginBottom: 6 }}>PORTAL AUTHENTICATION</div>
-            <div className="auth-panel-title">
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 4 }}>
+              Hospital Portal
+            </div>
+            <div className="auth-panel-title" style={{ fontWeight: 600, fontSize: 20 }}>
               {tab === 'login' ? 'Hospital Portal Sign In' : 'Hospital Staff Registration'}
             </div>
-            <p className="auth-panel-sub" style={{ marginTop: 6 }}>
+            <p className="auth-panel-sub" style={{ marginTop: 4, fontSize: 13 }}>
               {tab === 'login' ? 'Sign in with your authorized hospital credentials.' : 'Authorized medical staff and clinician account creation.'}
             </p>
           </div>
@@ -2926,8 +2923,8 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
           </div>
 
           {notice && (
-            <div className="extend-banner" style={{ marginBottom: 16, borderColor: 'var(--amber)', background: 'rgba(245, 158, 11, 0.1)' }}>
-              <AlertCircle size={18} color="var(--amber)" />
+            <div className="extend-banner" style={{ marginBottom: 16, borderColor: 'var(--amber)', background: 'rgba(245, 158, 11, 0.08)' }}>
+              <AlertCircle size={16} color="var(--amber)" />
               <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{notice}</span>
             </div>
           )}
@@ -2959,19 +2956,20 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
                     placeholder="••••••••••••"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    style={{ paddingRight: 40 }}
+                    style={{ paddingRight: 36 }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPass(!showPass)}
-                    style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'grid', placeItems: 'center', background: 'none', border: 'none', cursor: 'pointer' }}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'grid', placeItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+                    aria-label={showPass ? 'Hide password' : 'Show password'}
                   >
                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
               </div>
-              <button className="btn btn-primary btn-full btn-lg" disabled={busy} style={{ marginTop: 4 }}>
-                {busy ? <Spinner /> : <><LogIn size={16} /> Sign In to Portal</>}
+              <button className="btn btn-primary btn-full btn-lg" disabled={busy} style={{ marginTop: 8, fontWeight: 600 }}>
+                {busy ? <Spinner /> : <><LogIn size={15} /> Sign In to Portal</>}
               </button>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
                 <button
@@ -2979,11 +2977,11 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
                   onClick={() => { setForgotOpen(true); setForgotResult(''); setForgotEmail(email); }}
                   style={{ fontSize: 12, color: 'var(--p)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
                 >
-                  Forgot password? → Submit support ticket
+                  Forgot password? Submit support ticket
                 </button>
               </div>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 14, lineHeight: 1.45 }}>
-                Patient accounts are enrolled upon hospital discharge. Patients sign in with their registered email address.
+              <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 16, lineHeight: 1.45 }}>
+                Patient accounts are enrolled upon hospital discharge. Patients sign in using their registered email address.
               </p>
             </form>
           )}
@@ -3035,7 +3033,9 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
                   value={regPhone}
                   onChange={e => setRegPhone(e.target.value)}
                 />
-                <div className="form-hint"><Phone size={11} style={{ display: 'inline', marginRight: 4 }} />Required for urgent clinical alert notifications and SMS dispatch.</div>
+                <div className="form-hint" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <Phone size={11} /> Required for urgent clinical alert notifications and SMS dispatch.
+                </div>
               </div>
               <div className="form-field">
                 <div className="form-label">Hospital Role</div>
@@ -3064,12 +3064,14 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
                   onChange={e => setRegCode(e.target.value)}
                   autoComplete="off"
                 />
-                <div className="form-hint"><Lock size={11} style={{ display: 'inline', marginRight: 4 }} />Confidential staff authorization key provided by Hospital Administration.</div>
+                <div className="form-hint" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <Lock size={11} /> Confidential staff authorization key provided by Hospital Administration.
+                </div>
               </div>
-              <button className="btn btn-primary btn-full" disabled={busy} style={{ marginTop: 4 }}>
+              <button className="btn btn-primary btn-full" disabled={busy} style={{ marginTop: 8, fontWeight: 600 }}>
                 {busy ? <Spinner /> : <><UserPlus size={15} /> Create Staff Account</>}
               </button>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12 }}>
+              <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 12 }}>
                 All registration attempts are recorded in the hospital audit log.
               </p>
             </form>
@@ -3081,8 +3083,8 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
       <AnimatePresence>
         {forgotOpen && (
           <Modal open title="Reset Password — Support Ticket" onClose={() => setForgotOpen(false)} size="sm">
-            <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 18 }}>
-              Under hospital security policy, password resets require Admin verification. Submit a support ticket to request a credential reset.
+            <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
+              Under hospital security policy, password resets require Administrator verification. Submit a support ticket to request a credential reset.
             </p>
             {forgotResult ? (
               <Alert type="success">{forgotResult}</Alert>
@@ -3108,7 +3110,7 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
                     onChange={e => setForgotReason(e.target.value)}
                   />
                 </div>
-                <div className="modal-footer">
+                <div className="modal-footer" style={{ marginTop: 16 }}>
                   <button type="button" className="btn btn-ghost" onClick={() => setForgotOpen(false)}>Cancel</button>
                   <button className="btn btn-primary" disabled={busy}>{busy ? <Spinner /> : 'Submit Ticket'}</button>
                 </div>
@@ -3304,23 +3306,22 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        background: theme === 'light' ? 'rgba(255, 255, 255, 0.88)' : 'rgba(10, 14, 23, 0.88)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        background: theme === 'light' ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 14, 23, 0.92)',
         borderBottom: '1px solid var(--border)'
       }}>
         <div style={{ maxWidth: 1240, margin: '0 auto', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => { window.location.hash = '#/home'; }}>
-            <div className="brand-icon" style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg, var(--p), var(--s))' }}>
-              <HeartPulse size={18} color="#050b12" />
+            <div className="brand-icon" style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--p)', display: 'grid', placeItems: 'center', boxShadow: 'none' }}>
+              <HeartPulse size={18} />
             </div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 6 }}>
-                Recovera <span style={{ color: 'var(--p)' }}>AI</span>
-                <span className="badge badge-teal" style={{ fontSize: 9.5, padding: '2px 6px', fontWeight: 700 }}>2.0</span>
+              <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text)' }}>
+                Recovera AI
               </div>
-              <div className="home-brand-sub" style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div className="home-brand-sub" style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Continuous Post-Discharge Telemetry
               </div>
             </div>
@@ -3340,9 +3341,9 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
               className="icon-btn"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              style={{ width: 34, height: 34, borderRadius: 8 }}
+              style={{ width: 32, height: 32, borderRadius: 6 }}
             >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </button>
 
             <div className="home-nav-desktop-actions">
@@ -3352,23 +3353,23 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   onClick={() => {
                     window.location.hash = session.user.role === 'admin' ? '#/staff/admin' : session.user.role === 'patient' ? '#/patient/overview' : '#/staff/overview';
                   }}
-                  style={{ fontWeight: 700 }}
+                  style={{ fontWeight: 600 }}
                 >
-                  <LayoutDashboard size={14} /> My Dashboard →
+                  <LayoutDashboard size={14} /> My Dashboard
                 </button>
               ) : (
                 <>
                   <button
                     className="btn btn-ghost btn-sm"
                     onClick={() => { window.location.hash = '#/login'; }}
-                    style={{ fontWeight: 700 }}
+                    style={{ fontWeight: 600 }}
                   >
                     <LogIn size={14} /> Sign In
                   </button>
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={() => { window.location.hash = '#/register'; }}
-                    style={{ fontWeight: 700 }}
+                    style={{ fontWeight: 600 }}
                   >
                     <UserPlus size={14} /> Staff Register
                   </button>
@@ -3383,7 +3384,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
               title="Toggle Navigation Menu"
               aria-label="Navigation Menu"
             >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
@@ -3398,7 +3399,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
               transition={{ duration: 0.2 }}
               className="home-mobile-dropdown"
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <a
                   href="#features"
                   className="home-mobile-nav-link"
@@ -3465,80 +3466,80 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
       </header>
 
       {/* HERO SECTION */}
-      <section className="home-hero-section">
+      <section className="home-hero-section" style={{ padding: '48px 24px 36px 24px' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto', textAlign: 'center' }}>
           {/* Eyebrow badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, background: 'rgba(0, 229, 192, 0.12)', border: '1px solid rgba(0, 229, 192, 0.3)', color: 'var(--p)', fontSize: 12, fontWeight: 700, marginBottom: 20 }}>
-            <span className="status-dot online" />
-            Hospital-Supervised Recovery Telemetry Platform
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 6, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, fontWeight: 500, marginBottom: 16 }}>
+            <span className="status-dot online" style={{ width: 6, height: 6 }} />
+            Hospital-Supervised Recovery Telemetry
           </div>
 
-          <h1 style={{ fontSize: 'clamp(32px, 5.5vw, 56px)', fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.03em', maxWidth: 960, margin: '0 auto 20px' }}>
-            Clinical Intelligence,<br />
-            <span style={{ background: 'linear-gradient(135deg, var(--p) 0%, #38bdf8 50%, var(--s) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Connected Post-Op Care.
-            </span>
+          <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 600, lineHeight: 1.2, letterSpacing: '-0.025em', maxWidth: 840, margin: '0 auto 16px', color: 'var(--text)' }}>
+            Clinical intelligence, connected post-op care.
           </h1>
 
-          <p style={{ fontSize: 'clamp(14px, 1.8vw, 17px)', color: 'var(--text-dim)', maxWidth: 760, margin: '0 auto 32px', lineHeight: 1.55 }}>
+          <p style={{ fontSize: 15, color: 'var(--text-dim)', maxWidth: 680, margin: '0 auto 24px', lineHeight: 1.55 }}>
             Continuous post-discharge patient telemetry, explainable Recovery Digital Twin modeling, conflict-free doctor scheduling, and proactive adverse drug event interception.
           </p>
 
           {/* Hero Action Buttons */}
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 44 }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
             {session ? (
               <button
-                className="btn btn-primary btn-lg"
+                className="btn btn-primary btn-md"
                 onClick={() => {
                   window.location.hash = session.user.role === 'admin' ? '#/staff/admin' : session.user.role === 'patient' ? '#/patient/overview' : '#/staff/overview';
                 }}
-                style={{ fontWeight: 800, padding: '12px 28px' }}
+                style={{ fontWeight: 600, padding: '10px 22px' }}
               >
-                <LayoutDashboard size={18} /> Return to My Dashboard →
+                <LayoutDashboard size={16} /> Open Hospital Dashboard
               </button>
             ) : (
               <>
                 <button
-                  className="btn btn-primary btn-lg"
+                  className="btn btn-primary btn-md"
                   onClick={() => { window.location.hash = '#/login'; }}
-                  style={{ fontWeight: 800, padding: '12px 28px' }}
+                  style={{ fontWeight: 600, padding: '10px 22px' }}
                 >
-                  <LogIn size={18} /> Access Hospital Portal →
+                  <LogIn size={16} /> Access Hospital Portal
                 </button>
                 <button
-                  className="btn btn-ghost btn-lg"
+                  className="btn btn-ghost btn-md"
                   onClick={() => { window.location.hash = '#/register'; }}
-                  style={{ fontWeight: 700, padding: '12px 24px' }}
+                  style={{ fontWeight: 600, padding: '10px 20px' }}
                 >
-                  <UserPlus size={18} /> Staff Registration
+                  <UserPlus size={16} /> Staff Registration
                 </button>
               </>
             )}
+          </div>
+
+          <div style={{ marginTop: 14, marginBottom: 36 }}>
             <a
               href="#simulators"
-              className="btn btn-ghost btn-lg"
-              style={{ fontWeight: 700, padding: '12px 24px', textDecoration: 'none' }}
+              style={{ fontSize: 12.5, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
             >
-              Explore Simulators ↓
+              <span>Explore clinical simulators</span>
+              <ArrowRight size={12} />
             </a>
           </div>
 
           {/* 6 Core Metric Pillars */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             {[
-              { icon: <Stethoscope size={16} color="var(--p)" />, title: '14 Specialties', desc: 'Conflict-free scheduling' },
-              { icon: <Video size={16} color="#38bdf8" />, title: '15m Telehealth', desc: 'In-browser consults & SOAP' },
-              { icon: <Clock size={16} color="#f59e0b" />, title: 'Intake Countdown', desc: '30m early / 2h grace window' },
-              { icon: <MessageCircle size={16} color="var(--s)" />, title: 'Multilingual SMS', desc: 'EN, TA, HI reminders' },
-              { icon: <Activity size={16} color="#a855f7" />, title: 'Digital Twin 2.0', desc: 'Mathematical corridor forecast' },
-              { icon: <ShieldCheck size={16} color="var(--p)" />, title: 'Zero-Trust RBAC', desc: 'Role-isolated safety gates' },
+              { icon: <Stethoscope size={16} />, title: '14 Specialties', desc: 'Conflict-free scheduling' },
+              { icon: <Video size={16} />, title: '15m Telehealth', desc: 'In-browser consults & SOAP' },
+              { icon: <Clock size={16} />, title: 'Intake Countdown', desc: '30m early / 2h grace window' },
+              { icon: <MessageCircle size={16} />, title: 'Multilingual SMS', desc: 'EN, TA, HI reminders' },
+              { icon: <Activity size={16} />, title: 'Digital Twin 2.0', desc: 'Mathematical corridor forecast' },
+              { icon: <ShieldCheck size={16} />, title: 'Zero-Trust RBAC', desc: 'Role-isolated safety gates' },
             ].map((m, idx) => (
               <div key={idx} className="stat-metric-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  {m.icon}
-                  <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text)' }}>{m.title}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                  <span style={{ color: 'var(--p)', display: 'grid', placeItems: 'center' }}>{m.icon}</span>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{m.title}</span>
                 </div>
-                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{m.desc}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{m.desc}</div>
               </div>
             ))}
           </div>
@@ -3548,8 +3549,8 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
       {/* ROLE FEATURE MATRIX */}
       <section id="features" className="home-section" style={{ borderTop: '1px solid var(--border)' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div className="eyebrow" style={{ color: 'var(--p)', marginBottom: 8 }}>ROLE-SPECIFIC ARCHITECTURE</div>
-          <h2 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.02em' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>Role-Specific Architecture</div>
+          <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--text)" }}>
             Built for Every Member of the Post-Op Care Team
           </h2>
           <p style={{ fontSize: 14, color: 'var(--text-dim)', maxWidth: 640, margin: '8px auto 0 auto' }}>
@@ -3595,7 +3596,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
                 <div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text)' }}>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text)" }}>
                     Doctor &amp; Specialist Workspace
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 4 }}>
@@ -3606,13 +3607,13 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   className="btn btn-primary btn-sm"
                   onClick={() => { window.location.hash = '#/login'; }}
                 >
-                  <LogIn size={14} /> Doctor Portal Sign In →
+                  <LogIn size={14} /> Doctor Portal Sign In
                 </button>
               </div>
 
               <div className="role-feature-grid">
                 <div className="role-feature-item">
-                  <CalendarDays size={20} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <CalendarDays size={18} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>Conflict-Free Specialist Scheduling</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>
@@ -3622,7 +3623,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 </div>
 
                 <div className="role-feature-item">
-                  <Video size={20} color="#38bdf8" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Video size={18} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>15m Browser Video Consultations</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>
@@ -3632,7 +3633,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 </div>
 
                 <div className="role-feature-item">
-                  <Activity size={20} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Activity size={18} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>Digital Twin Telemetry &amp; Corridor</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>
@@ -3642,7 +3643,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 </div>
 
                 <div className="role-feature-item">
-                  <ShieldCheck size={20} color="var(--s)" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <ShieldCheck size={18} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>Clinician Deviation Review Gate</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>
@@ -3658,7 +3659,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
                 <div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text)' }}>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text)" }}>
                     Nurse &amp; Care Coordinator Bridge
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 4 }}>
@@ -3669,13 +3670,13 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   className="btn btn-primary btn-sm"
                   onClick={() => { window.location.hash = '#/login'; }}
                 >
-                  <LogIn size={14} /> Nursing Portal Sign In →
+                  <LogIn size={14} /> Nursing Portal Sign In
                 </button>
               </div>
 
               <div className="role-feature-grid">
                 <div className="role-feature-item">
-                  <Users size={20} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Users size={18} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>Triage Queue &amp; Care Coordination</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>
@@ -3695,7 +3696,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 </div>
 
                 <div className="role-feature-item">
-                  <Pill size={20} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Pill size={18} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>Medication Adherence Tracking</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>
@@ -3732,7 +3733,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   className="btn btn-primary btn-sm"
                   onClick={() => { window.location.hash = '#/login'; }}
                 >
-                  <LogIn size={14} /> Patient Portal Sign In →
+                  <LogIn size={14} /> Patient Portal Sign In
                 </button>
               </div>
 
@@ -3831,7 +3832,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 </div>
 
                 <div className="role-feature-item">
-                  <Key size={20} color="var(--s)" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Key size={18} color="var(--p)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>Credential Reset Governance</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>
@@ -3848,11 +3849,11 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
       {/* INTERACTIVE CAPABILITIES WORKBENCH */}
       <section id="simulators" className="home-section" style={{ borderTop: '1px solid var(--border)' }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, background: 'rgba(0, 229, 192, 0.1)', border: '1px solid rgba(0, 229, 192, 0.3)', color: 'var(--p)', fontSize: 11.5, fontWeight: 700, marginBottom: 12 }}>
-            <Sparkles size={14} /> Interactive Feature Demonstrations · Client-Side Sample Simulations Only (Does Not Modify Hospital Database)
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 6, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-dim)", fontSize: 11.5, fontWeight: 500, marginBottom: 12 }}>
+            <Activity size={13} /> Interactive Clinical Modules · Client-Side Simulation
           </div>
-          <h2 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.02em' }}>
-            Live Clinical Telemetry Simulators
+          <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--text)" }}>
+            Clinical Telemetry Simulators
           </h2>
           <p style={{ fontSize: 14, color: 'var(--text-dim)', maxWidth: 680, margin: '8px auto 0 auto', lineHeight: 1.5 }}>
             Explore the core algorithms powering Recovera AI: Patient Digital Twin 2.0 trajectory, assisted prescription OCR, drug-drug interaction safety, and adaptive check-in boundaries.
@@ -3866,9 +3867,9 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             <div className="sim-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Activity size={18} color="var(--p)" />
-                <span style={{ fontWeight: 800, fontSize: 15 }}>Recovery Digital Twin 2.0 Trajectory</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>Recovery Digital Twin 2.0 Trajectory</span>
               </div>
-              <span className="badge badge-teal" style={{ fontSize: 10 }}>Explainable AI</span>
+              <span className="badge badge-teal" style={{ fontSize: 10 }}>Statistical Corridor</span>
             </div>
 
             <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 12 }}>
@@ -3879,7 +3880,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: 14, border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 800, color: twinMetrics.statusColor }}>
-                  ● {twinMetrics.status}
+                  {twinMetrics.status}
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>
                   Selected: Day {simDay} of 14 · {twinMetrics.contourText}
@@ -4007,9 +4008,9 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             <div className="sim-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Camera size={18} color="#38bdf8" />
-                <span style={{ fontWeight: 800, fontSize: 15 }}>Multimodal Prescription OCR Scanner</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>Prescription Extraction &amp; Verification</span>
               </div>
-              <span className="badge badge-blue" style={{ fontSize: 10 }}>Vision AI</span>
+              <span className="badge badge-blue" style={{ fontSize: 10 }}>Assisted Extraction</span>
             </div>
 
             <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 12 }}>
@@ -4039,7 +4040,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   onClick={triggerLaserScan}
                   disabled={scanState === 'scanning'}
                 >
-                  {scanState === 'scanning' ? <Spinner size={12} /> : <><Sparkles size={12} /> Run Vision Laser Scan</>}
+                  {scanState === 'scanning' ? <Spinner size={12} /> : <><FileText size={13} /> Extract Prescription Entities</>}
                 </button>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                   {scanState === 'idle' ? 'Ready to analyze' : scanState === 'scanning' ? 'Running contour extraction...' : 'Extraction completed'}
@@ -4055,7 +4056,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   <div style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid var(--amber)', borderRadius: 6, padding: '7px 10px', marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <AlertTriangle size={15} color="var(--amber)" style={{ flexShrink: 0 }} />
                     <span style={{ fontSize: 11.5, color: 'var(--amber)', fontWeight: 700 }}>
-                      ⚠️ Dosage is not listed so please enter dosage manually.
+                      Dosage not detected in source image. Enter dosage manually before approval.
                     </span>
                   </div>
                 )}
@@ -4097,12 +4098,12 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
 
                 {/* Deduplication Confirmation & Clinical Conflict Banner */}
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--p)', fontWeight: 700 }}>
-                  <span>✓ Hospital Medicine Library: 0 duplicates detected.</span>
+                  <span>Hospital Formulary: 0 duplicates detected.</span>
                   <span>{ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} Verified Compounds Selected</span>
                 </div>
 
                 <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                  ℹ️ <em>These medicines are extracted from a pdf/image so there may be chance of conflicts so kindly review and approve.</em>
+                  <Info size={12} style={{ display: "inline", marginRight: 4, verticalAlign: "text-bottom" }} /> Extracted from source document. Clinician review required before care plan commit.
                 </div>
 
                 {/* Approve & Add button (Sample preview only) */}
@@ -4110,7 +4111,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   {ocrApproved ? (
                     <div style={{ background: 'rgba(0, 229, 192, 0.12)', border: '1px solid var(--p)', borderRadius: 6, padding: '9px 12px', display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'center' }}>
                       <span style={{ fontSize: 12, color: 'var(--p)', fontWeight: 700 }}>
-                        ✓ {ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} Medications Approved in Sample Preview! (Client-Side Simulation)
+                        {ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} medications approved for sample preview.
                       </span>
                       <button
                         className="btn btn-ghost btn-xs"
@@ -4124,7 +4125,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                     <>
                       {ocrMedications.filter(m => m.checked).length === 0 && (
                         <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid var(--rose)', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: 'var(--rose)', fontWeight: 700, marginBottom: 6, textAlign: 'center' }}>
-                          ⚠️ Please select at least 1 verified medication to approve.
+                          Select at least 1 verified medication to approve.
                         </div>
                       )}
                       <button
@@ -4136,7 +4137,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                           }
                         }}
                       >
-                        <Check size={14} /> Review &amp; Approve {ocrMedications.filter(m => m.checked).length} Selected Medications (Sample Preview)
+                        <Check size={14} /> Review &amp; Approve ({ocrMedications.filter(m => m.checked).length}) Selected Medications
                       </button>
                     </>
                   )}
@@ -4150,9 +4151,9 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             <div className="sim-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <ShieldCheck size={18} color="var(--s)" />
-                <span style={{ fontWeight: 800, fontSize: 15 }}>ADE Multi-Drug Safety Interceptor</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>ADE Multi-Drug Safety Interceptor</span>
               </div>
-              <span className="badge badge-green" style={{ fontSize: 10 }}>Real-Time Gate</span>
+              <span className="badge badge-green" style={{ fontSize: 10 }}>Clinical Gate</span>
             </div>
 
             <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 12 }}>
@@ -4274,9 +4275,9 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             <div className="sim-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <ClipboardList size={18} color="#a855f7" />
-                <span style={{ fontWeight: 800, fontSize: 15 }}>Adaptive Daily Check-in &amp; Recall Safety</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>Adaptive Daily Check-in &amp; Recall Safety</span>
               </div>
-              <span className="badge badge-purple" style={{ fontSize: 10 }}>Recall Safety Gate</span>
+              <span className="badge badge-purple" style={{ fontSize: 10 }}>Recall Gate</span>
             </div>
 
             <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 12 }}>
@@ -4327,7 +4328,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             {checkinDateOffset === 0 && todaySubmitted && !isEditingToday && (
               <div style={{ background: 'rgba(0, 229, 192, 0.12)', border: '1px solid var(--p)', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                  ✓ Daily check-in for today is already submitted.
+                  Daily check-in for today is already submitted.
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.35 }}>
                   Under hospital protocol, you can update and re-submit your daily check-in until calendar midnight. Only the latest submission is logged in history and used for AI recovery trajectory analysis.
@@ -4400,8 +4401,8 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
       {/* CLINICAL APPOINTMENT & CARE COORDINATION WORKFLOW */}
       <section id="workflow" className="home-section" style={{ borderTop: '1px solid var(--border)', background: 'var(--surface2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div className="eyebrow" style={{ color: 'var(--p)', marginBottom: 8 }}>CLINICAL APPOINTMENT &amp; CARE COORDINATION WORKFLOW</div>
-          <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.02em' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>Care Coordination Workflow</div>
+          <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--text)" }}>
             Hospital-Supervised Multi-Role Care Progression
           </h2>
           <p style={{ fontSize: 13.5, color: 'var(--text-dim)', maxWidth: 640, margin: '6px auto 0 auto', lineHeight: 1.45 }}>
@@ -4424,15 +4425,15 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
           maxWidth: 900,
           margin: '0 auto 28px'
         }}>
-          <span className="badge badge-purple" style={{ fontSize: 11, padding: '4px 8px' }}>1. Patient Books Slot</span>
+          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>1. Patient Books Slot</span>
           <ArrowRight size={14} color="var(--text-muted)" />
-          <span className="badge badge-blue" style={{ fontSize: 11, padding: '4px 8px' }}>2. Nurse Triage Review</span>
+          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>2. Nurse Triage Review</span>
           <ArrowRight size={14} color="var(--text-muted)" />
-          <span className="badge badge-teal" style={{ fontSize: 11, padding: '4px 8px' }}>3. Doctor Confirms / Teleconsult</span>
+          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>3. Doctor Confirms / Teleconsult</span>
           <ArrowRight size={14} color="var(--text-muted)" />
-          <span className="badge badge-green" style={{ fontSize: 11, padding: '4px 8px' }}>4. Post-Op Daily Tracking</span>
+          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>4. Post-Op Daily Tracking</span>
           <ArrowRight size={14} color="var(--text-muted)" />
-          <span className="badge badge-muted" style={{ fontSize: 11, padding: '4px 8px' }}>5. EOD Expiration Gate</span>
+          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>5. EOD Expiration Gate</span>
         </div>
 
         {/* 4 Generalized Role Workflow Cards */}
@@ -4517,7 +4518,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             onClick={() => { window.location.hash = '#/login'; }}
             style={{ fontWeight: 700 }}
           >
-            <LogIn size={15} /> Access Portal Sign In →
+            <LogIn size={14} /> Access Hospital Portal
           </button>
         </div>
       </section>
@@ -4527,7 +4528,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 18, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <HeartPulse size={18} color="var(--p)" />
-            <span style={{ fontWeight: 900, fontSize: 15 }}>Recovera AI</span>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>Recovera AI</span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>· Continuous Post-Discharge Telemetry</span>
           </div>
           <button
