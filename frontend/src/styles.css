@@ -2606,6 +2606,19 @@ h3 {
 }
 
 /* Home Interactive Simulators & Role Matrix Enhancements */
+.sim-workbench-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 960px) {
+  .sim-workbench-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
 .sim-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));

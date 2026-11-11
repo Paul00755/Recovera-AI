@@ -3849,40 +3849,42 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
       {/* INTERACTIVE CAPABILITIES WORKBENCH */}
       <section id="simulators" className="home-section" style={{ borderTop: '1px solid var(--border)' }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 6, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-dim)", fontSize: 11.5, fontWeight: 500, marginBottom: 12 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 11.5, fontWeight: 500, marginBottom: 12 }}>
             <Activity size={13} /> Interactive Clinical Modules · Client-Side Simulation
           </div>
-          <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--text)" }}>
+          <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text)' }}>
             Clinical Telemetry Simulators
           </h2>
           <p style={{ fontSize: 14, color: 'var(--text-dim)', maxWidth: 680, margin: '8px auto 0 auto', lineHeight: 1.5 }}>
-            Explore the core algorithms powering Recovera AI: Patient Digital Twin 2.0 trajectory, assisted prescription OCR, drug-drug interaction safety, and adaptive check-in boundaries.
+            Explore the core algorithms powering Recovera AI: Patient Digital Twin trajectory, assisted prescription OCR, drug-drug interaction safety, and adaptive check-in boundaries.
           </p>
         </div>
 
-        {/* 2x2 Interactive Workbench Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
-          {/* SIMULATOR 1: RECOVERY DIGITAL TWIN 2.0 */}
+        {/* 2x2 Symmetrical Workbench Grid */}
+        <div className="sim-workbench-grid">
+          {/* SIMULATOR 1: RECOVERY DIGITAL TWIN TRAJECTORY */}
           <div className="sim-card">
             <div className="sim-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Activity size={18} color="var(--p)" />
-                <span style={{ fontWeight: 600, fontSize: 14 }}>Recovery Digital Twin 2.0 Trajectory</span>
+                <Activity size={16} color="var(--p)" />
+                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Recovery Digital Twin Trajectory</span>
               </div>
-              <span className="badge badge-teal" style={{ fontSize: 10 }}>Statistical Corridor</span>
+              <span className="badge" style={{ fontSize: 10, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                Statistical Corridor
+              </span>
             </div>
 
-            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 12 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 14, lineHeight: 1.45 }}>
               Simulates a post-operative patient recovery trajectory. Adjust days and clinical presets to inspect expected corridors and explainable deviation vectors.
             </div>
 
             {/* Trajectory Corridor Visualizer */}
-            <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: 14, border: '1px solid var(--border)' }}>
+            <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 14, border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: twinMetrics.statusColor }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: twinMetrics.statusColor }}>
                   {twinMetrics.status}
                 </span>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
                   Selected: Day {simDay} of 14 · {twinMetrics.contourText}
                 </span>
               </div>
@@ -3891,28 +3893,28 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
               <svg viewBox="0 0 400 130" style={{ width: '100%', height: 110, overflow: 'visible' }}>
                 <defs>
                   <linearGradient id="corridorGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgba(0, 229, 192, 0.25)" />
-                    <stop offset="100%" stopColor="rgba(0, 229, 192, 0.05)" />
+                    <stop offset="0%" stopColor="rgba(0, 229, 192, 0.15)" />
+                    <stop offset="100%" stopColor="rgba(0, 229, 192, 0.02)" />
                   </linearGradient>
                 </defs>
                 {/* Upper corridor bound */}
-                <path d="M 20,80 Q 150,55 250,30 T 380,20" fill="none" stroke="rgba(0, 229, 192, 0.4)" strokeWidth="1.5" strokeDasharray="3 3" />
+                <path d="M 20,80 Q 150,55 250,30 T 380,20" fill="none" stroke="rgba(0, 229, 192, 0.35)" strokeWidth="1" strokeDasharray="3 3" />
                 {/* Shaded recovery envelope */}
                 <path d="M 20,80 Q 150,55 250,30 T 380,20 L 380,45 Q 250,60 150,85 T 20,105 Z" fill="url(#corridorGrad)" />
                 {/* Lower corridor bound */}
-                <path d="M 20,105 Q 150,85 250,60 T 380,45" fill="none" stroke="rgba(0, 229, 192, 0.4)" strokeWidth="1.5" strokeDasharray="3 3" />
+                <path d="M 20,105 Q 150,85 250,60 T 380,45" fill="none" stroke="rgba(0, 229, 192, 0.35)" strokeWidth="1" strokeDasharray="3 3" />
                 {/* Observed patient trajectory */}
                 <path
                   d={`M 20,95 Q 140,${simPreset === 'alert' ? 88 : 72} 240,${simPreset === 'alert' ? 80 : 50} T ${20 + ((simDay - 1) / 13) * 360},${simPreset === 'alert' ? 76 : simPreset === 'optimal' ? 32 : 46}`}
                   fill="none"
                   stroke={twinMetrics.statusColor}
-                  strokeWidth="2.5"
+                  strokeWidth="2"
                 />
                 {/* Active Day cursor point */}
                 <circle
                   cx={20 + ((simDay - 1) / 13) * 360}
                   cy={simPreset === 'alert' ? 76 : simPreset === 'optimal' ? 32 : 46}
-                  r="5.5"
+                  r="4.5"
                   fill={twinMetrics.statusColor}
                   stroke="var(--surface)"
                   strokeWidth="2"
@@ -3921,10 +3923,10 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
 
               {/* Day Slider */}
               <div style={{ marginTop: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, fontVariantNumeric: 'tabular-nums' }}>
                   <span>Day 1 (Discharge)</span>
-                  <span style={{ fontWeight: 800, color: 'var(--text)' }}>D{simDay} Inspector (Target: {twinMetrics.target}%)</span>
-                  <span>Day 14 (Recovery Milestone)</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text)' }}>Day {simDay} Inspector (Target: {twinMetrics.target}%)</span>
+                  <span>Day 14 (Milestone)</span>
                 </div>
                 <input
                   type="range"
@@ -3942,7 +3944,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   type="button"
                   className={`btn btn-xs ${simPreset === 'optimal' ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setSimPreset('optimal')}
-                  style={{ flex: 1, fontSize: 11 }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 500 }}
                 >
                   Optimal Trajectory
                 </button>
@@ -3950,88 +3952,90 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   type="button"
                   className={`btn btn-xs ${simPreset === 'mild' ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setSimPreset('mild')}
-                  style={{ flex: 1, fontSize: 11 }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 500 }}
                 >
-                  Mild Adjustment (Ground Truth)
+                  Mild Adjustment
                 </button>
                 <button
                   type="button"
                   className={`btn btn-xs ${simPreset === 'alert' ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setSimPreset('alert')}
-                  style={{ flex: 1, fontSize: 11 }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 500 }}
                 >
-                  Clinician Alert
+                  Clinical Alert
                 </button>
               </div>
             </div>
 
             {/* Explainable Deviation Breakdown Vector */}
             <div style={{ marginTop: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Explainable Deviation Vector (Di = 0.35Si + 0.25Ai + 0.20Ti + 0.10Fi + 0.10Qi)
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>
+                  Explainable deviation breakdown
                 </span>
-                <span style={{ fontSize: 11, fontWeight: 800, color: twinMetrics.statusColor }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: twinMetrics.statusColor, fontVariantNumeric: 'tabular-nums' }}>
                   Score: {twinMetrics.score} · Divergence: {twinMetrics.deviation}
                 </span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, textAlign: 'center' }}>
                 <div style={{ background: 'var(--surface2)', padding: '6px 4px', borderRadius: 6, border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>S_i (35%)</div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{twinMetrics.symptomDiv}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{twinMetrics.symptomDiv}</div>
                 </div>
                 <div style={{ background: 'var(--surface2)', padding: '6px 4px', borderRadius: 6, border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>A_i (25%)</div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{twinMetrics.adherence}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{twinMetrics.adherence}</div>
                 </div>
                 <div style={{ background: 'var(--surface2)', padding: '6px 4px', borderRadius: 6, border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>T_i (20%)</div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{twinMetrics.trendSlope}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{twinMetrics.trendSlope}</div>
                 </div>
                 <div style={{ background: 'var(--surface2)', padding: '6px 4px', borderRadius: 6, border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>F_i (10%)</div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{twinMetrics.feverFlag}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{twinMetrics.feverFlag}</div>
                 </div>
                 <div style={{ background: 'var(--surface2)', padding: '6px 4px', borderRadius: 6, border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>Q_i (10%)</div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{twinMetrics.missingness}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{twinMetrics.missingness}</div>
                 </div>
               </div>
-              <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.35 }}>
-                <strong>Day {simDay} Clinical Milestone:</strong> {twinMetrics.milestone}
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.4 }}>
+                <span style={{ color: 'var(--text-dim)', fontWeight: 500 }}>Day {simDay} Clinical Milestone:</span> {twinMetrics.milestone}
               </div>
             </div>
           </div>
 
-          {/* SIMULATOR 2: MULTIMODAL PRESCRIPTION OCR SCANNER */}
+          {/* SIMULATOR 2: PRESCRIPTION EXTRACTION & VERIFICATION */}
           <div className="sim-card">
             <div className="sim-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Camera size={18} color="#38bdf8" />
-                <span style={{ fontWeight: 600, fontSize: 14 }}>Prescription Extraction &amp; Verification</span>
+                <Camera size={16} color="var(--p)" />
+                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Prescription Extraction &amp; Verification</span>
               </div>
-              <span className="badge badge-blue" style={{ fontSize: 10 }}>Assisted Extraction</span>
+              <span className="badge" style={{ fontSize: 10, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                Assisted Extraction
+              </span>
             </div>
 
-            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 12 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 14, lineHeight: 1.45 }}>
               Assisted multimodal prescription vision extraction with mandatory clinician verification, manual dosage completion, and hospital library deduplication.
             </div>
 
-            {/* Prescription Document Preview with Laser Scan */}
-            <div className="laser-scanner-box" style={{ minHeight: 180, padding: 14 }}>
+            {/* Prescription Document Slip Preview */}
+            <div className="laser-scanner-box" style={{ padding: 14, background: 'var(--surface2)', borderRadius: 8, border: '1px solid var(--border)' }}>
               {scanState === 'scanning' && <div className="laser-beam" />}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border)', paddingBottom: 6, marginBottom: 8 }}>
-                <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--text-dim)' }}>CLINICAL PRESCRIPTION SLIP #8492</span>
-                <span className="badge badge-muted" style={{ fontSize: 10 }}>Handwritten RX</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 8 }}>
+                <span style={{ fontWeight: 600, fontSize: 11.5, color: 'var(--text-dim)' }}>Prescription Slip #8492</span>
+                <span className="badge" style={{ fontSize: 9.5, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Handwritten Rx</span>
               </div>
 
-              <div style={{ fontFamily: 'Courier New, monospace', fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>
+              <div style={{ fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace', fontSize: 11.5, color: 'var(--text)', lineHeight: 1.6 }}>
                 <div><strong>Rx</strong></div>
-                <div>1. Pan 40 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1 - 0 - 1</div>
-                <div>2. Acedo MR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1 - 0 - 1</div>
-                <div>3. deflazacort 6mg &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1 - 0 - 1</div>
-                <div>4. tolperisone 150mg &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1 - 0 - 0 x 2 days</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>1. Pan 40</span><span>1 - 0 - 1</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>2. Acedo MR</span><span>1 - 0 - 1</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>3. Deflazacort 6mg</span><span>1 - 0 - 1</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>4. Tolperisone 150mg</span><span>1 - 0 - 0 x 2 days</span></div>
               </div>
 
               <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4039,11 +4043,12 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   className="btn btn-primary btn-xs"
                   onClick={triggerLaserScan}
                   disabled={scanState === 'scanning'}
+                  style={{ fontWeight: 500 }}
                 >
-                  {scanState === 'scanning' ? <Spinner size={12} /> : <><FileText size={13} /> Extract Prescription Entities</>}
+                  {scanState === 'scanning' ? <Spinner size={12} /> : <><FileText size={12} /> Extract Prescription Entities</>}
                 </button>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {scanState === 'idle' ? 'Ready to analyze' : scanState === 'scanning' ? 'Running contour extraction...' : 'Extraction completed'}
+                  {scanState === 'idle' ? 'Ready to analyze' : scanState === 'scanning' ? 'Extracting entities...' : 'Extraction completed'}
                 </span>
               </div>
             </div>
@@ -4053,9 +4058,9 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
               <div style={{ marginTop: 12 }}>
                 {/* Missing dosage warning banner */}
                 {hasMissingDosage && (
-                  <div style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid var(--amber)', borderRadius: 6, padding: '7px 10px', marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <AlertTriangle size={15} color="var(--amber)" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: 11.5, color: 'var(--amber)', fontWeight: 700 }}>
+                  <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid var(--amber)', borderRadius: 6, padding: '7px 10px', marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <AlertTriangle size={14} color="var(--amber)" style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 11.5, color: 'var(--amber)', fontWeight: 500 }}>
                       Dosage not detected in source image. Enter dosage manually before approval.
                     </span>
                   </div>
@@ -4071,12 +4076,12 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                         justifyContent: 'space-between',
                         fontSize: 11.5,
                         background: 'var(--surface2)',
-                        padding: '5px 8px',
-                        borderRadius: 5,
+                        padding: '6px 10px',
+                        borderRadius: 6,
                         border: '1px solid var(--border)',
                       }}
                     >
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', margin: 0 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0 }}>
                         <input
                           type="checkbox"
                           checked={med.checked}
@@ -4086,10 +4091,10 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                             setOcrMedications(prev => prev.map(m => m.id === med.id ? { ...m, checked: val } : m));
                           }}
                         />
-                        <span style={{ fontWeight: 700 }}>{med.name}</span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>({med.comp})</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text)' }}>{med.name}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 10.5 }}>({med.comp})</span>
                       </label>
-                      <span className="badge badge-teal" style={{ fontSize: 9 }}>
+                      <span className="badge" style={{ fontSize: 9.5, background: 'var(--surface)', border: '1px solid var(--border)', color: med.missingDose ? 'var(--amber)' : 'var(--text-dim)' }}>
                         {med.dose} · {med.timing}
                       </span>
                     </div>
@@ -4097,34 +4102,35 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 </div>
 
                 {/* Deduplication Confirmation & Clinical Conflict Banner */}
-                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--p)', fontWeight: 700 }}>
-                  <span>Hospital Formulary: 0 duplicates detected.</span>
-                  <span>{ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} Verified Compounds Selected</span>
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: 'var(--p)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                  <span>Hospital Formulary: 0 duplicates detected</span>
+                  <span>{ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} verified compounds selected</span>
                 </div>
 
-                <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                  <Info size={12} style={{ display: "inline", marginRight: 4, verticalAlign: "text-bottom" }} /> Extracted from source document. Clinician review required before care plan commit.
+                <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.35, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Info size={12} style={{ flexShrink: 0 }} />
+                  <span>Extracted from source document. Clinician review required before care plan commit.</span>
                 </div>
 
                 {/* Approve & Add button (Sample preview only) */}
                 <div style={{ marginTop: 10 }}>
                   {ocrApproved ? (
-                    <div style={{ background: 'rgba(0, 229, 192, 0.12)', border: '1px solid var(--p)', borderRadius: 6, padding: '9px 12px', display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'center' }}>
-                      <span style={{ fontSize: 12, color: 'var(--p)', fontWeight: 700 }}>
-                        {ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} medications approved for sample preview.
+                    <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'center' }}>
+                      <span style={{ fontSize: 12, color: 'var(--p)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <Check size={14} /> {ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} medications approved for sample preview
                       </span>
                       <button
                         className="btn btn-ghost btn-xs"
-                        style={{ alignSelf: 'center', fontSize: 11, padding: '2px 8px', textDecoration: 'underline', color: 'var(--text-dim)' }}
+                        style={{ alignSelf: 'center', fontSize: 11, color: 'var(--text-muted)', padding: '2px 8px' }}
                         onClick={() => setOcrApproved(false)}
                       >
-                        Reset / Edit Selection
+                        Reset / Edit selection
                       </button>
                     </div>
                   ) : (
                     <>
                       {ocrMedications.filter(m => m.checked).length === 0 && (
-                        <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid var(--rose)', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: 'var(--rose)', fontWeight: 700, marginBottom: 6, textAlign: 'center' }}>
+                        <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid var(--rose)', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: 'var(--rose)', fontWeight: 500, marginBottom: 6, textAlign: 'center' }}>
                           Select at least 1 verified medication to approve.
                         </div>
                       )}
@@ -4136,6 +4142,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                             setOcrApproved(true);
                           }
                         }}
+                        style={{ fontWeight: 500 }}
                       >
                         <Check size={14} /> Review &amp; Approve ({ocrMedications.filter(m => m.checked).length}) Selected Medications
                       </button>
@@ -4146,25 +4153,27 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             )}
           </div>
 
-          {/* SIMULATOR 3: ADE MULTI-DRUG INTERCEPTOR */}
+          {/* SIMULATOR 3: ADE MULTI-DRUG SAFETY INTERCEPTOR */}
           <div className="sim-card">
             <div className="sim-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ShieldCheck size={18} color="var(--s)" />
-                <span style={{ fontWeight: 600, fontSize: 14 }}>ADE Multi-Drug Safety Interceptor</span>
+                <ShieldCheck size={16} color="var(--p)" />
+                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>ADE Multi-Drug Safety Interceptor</span>
               </div>
-              <span className="badge badge-green" style={{ fontSize: 10 }}>Clinical Gate</span>
+              <span className="badge" style={{ fontSize: 10, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                Clinical Gate
+              </span>
             </div>
 
-            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 12 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 14, lineHeight: 1.45 }}>
               Dynamically tests drug combinations against hospital contraindications, dual-NSAID toxicities, and drug interactions.
             </div>
 
             {/* Independent Drug Selectors */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                  Primary Prescribed Drug
+                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  Primary prescribed drug
                 </div>
                 <select
                   className="form-input"
@@ -4180,8 +4189,8 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
               </div>
 
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                  Concurrent Medication
+                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  Concurrent medication
                 </div>
                 <select
                   className="form-input"
@@ -4198,12 +4207,12 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             </div>
 
             {/* Quick Test Combination Pills */}
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
               <button
                 type="button"
                 className="btn btn-xs btn-ghost"
                 onClick={() => { setPrimaryDrug('Aceclofenac'); setSecondaryDrug('Ibuprofen'); }}
-                style={{ fontSize: 10 }}
+                style={{ fontSize: 10.5, border: '1px solid var(--border)' }}
               >
                 Dual NSAID
               </button>
@@ -4211,7 +4220,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 type="button"
                 className="btn btn-xs btn-ghost"
                 onClick={() => { setPrimaryDrug('Deflazacort 6mg'); setSecondaryDrug('Pan 40 (Pantoprazole)'); }}
-                style={{ fontSize: 10 }}
+                style={{ fontSize: 10.5, border: '1px solid var(--border)' }}
               >
                 Steroid + PPI
               </button>
@@ -4219,7 +4228,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 type="button"
                 className="btn btn-xs btn-ghost"
                 onClick={() => { setPrimaryDrug('Tolperisone 150mg'); setSecondaryDrug('Diazepam'); }}
-                style={{ fontSize: 10 }}
+                style={{ fontSize: 10.5, border: '1px solid var(--border)' }}
               >
                 Muscle Relaxant + Sedative
               </button>
@@ -4227,29 +4236,26 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 type="button"
                 className="btn btn-xs btn-ghost"
                 onClick={() => { setPrimaryDrug('Paracetamol'); setSecondaryDrug('Alcohol'); }}
-                style={{ fontSize: 10 }}
+                style={{ fontSize: 10.5, border: '1px solid var(--border)' }}
               >
                 Hepatic Stress
               </button>
             </div>
 
             {/* Evaluated Interaction Card */}
-            <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: 14, border: '1px solid var(--border)' }}>
+            <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 14, border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text)' }}>
+                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>
                   {primaryDrug} + {secondaryDrug}
                 </span>
                 <span
-                  className={`badge ${
-                    evaluatedInteraction.severity === 'severe'
-                      ? 'badge-red'
-                      : evaluatedInteraction.severity === 'beneficial'
-                      ? 'badge-teal'
-                      : evaluatedInteraction.severity === 'moderate'
-                      ? 'badge-amber'
-                      : 'badge-muted'
-                  }`}
-                  style={{ fontSize: 10 }}
+                  className="badge"
+                  style={{
+                    fontSize: 10,
+                    background: evaluatedInteraction.severity === 'severe' ? 'rgba(239, 68, 68, 0.12)' : evaluatedInteraction.severity === 'beneficial' ? 'rgba(16, 185, 129, 0.12)' : evaluatedInteraction.severity === 'moderate' ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    color: evaluatedInteraction.severity === 'severe' ? 'var(--danger)' : evaluatedInteraction.severity === 'beneficial' ? 'var(--p)' : evaluatedInteraction.severity === 'moderate' ? 'var(--amber)' : 'var(--text-muted)'
+                  }}
                 >
                   {evaluatedInteraction.badge}
                 </span>
@@ -4259,11 +4265,11 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                 {evaluatedInteraction.desc}
               </p>
 
-              <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--border)', fontSize: 11.5, color: 'var(--p)', fontWeight: 600 }}>
-                Clinical Protocol: {evaluatedInteraction.recommendation}
+              <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--border)', fontSize: 11.5, color: 'var(--text)', fontWeight: 500 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Clinical Protocol:</span> {evaluatedInteraction.recommendation}
               </div>
 
-              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--text-muted)' }}>
+              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
                 <span>Deterministic Pharmacology Gate</span>
                 <span>Latency: {evaluatedInteraction.latency}</span>
               </div>
@@ -4274,27 +4280,29 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
           <div className="sim-card">
             <div className="sim-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ClipboardList size={18} color="#a855f7" />
-                <span style={{ fontWeight: 600, fontSize: 14 }}>Adaptive Daily Check-in &amp; Recall Safety</span>
+                <ClipboardList size={16} color="var(--p)" />
+                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Adaptive Daily Check-in &amp; Recall Safety</span>
               </div>
-              <span className="badge badge-purple" style={{ fontSize: 10 }}>Recall Gate</span>
+              <span className="badge" style={{ fontSize: 10, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                Recall Gate
+              </span>
             </div>
 
-            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 12 }}>
-              Demonstrates same-day updates, red cautionary retrospective symptom reporting warning, and strict 7-day recall lockout.
+            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginBottom: 14, lineHeight: 1.45 }}>
+              Demonstrates same-day updates, cautionary retrospective symptom reporting warning, and strict 7-day recall lockout.
             </div>
 
             {/* Date Condition Selector */}
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                Simulate Target Calendar Day
+              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Simulate target calendar day
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button
                   type="button"
                   className={`btn btn-xs ${checkinDateOffset === 0 ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setCheckinDateOffset(0)}
-                  style={{ flex: 1, fontSize: 11 }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 500 }}
                 >
                   Today (Same Day)
                 </button>
@@ -4302,7 +4310,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   type="button"
                   className={`btn btn-xs ${checkinDateOffset === -3 ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setCheckinDateOffset(-3)}
-                  style={{ flex: 1, fontSize: 11 }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 500 }}
                 >
                   3 Days Ago (Within 7d)
                 </button>
@@ -4310,54 +4318,56 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   type="button"
                   className={`btn btn-xs ${checkinDateOffset === -9 ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setCheckinDateOffset(-9)}
-                  style={{ flex: 1, fontSize: 11 }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 500 }}
                 >
                   9 Days Ago (&gt;7d)
                 </button>
               </div>
             </div>
 
-            {/* Success notice */}
+            {/* Success message banner */}
             {checkinSuccessMsg && (
-              <div style={{ background: 'rgba(0, 229, 192, 0.12)', border: '1px solid var(--p)', borderRadius: 6, padding: '7px 10px', marginBottom: 10, fontSize: 11.5, color: 'var(--text)' }}>
-                {checkinSuccessMsg}
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 10px', marginBottom: 10, display: 'flex', gap: 6, alignItems: 'center', fontSize: 11.5, color: 'var(--p)' }}>
+                <Check size={13} />
+                <span>{checkinSuccessMsg}</span>
               </div>
             )}
 
-            {/* Condition 1: Today already submitted with Edit Option */}
+            {/* Condition 1: Today Already Submitted Card */}
             {checkinDateOffset === 0 && todaySubmitted && !isEditingToday && (
-              <div style={{ background: 'rgba(0, 229, 192, 0.12)', border: '1px solid var(--p)', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                  Daily check-in for today is already submitted.
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--p)', fontSize: 12.5, fontWeight: 600, marginBottom: 4 }}>
+                  <Check size={14} /> Daily check-in for today is recorded
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.35 }}>
-                  Under hospital protocol, you can update and re-submit your daily check-in until calendar midnight. Only the latest submission is logged in history and used for AI recovery trajectory analysis.
+                <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.4 }}>
+                  Under hospital protocol, you can update and re-submit your daily check-in until calendar midnight. The latest entry is used for clinical trajectory analysis.
                 </div>
                 <button
-                  className="btn btn-primary btn-xs"
+                  className="btn btn-ghost btn-xs"
                   onClick={() => setIsEditingToday(true)}
+                  style={{ fontSize: 11, border: '1px solid var(--border)' }}
                 >
-                  <Edit size={12} /> Edit / Update Today's Daily Check-in
+                  <Edit size={12} /> Edit Today's Check-in
                 </button>
               </div>
             )}
 
-            {/* Condition 2: 3 Days Ago Missed Checkin with Exact RED Banner */}
+            {/* Condition 2: 3 Days Ago Missed Checkin with Advisory Banner */}
             {checkinDateOffset === -3 && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid var(--danger)', borderRadius: 6, padding: '9px 12px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <AlertCircle size={16} color="var(--danger)" style={{ flexShrink: 0, marginTop: 2 }} />
-                <span style={{ fontSize: 11.5, color: 'var(--text)', lineHeight: 1.35 }}>
-                  <strong style={{ color: 'var(--danger)' }}>Past Missed Check-in Advisory:</strong> You may not remember the pain or details on this date correctly — if you don't know the details on the specific date correctly try not to log an incorrect or misleading information as analysis is based on this.
+              <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid var(--amber)', borderRadius: 6, padding: '9px 12px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <AlertTriangle size={15} color="var(--amber)" style={{ flexShrink: 0, marginTop: 2 }} />
+                <span style={{ fontSize: 11.5, color: 'var(--text)', lineHeight: 1.4 }}>
+                  <strong style={{ color: 'var(--amber)' }}>Past Missed Check-in Advisory:</strong> Recall accuracy decreases over time. If specific symptoms cannot be recalled precisely, avoid logging estimated data as clinical trajectory models rely on exact inputs.
                 </span>
               </div>
             )}
 
             {/* Condition 3: > 7 Days Ago Missed Checkin with Lock Banner */}
             {checkinDateOffset === -9 && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.18)', border: '1px solid var(--danger)', borderRadius: 6, padding: '9px 12px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <Lock size={16} color="var(--danger)" style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: 11.5, color: 'var(--danger)', fontWeight: 700 }}>
-                  Reporting locked: Reporting missed daily check-ins more than 7 days from the current date is not permitted to preserve clinical telemetry integrity.
+              <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid var(--danger)', borderRadius: 6, padding: '9px 12px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <Lock size={15} color="var(--danger)" style={{ flexShrink: 0, marginTop: 2 }} />
+                <span style={{ fontSize: 11.5, color: 'var(--danger)', fontWeight: 500, lineHeight: 1.4 }}>
+                  Reporting locked: Logging missed daily check-ins more than 7 days from the current date is restricted to preserve clinical telemetry integrity.
                 </span>
               </div>
             )}
@@ -4365,9 +4375,9 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
             {/* Interactive Form Fields (Sample Preview - No DB Writes) */}
             {(!todaySubmitted || isEditingToday || checkinDateOffset !== 0) && (
               <form onSubmit={handleSimCheckinSubmit} style={{ opacity: checkinDateOffset === -9 ? 0.45 : 1, pointerEvents: checkinDateOffset === -9 ? 'none' : 'auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4, fontVariantNumeric: 'tabular-nums' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Reported Pain Intensity</span>
-                  <span style={{ fontWeight: 800, color: painLevel <= 2 ? 'var(--p)' : painLevel <= 5 ? 'var(--amber)' : 'var(--danger)' }}>
+                  <span style={{ fontWeight: 600, color: painLevel <= 2 ? 'var(--p)' : painLevel <= 5 ? 'var(--amber)' : 'var(--danger)' }}>
                     {painLevel} / 10 ({painLevel <= 2 ? 'Minimal Discomfort' : painLevel <= 5 ? 'Moderate Aching' : 'Severe Acute Pain'})
                   </span>
                 </div>
@@ -4380,7 +4390,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   style={{ width: '100%', accentColor: painLevel <= 2 ? 'var(--p)' : painLevel <= 5 ? 'var(--amber)' : 'var(--danger)', cursor: 'pointer' }}
                 />
 
-                <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                     {checkinDateOffset === 0 ? "Reporting for Today" : checkinDateOffset === -3 ? "Retrospective (3d ago)" : "Locked (>7d ago)"}
                   </span>
@@ -4388,6 +4398,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                     type="submit"
                     className="btn btn-primary btn-xs"
                     disabled={checkinDateOffset === -9}
+                    style={{ fontWeight: 500 }}
                   >
                     {isEditingToday ? "Re-submit Today's Check-in" : "Submit Sample Check-in"}
                   </button>
