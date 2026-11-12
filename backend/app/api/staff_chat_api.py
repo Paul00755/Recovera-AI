@@ -346,7 +346,7 @@ def get_conversation_messages(
     messages = db.scalars(query.order_by(StaffMessage.created_at.asc()).limit(limit)).unique().all()
 
     # Automatically mark messages as read
-    participant.last_read_at = dt.datetime.utcnow()
+    participant.last_read_at = dt.datetime.utcnow() + dt.timedelta(seconds=2)
     db.commit()
 
     return [serialize_message(m, current_user.id, db) for m in messages]
@@ -589,7 +589,7 @@ async def mark_conversation_read(
         raise HTTPException(status_code=403, detail="Access denied.")
 
     now = dt.datetime.utcnow()
-    participant.last_read_at = now
+    participant.last_read_at = now + dt.timedelta(seconds=2)
     db.commit()
 
     participant_ids = db.scalars(
@@ -609,7 +609,20 @@ async def mark_conversation_read(
         }
     )
 
-    return {"status": "read", "conversation_id": conversation_id}
+    # Calculate remaining total unread count for current_user
+    total_unread = get_staff_chat_unread_count(db, current_user)["unread_count"]
+
+    # Also notify current_user over WebSocket so all their open tabs/sidebar update immediately
+    await staff_ws_manager.broadcast_to_users(
+        [current_user.id],
+        {
+            "type": "staff_chat_unread_update",
+            "conversation_id": conversation_id,
+            "unread_count": total_unread
+        }
+    )
+
+    return {"status": "read", "conversation_id": conversation_id, "unread_count": total_unread}
 
 @router.post("/conversations/{conversation_id}/clear")
 def clear_conversation(

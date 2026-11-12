@@ -212,31 +212,31 @@ export function DigitalTwinTab({ patientId, session }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
-              width: 52,
-              height: 52,
-              borderRadius: 14,
+              width: 48,
+              height: 48,
+              borderRadius: 12,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'linear-gradient(135deg, rgba(0,212,184,0.15), rgba(56,189,248,0.15))',
+              background: 'var(--surface2)',
               color: 'var(--p)',
-              border: '1px solid rgba(0,212,184,0.3)'
+              border: '1px solid var(--border)'
             }}>
-              <Cpu size={28} />
+              <Cpu size={24} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span className={`badge ${tierConfig.badge}`} style={{ fontSize: 11, fontWeight: 700 }}>
                   ● {tierConfig.label}
                 </span>
-                <span className="crypto-hash-pill" style={{ fontSize: 11 }}>
-                  DIGITAL TWIN v2.0
+                <span className="badge badge-neutral" style={{ fontSize: 11 }}>
+                  Day {trajectoryData?.current_day || 1} of 14
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   Evaluated: {stateData?.last_calculated_at ? new Date(stateData.last_calculated_at).toLocaleTimeString() : 'Just now'}
                 </span>
               </div>
-              <h2 style={{ margin: '4px 0 2px', fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>
+              <h2 style={{ margin: '4px 0 2px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
                 {stateData?.patient_name} — Recovery Digital Twin
               </h2>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--text-dim)', maxWidth: 650 }}>
@@ -265,7 +265,7 @@ export function DigitalTwinTab({ patientId, session }) {
               Projected Recovery Score
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: tierConfig.color }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: tierConfig.color, fontVariantNumeric: 'tabular-nums' }}>
                 {stateData?.recovery_score}%
               </span>
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>/ 100</span>
@@ -280,30 +280,32 @@ export function DigitalTwinTab({ patientId, session }) {
               Composite Deviation (D_t)
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)' }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
                 {stateData?.deviation_score}%
               </span>
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>divergence</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              Threshold Tier: {tier.replace(/_/g, ' ').toUpperCase()}
+              Threshold: {tierConfig.label}
             </div>
           </div>
 
           <div className="stat-card" style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 10 }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-              24h Forecast Prediction
+              24h Trajectory Forecast
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: '#38bdf8' }}>
-                {forecasts[0]?.point_forecast || 80.0}%
+              <span style={{ fontSize: 26, fontWeight: 700, color: '#38bdf8', fontVariantNumeric: 'tabular-nums' }}>
+                {forecasts[0]?.point_forecast ? `${forecasts[0].point_forecast}%` : '—'}
               </span>
-              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                ± {(forecasts[0] ? (forecasts[0].confidence_upper_95 - forecasts[0].point_forecast).toFixed(1) : 8.2)}%
-              </span>
+              {forecasts[0] && (
+                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                  ± {(forecasts[0].confidence_upper_95 - forecasts[0].point_forecast).toFixed(1)}%
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              GRU + RF Ensemble (95% CI)
+              {forecasts[0]?.model_architecture || 'Corridor Projection'} (95% CI)
             </div>
           </div>
 
@@ -312,13 +314,13 @@ export function DigitalTwinTab({ patientId, session }) {
               Pending Deviation Flags
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: alerts.length > 0 ? 'var(--warn)' : 'var(--success)' }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: alerts.length > 0 ? 'var(--warn)' : 'var(--success)', fontVariantNumeric: 'tabular-nums' }}>
                 {alerts.length}
               </span>
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>unreviewed</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              Clinician review required
+              {alerts.length > 0 ? 'Clinician review required' : 'No active deviations'}
             </div>
           </div>
         </div>
@@ -796,15 +798,15 @@ export function DigitalTwinTab({ patientId, session }) {
       <div style={{
         padding: '12px 16px',
         borderRadius: 8,
-        background: 'rgba(56, 189, 248, 0.08)',
-        border: '1px solid rgba(56, 189, 248, 0.25)',
+        background: 'var(--surface2)',
+        border: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
         gap: 12
       }}>
-        <Info size={18} style={{ color: '#38bdf8', flexShrink: 0 }} />
+        <Info size={18} style={{ color: 'var(--p)', flexShrink: 0 }} />
         <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.45 }}>
-          <strong style={{ color: 'var(--text)' }}>Clinical Decision Support System:</strong> The Recovera AI 2.0 Patient Recovery Digital Twin and its predictive model ensembles provide explainable statistical monitoring for post-discharge trajectories. They do not formulate clinical diagnoses, alter prescribed medication protocols, or override attending physician discretion.
+          <strong style={{ color: 'var(--text)' }}>Clinical Decision Support System:</strong> The Recovera AI Patient Recovery Digital Twin provides explainable deterministic and statistical monitoring for post-discharge recovery trajectories. It does not formulate autonomous clinical diagnoses, alter prescribed medication protocols, or override attending physician discretion.
         </div>
       </div>
     </div>

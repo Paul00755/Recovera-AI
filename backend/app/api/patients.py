@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.constants import Role, AppointmentStatus, RiskLevel, DocStatus
 from app.core.audit import record_audit
+from app.core.phone_utils import assert_phone_number_unique, normalize_phone
 from app.models.patient import Patient, MedicalHistory, PatientDoctorAssignment, PatientDeletionTicket, PatientReactivationTicket
 from app.models.user import User
 from app.models.appointment import Appointment
@@ -192,6 +193,8 @@ def create_patient(
             status_code=422,
             detail="A valid phone number is required when SMS notifications are enabled."
         )
+    if normalized_phone_val:
+        assert_phone_number_unique(db, normalized_phone_val)
 
     # 1. Create User account for patient with configured or default temporary password
     patient_email = req.email.strip().lower() if req.email else f"patient_{uuid.uuid4().hex[:8]}@hospital.local"
@@ -1146,7 +1149,17 @@ def update_patient(
     if req.gender is not None:
         patient.gender = req.gender
     if req.phone is not None:
-        patient.phone = normalize_phone(req.phone)
+        norm_p = normalize_phone(req.phone)
+        if norm_p:
+            assert_phone_number_unique(
+                db,
+                norm_p,
+                exclude_patient_id=str(patient.id),
+                exclude_user_id=str(patient.user_id) if patient.user_id else None
+            )
+        patient.phone = norm_p
+        if user:
+            user.phone = norm_p
     if req.email and user:
         user.email = req.email.strip().lower()
     if req.preferred_language is not None:

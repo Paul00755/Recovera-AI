@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Bell, Shield, AlertTriangle, BookOpen, Calendar, Users, Edit3, Trash2, CheckCircle, Search, Filter, Image as ImageIcon, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Bell, Shield, AlertTriangle, BookOpen, Calendar, Users, Edit3, Trash2, CheckCircle, Search, Filter, Image as ImageIcon, X, Upload } from 'lucide-react';
 import { StaffAvatar } from './StaffAvatar';
 import { API } from './staffChatUtils';
 
@@ -28,8 +28,11 @@ export function StaffAnnouncementsPage({ session, navigate }) {
   const [formCategory, setFormCategory] = useState('general');
   const [formPriority, setFormPriority] = useState('normal');
   const [formImageUrl, setFormImageUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
 
   const isAdmin = session?.user?.role === 'admin';
   const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
@@ -92,6 +95,8 @@ export function StaffAnnouncementsPage({ session, navigate }) {
     setFormCategory('general');
     setFormPriority('normal');
     setFormImageUrl('');
+    setSelectedFile(null);
+    setImagePreview(null);
     setError('');
     setModalOpen(true);
   };
@@ -103,8 +108,36 @@ export function StaffAnnouncementsPage({ session, navigate }) {
     setFormCategory(ann.category);
     setFormPriority(ann.priority);
     setFormImageUrl(ann.image_url || '');
+    setSelectedFile(null);
+    const existingImg = ann.image_url
+      ? (ann.image_url.startsWith('http') || ann.image_url.startsWith('blob:') ? ann.image_url : `${API}${ann.image_url}`)
+      : null;
+    setImagePreview(existingImg);
     setError('');
     setModalOpen(true);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file (PNG, JPG, WEBP, GIF).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Selected image exceeds the 10MB limit.');
+      return;
+    }
+    setError('');
+    setSelectedFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null);
+    setImagePreview(null);
+    setFormImageUrl('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDelete = async (annId) => {
@@ -132,12 +165,31 @@ export function StaffAnnouncementsPage({ session, navigate }) {
     setError('');
 
     try {
+      let finalImageUrl = formImageUrl ? formImageUrl.trim() : null;
+
+      // Upload selected image file to server if provided
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        const upRes = await fetch(`${API}/api/announcements/upload-image`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
+        });
+        if (!upRes.ok) {
+          const errData = await upRes.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Failed to upload cover image.');
+        }
+        const upJson = await upRes.json();
+        finalImageUrl = upJson.url;
+      }
+
       const payload = {
         title: formTitle.trim(),
         content: formContent.trim(),
         category: formCategory,
         priority: formPriority,
-        image_url: formImageUrl.trim() || null,
+        image_url: finalImageUrl,
       };
 
       let res;
@@ -267,7 +319,7 @@ export function StaffAnnouncementsPage({ session, navigate }) {
                 {/* Hero image if exists */}
                 {ann.image_url && (
                   <img
-                    src={ann.image_url}
+                    src={ann.image_url.startsWith('http') || ann.image_url.startsWith('blob:') ? ann.image_url : `${API}${ann.image_url}`}
                     alt=""
                     className="announcement-hero-img"
                     onError={(e) => {
@@ -451,14 +503,113 @@ export function StaffAnnouncementsPage({ session, navigate }) {
               </div>
 
               <div className="form-field">
-                <label className="form-label" style={{ marginBottom: 5 }}>Cover Image URL (Optional)</label>
+                <label className="form-label" style={{ marginBottom: 5 }}>Cover Image (Optional)</label>
                 <input
-                  type="url"
-                  className="form-input"
-                  placeholder="https://images.unsplash.com/..."
-                  value={formImageUrl}
-                  onChange={(e) => setFormImageUrl(e.target.value)}
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
                 />
+                {imagePreview ? (
+                  <div style={{
+                    position: 'relative',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface2)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center'
+                  }}>
+                    <img
+                      src={imagePreview}
+                      alt="Cover Preview"
+                      style={{
+                        width: '100%',
+                        maxHeight: 180,
+                        objectFit: 'cover',
+                        display: 'block'
+                      }}
+                    />
+                    <div style={{
+                      padding: '8px 12px',
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'rgba(0,0,0,0.4)',
+                      backdropFilter: 'blur(4px)',
+                      fontSize: 12,
+                      color: 'var(--text)'
+                    }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
+                        {selectedFile ? selectedFile.name : 'Cover image selected'}
+                      </span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{ padding: '2px 8px', fontSize: 11 }}
+                        >
+                          Change
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-xs"
+                          onClick={handleRemoveImage}
+                          style={{ padding: '2px 8px', fontSize: 11 }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) {
+                        if (!file.type.startsWith('image/')) {
+                          setError('Please drop a valid image file (PNG, JPG, WEBP, GIF).');
+                          return;
+                        }
+                        if (file.size > 10 * 1024 * 1024) {
+                          setError('Image exceeds 10MB limit.');
+                          return;
+                        }
+                        setError('');
+                        setSelectedFile(file);
+                        setImagePreview(URL.createObjectURL(file));
+                      }
+                    }}
+                    style={{
+                      border: '2px dashed var(--border)',
+                      borderRadius: 10,
+                      padding: '20px 16px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      background: 'var(--surface2)',
+                      transition: 'border-color 0.15s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    <Upload size={22} style={{ color: 'var(--p)', opacity: 0.8 }} />
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                      Click to upload cover image or drag and drop
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                      Supports PNG, JPG, WEBP, GIF (up to 10MB)
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="form-field">

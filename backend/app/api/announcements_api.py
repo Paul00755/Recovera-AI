@@ -1,7 +1,9 @@
 import uuid
 import datetime as dt
+from pathlib import Path
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, or_, desc, case
@@ -14,6 +16,9 @@ from app.api.deps import require_role
 from app.services.staff_chat_ws import staff_ws_manager
 
 router = APIRouter(prefix="/api/announcements", tags=["Staff Announcements"])
+
+UPLOAD_ANNOUNCEMENTS_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "announcements"
+UPLOAD_ANNOUNCEMENTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Strict staff-only dependency: Patients will receive 403 Forbidden
 require_staff = require_role(Role.ADMIN.value, Role.DOCTOR.value, Role.NURSE.value)
@@ -354,3 +359,67 @@ def mark_all_announcements_as_read(
         db.commit()
 
     return {"status": "all_marked_read", "count": len(to_add)}
+
+
+@router.post("/upload-image")
+async def upload_announcement_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Accepts staff image upload for announcements (PNG, JPG, JPEG, WEBP, GIF),
+    validates file integrity, saves safely, and returns the public serving URL.
+    """
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="No image file provided.")
+
+    allowed_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported image format '{ext}'. Allowed: PNG, JPG, JPEG, WEBP, GIF."
+        )
+
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image exceeds maximum limit of 10MB.")
+
+    file_id = uuid.uuid4().hex[:12]
+    saved_name = f"ann_{file_id}{ext}"
+    target_path = UPLOAD_ANNOUNCEMENTS_DIR / saved_name
+
+    with open(target_path, "wb") as f:
+        f.write(content)
+
+    return {
+        "url": f"/api/announcements/images/{saved_name}",
+        "filename": saved_name
+    }
+
+
+@router.get("/images/{filename}")
+def get_announcement_image(filename: str):
+    """Safely serves uploaded announcement cover images."""
+    clean_name = Path(filename).name
+    file_path = UPLOAD_ANNOUNCEMENTS_DIR / clean_name
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Announcement image not found.")
+
+    ext = file_path.suffix.lower()
+    media_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+    }
+    media_type = media_map.get(ext, "application/octet-stream")
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=86400"}
+    )
+

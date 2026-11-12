@@ -5894,6 +5894,19 @@ function AppShell({ session, logout, theme, setTheme }) {
       .catch(() => {});
   }, [session?.token, session?.user?.role]);
 
+  // Real-time listener for Staff Chat read events (instantly updates sidebar badge)
+  useEffect(() => {
+    const handleStaffChatRead = (e) => {
+      if (e?.detail && typeof e.detail.unread_count === 'number') {
+        setStaffChatUnread(e.detail.unread_count);
+      } else {
+        fetchStaffUnreadCounts();
+      }
+    };
+    window.addEventListener('recovera_staff_chat_read', handleStaffChatRead);
+    return () => window.removeEventListener('recovera_staff_chat_read', handleStaffChatRead);
+  }, [fetchStaffUnreadCounts]);
+
   useEffect(() => {
     fetchUnreadCount();
     checkIncomingConsultations();
@@ -5930,8 +5943,14 @@ function AppShell({ session, logout, theme, setTheme }) {
           }
           if (data.type === 'incoming_call' && data.data) {
             setGlobalIncomingCall(data.data);
+          } else if (data.type === 'staff_chat_unread_update' && typeof data.unread_count === 'number') {
+            setStaffChatUnread(data.unread_count);
           } else if (data.type === 'new_message') {
-            setStaffChatUnread(u => u + 1);
+            if (window.location.hash.includes('#/staff/staff-chat')) {
+              fetchStaffUnreadCounts();
+            } else {
+              setStaffChatUnread(u => u + 1);
+            }
           } else if (data.type === 'new_announcement') {
             setAnnouncementsUnread(u => u + 1);
           }
@@ -5951,7 +5970,13 @@ function AppShell({ session, logout, theme, setTheme }) {
       setRoute('#/staff/admin');
       return;
     }
-    const fn = () => setRoute(window.location.hash || defaultRoute);
+    const fn = () => {
+      const h = window.location.hash || defaultRoute;
+      setRoute(h);
+      if (h.includes('#/staff/staff-chat')) {
+        fetchStaffUnreadCounts();
+      }
+    };
     window.addEventListener('hashchange', fn);
     if (!window.location.hash) window.location.hash = defaultRoute;
     return () => window.removeEventListener('hashchange', fn);

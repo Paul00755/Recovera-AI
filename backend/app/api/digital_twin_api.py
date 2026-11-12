@@ -10,7 +10,7 @@ import uuid
 import datetime as dt
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -174,7 +174,7 @@ def get_patient_trajectory_corridor(
             "point_forecast": point_pred,
             "confidence_lower_95": lower_95,
             "confidence_upper_95": upper_95,
-            "model_architecture": "Ensemble (GRU + Scikit-Learn RF)",
+            "model_architecture": "Clinical Corridor Projection",
             "disclaimer": "Experimental decision-support forecast. Does not constitute autonomous medical judgment."
         })
 
@@ -300,3 +300,90 @@ def get_benchmark_metrics(
         data = json.load(f)
     
     return data
+
+
+@router.get("/hospital-cohort-summary")
+def get_hospital_digital_twin_cohort_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Returns REAL hospital-wide post-discharge recovery telemetry:
+    - Active monitored patients from database
+    - Cohort recovery score distribution (Optimal, Mild, Moderate, Critical)
+    - Real medication adherence rates
+    - Real clinical deviation alerts
+    - Real patient trajectory summaries
+    """
+    patients = db.scalars(
+        select(Patient).order_by(Patient.created_at.desc())
+    ).all()
+
+    cohort = []
+    total_score = 0.0
+    adherence_sum = 0.0
+    adherence_count = 0
+    tier_counts = {"normal": 0, "mild_deviation": 0, "moderate_deviation": 0, "critical_disruption": 0}
+
+    today_d = dt.date.today()
+
+    for p in patients:
+        twin = db.scalar(select(DigitalTwinState).where(DigitalTwinState.patient_id == str(p.id)))
+        if not twin:
+            twin = compute_digital_twin_state(db, str(p.id))
+
+        doctor_name = "Assigned Specialist"
+        doctor_spec = "General Medicine"
+        if p.assigned_doctor_id:
+            doc = db.get(User, p.assigned_doctor_id)
+            if doc:
+                doctor_name = doc.name
+                doctor_spec = getattr(doc, "specialization", "General Medicine") or "General Medicine"
+
+        # Real post-discharge day (clamped 1-14)
+        milestones = get_or_create_trajectory_milestones(db, str(p.id))
+        base_date = milestones[0].target_date if (milestones and milestones[0].target_date) else p.created_at.date()
+        elapsed = max(1, min(14, (today_d - base_date).days + 1))
+
+        tier_key = twin.deviation_tier if twin.deviation_tier in tier_counts else "normal"
+        tier_counts[tier_key] += 1
+        total_score += twin.current_recovery_score
+
+        comp = twin.component_breakdown_json or {}
+        adherence_val = max(0.0, 100.0 - float(comp.get("medication_adherence_at", 0.0)))
+        adherence_sum += adherence_val
+        adherence_count += 1
+
+        cohort.append({
+            "id": str(p.id),
+            "patient_code": p.patient_code or f"P-{str(p.id)[:8]}",
+            "name": p.name,
+            "age": p.age,
+            "gender": p.gender,
+            "doctor_name": doctor_name,
+            "specialization": doctor_spec,
+            "elapsed_day": elapsed,
+            "recovery_score": round(twin.current_recovery_score, 1),
+            "composite_deviation": round(twin.composite_deviation_score, 1),
+            "deviation_tier": twin.deviation_tier,
+            "symptom_score": round(float(comp.get("symptom_divergence_st", 0.0)), 1),
+            "adherence_score": round(float(comp.get("medication_adherence_at", 0.0)), 1),
+            "missingness_score": round(float(comp.get("telemetry_missingness_qt", 0.0)), 1),
+            "acute_flag": bool(float(comp.get("acute_vital_ft", 0.0)) > 0)
+        })
+
+    avg_score = round(total_score / max(1, len(patients)), 1)
+    avg_adherence = round(adherence_sum / max(1, adherence_count), 1)
+
+    unreviewed_alerts = db.scalar(
+        select(func.count(DigitalTwinDeviationAlert.id)).where(DigitalTwinDeviationAlert.status == "pending")
+    ) or 0
+
+    return {
+        "total_patients": len(patients),
+        "average_recovery_score": avg_score,
+        "average_adherence": avg_adherence,
+        "unreviewed_alerts": unreviewed_alerts,
+        "tier_distribution": tier_counts,
+        "patients": cohort
+    }

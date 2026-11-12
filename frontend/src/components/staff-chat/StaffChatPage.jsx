@@ -134,6 +134,12 @@ export function StaffChatPage({ session, navigate }) {
         setConversations(data);
         if (data.length > 0 && !activeConvId) {
           setActiveConvId(data[0].id);
+          markConversationAsRead(data[0].id);
+        } else if (activeConvId) {
+          const current = data.find(c => c.id === activeConvId);
+          if (current && current.unread_count > 0) {
+            markConversationAsRead(activeConvId);
+          }
         }
       }
     } catch (e) {
@@ -165,13 +171,22 @@ export function StaffChatPage({ session, navigate }) {
 
   const markConversationAsRead = async (convId) => {
     try {
-      await fetch(`${API}/api/staff-chat/conversations/${convId}/read`, {
+      const res = await fetch(`${API}/api/staff-chat/conversations/${convId}/read`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
+      let remainingUnread = 0;
+      if (res.ok) {
+        const d = await res.json();
+        remainingUnread = d.unread_count ?? 0;
+      }
       setConversations((prev) =>
         prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c))
       );
+      // Immediately notify AppShell so sidebar badge disappears in real time!
+      window.dispatchEvent(new CustomEvent('recovera_staff_chat_read', {
+        detail: { conversation_id: convId, unread_count: remainingUnread }
+      }));
     } catch (e) {}
   };
 
@@ -712,7 +727,10 @@ export function StaffChatPage({ session, navigate }) {
       <div
         key={conv.id}
         className={`staff-conv-item ${isSelected ? 'active' : ''}`}
-        onClick={() => setActiveConvId(conv.id)}
+        onClick={() => {
+          setActiveConvId(conv.id);
+          markConversationAsRead(conv.id);
+        }}
       >
         <StaffAvatar
           name={title}

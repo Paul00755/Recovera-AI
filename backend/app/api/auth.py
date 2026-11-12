@@ -14,6 +14,7 @@ from app.core.security import (
 )
 from app.core.audit import record_audit
 from app.core.constants import Role
+from app.core.phone_utils import assert_phone_number_unique
 from app.models.user import User, PasswordResetTicket, ProfileUpdateRequest
 from app.models.patient import Patient
 from app.models.notification import Notification
@@ -85,6 +86,9 @@ def register_staff(req: StaffRegisterRequest, db: Session = Depends(get_db)):
             detail="A user with this email address already exists."
         )
 
+    if req.phone:
+        assert_phone_number_unique(db, req.phone.strip())
+
     user = User(
         email=req.email,
         password_hash=get_password_hash(req.password),
@@ -140,11 +144,15 @@ def create_patient_account(
     pat_user = db.get(User, patient.user_id) if patient.user_id else None
     patient_name = pat_user.name if pat_user else patient.name
 
+    if patient.phone:
+        assert_phone_number_unique(db, patient.phone, exclude_patient_id=str(patient.id))
+
     user = User(
         email=req.email,
         password_hash=get_password_hash(req.password),
         name=patient_name,
         role=Role.PATIENT.value,
+        phone=patient.phone,
         active=True
     )
     db.add(user)
@@ -453,6 +461,7 @@ def create_profile_update_request(
         if fn == "name":
             current_user.name = val
         elif fn == "phone":
+            assert_phone_number_unique(db, val, exclude_user_id=str(current_user.id))
             current_user.phone = val
         elif fn == "specialization":
             current_user.specialization = val
@@ -497,6 +506,9 @@ def create_profile_update_request(
             "message": f"Profile field '{ticket.field_name}' updated and applied immediately.",
             "created_at": ticket.created_at.isoformat()
         }
+
+    if req.field_name.lower().strip() == "phone" and req.requested_value:
+        assert_phone_number_unique(db, req.requested_value.strip(), exclude_user_id=str(current_user.id))
 
     ticket = ProfileUpdateRequest(
         user_id=current_user.id,
@@ -597,6 +609,7 @@ def approve_profile_update_request(
     if fn == "name":
         target_user.name = val
     elif fn == "phone":
+        assert_phone_number_unique(db, val, exclude_user_id=str(target_user.id))
         target_user.phone = val
         p = db.scalar(select(Patient).where(Patient.user_id == target_user.id))
         if p:
@@ -898,7 +911,10 @@ def update_user_for_admin(
             updated_fields["email"] = user.email
 
     if req.phone is not None:
-        user.phone = req.phone.strip()
+        p_clean = req.phone.strip()
+        if p_clean:
+            assert_phone_number_unique(db, p_clean, exclude_user_id=str(user.id))
+        user.phone = p_clean or None
         updated_fields["phone"] = user.phone
         # Keep associated patient phone in sync
         p = db.scalar(select(Patient).where(Patient.user_id == user.id))

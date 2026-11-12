@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Cpu, Activity, BarChart3, TrendingUp, ShieldCheck, RefreshCw,
-  Layers, CheckCircle2, Clock, Zap, Database, Award, Info, FileText
+  Activity, ShieldCheck, RefreshCw, Layers, CheckCircle2,
+  Clock, AlertTriangle, ArrowRight, User, Stethoscope, ChevronRight, FileText
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -17,28 +17,41 @@ export function DigitalTwinBenchmarkStudio({ session }) {
     'Content-Type': 'application/json'
   }), [token]);
 
-  const fetchMetrics = async () => {
+  const fetchSummary = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/api/digital-twin/benchmark/metrics`, { headers });
-      if (!res.ok) throw new Error('Failed to load benchmark metrics');
+      const res = await fetch(`${API_BASE}/api/digital-twin/hospital-cohort-summary`, { headers });
+      if (!res.ok) throw new Error('Failed to load clinical cohort telemetry');
       const json = await res.json();
       setData(json);
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Error loading benchmark data');
+      setError(err.message || 'Error loading clinical telemetry data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMetrics();
+    fetchSummary();
   }, []);
 
-  const models = data?.models || [];
-  const meta = data?.dataset_metadata || {};
+  const patients = data?.patients || [];
+  const tiers = data?.tier_distribution || { normal: 0, mild_deviation: 0, moderate_deviation: 0, critical_disruption: 0 };
+
+  const getTierBadge = (tier) => {
+    switch (tier) {
+      case 'critical_disruption':
+        return { label: 'Critical Disruption', cls: 'badge-red' };
+      case 'moderate_deviation':
+        return { label: 'Moderate Deviation', cls: 'badge-amber' };
+      case 'mild_deviation':
+        return { label: 'Mild Deviation', cls: 'badge-teal' };
+      default:
+        return { label: 'Optimal Progression', cls: 'badge-green' };
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -47,215 +60,303 @@ export function DigitalTwinBenchmarkStudio({ session }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
-              width: 52,
-              height: 52,
-              borderRadius: 14,
+              width: 48,
+              height: 48,
+              borderRadius: 12,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'linear-gradient(135deg, rgba(56,189,248,0.2), rgba(0,212,184,0.2))',
-              color: '#38bdf8',
-              border: '1px solid rgba(56,189,248,0.3)'
+              background: 'var(--surface2)',
+              color: 'var(--p)',
+              border: '1px solid var(--border)'
             }}>
-              <Layers size={28} />
+              <Layers size={24} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span className="badge badge-teal" style={{ fontSize: 11, fontWeight: 700 }}>
-                  ● RESEARCH & BENCHMARK STUDIO
-                </span>
-                <span className="crypto-hash-pill" style={{ fontSize: 11 }}>
-                  PADDLEPADDLE 3.0 + SCIKIT-LEARN
+                  ● CLINICAL OPERATIONS
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Gated Data Sufficiency Verified
+                  14-Day Post-Discharge Telemetry
                 </span>
               </div>
-              <h1 style={{ margin: '4px 0 2px', fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>
-                Multi-Model Time-Series Benchmarking
+              <h1 style={{ margin: '4px 0 2px', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>
+                Hospital Clinical Recovery Digital Twin Studio
               </h1>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-dim)', maxWidth: 700 }}>
-                Rigorous empirical comparison of 6 candidate architectures across longitudinal post-discharge trajectories under patient-separated splits.
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-dim)', maxWidth: 720 }}>
+                Real-time recovery corridor tracking, multi-vector deviation scoring, and clinical intervention telemetry across all active post-discharge patients.
               </p>
             </div>
           </div>
 
           <button
             className="btn btn-ghost btn-sm"
-            onClick={fetchMetrics}
+            onClick={fetchSummary}
             disabled={loading}
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? 'Refreshing...' : 'Refresh Metrics'}
+            {loading ? 'Refreshing...' : 'Refresh Telemetry'}
           </button>
         </div>
 
-        {/* Metric Cards */}
+        {/* Real Hospital Telemetry Metric Strip */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginTop: 20 }}>
           <div className="stat-card" style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 10 }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-              Models Evaluated
+              Active Monitored Patients
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--p)' }}>
-                {models.length || 6}
-              </span>
-              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>architectures</span>
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              Baselines + Classical + Deep Learning
-            </div>
-          </div>
-
-          <div className="stat-card" style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-              Synthetic Cohort Size
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: '#38bdf8' }}>
-                {meta.total_patients || 420}
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                {data?.total_patients ?? 0}
               </span>
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>patients</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              14-day horizons ({meta.train_patients || 294} train / {meta.test_patients || 63} test)
+              Hospital inpatient & post-op registry
             </div>
           </div>
 
           <div className="stat-card" style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 10 }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-              Lowest Test MAE
+              Cohort Recovery Index (Rt)
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--success)' }}>
-                {models[0]?.test_mae ? models[0].test_mae.toFixed(3) : '0.244'}
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--p)', fontVariantNumeric: 'tabular-nums' }}>
+                {data?.average_recovery_score ?? 0}%
               </span>
-              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>pain points</span>
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>caseload avg</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              {models[0]?.name || 'Random Forest'}
+              Mathematical recovery score Rt = 100 × (1 - Dt)
             </div>
           </div>
 
           <div className="stat-card" style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 10 }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-              Fastest Inference Latency
+              Medication Adherence Rate (At)
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)' }}>
-                &lt; 0.05
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--success)', fontVariantNumeric: 'tabular-nums' }}>
+                {data?.average_adherence ?? 0}%
               </span>
-              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>ms / sample</span>
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>confirmed logs</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              Real-time Webhook Ready
+              Active prescription daily dose compliance
             </div>
+          </div>
+
+          <div className="stat-card" style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+              Pending Deviation Flags
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: (data?.unreviewed_alerts || 0) > 0 ? 'var(--danger)' : 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                {data?.unreviewed_alerts ?? 0}
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>alerts</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+              {(data?.unreviewed_alerts || 0) > 0 ? 'Requires clinician review' : 'All corridors stable'}
+            </div>
+          </div>
+        </div>
+
+        {/* Tier Distribution Summary */}
+        <div style={{
+          marginTop: 16,
+          padding: '10px 14px',
+          background: 'var(--surface2)',
+          borderRadius: 8,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 10,
+          fontSize: 12
+        }}>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+            Cohort Trajectory Tiers:
+          </span>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)' }}></span>
+              Optimal: <strong style={{ color: 'var(--text)' }}>{tiers.normal}</strong>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#38bdf8' }}></span>
+              Mild Deviation: <strong style={{ color: 'var(--text)' }}>{tiers.mild_deviation}</strong>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--warning, #f59e0b)' }}></span>
+              Moderate: <strong style={{ color: 'var(--text)' }}>{tiers.moderate_deviation}</strong>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)' }}></span>
+              Critical Disruption: <strong style={{ color: 'var(--text)' }}>{tiers.critical_disruption}</strong>
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Model Benchmark Comparison Table */}
+      {/* Caseload Recovery Trajectory Matrix */}
       <div className="card" style={{ padding: 22 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
-              Candidate Architecture Performance Matrix
+              Hospital Caseload Recovery Trajectory Matrix
             </h3>
             <p style={{ margin: '2px 0 0', fontSize: 12.5, color: 'var(--text-muted)' }}>
-              Ranked by generalization error on unseen test cohort. Models evaluated on next-day symptom prediction with missingness masking.
+              Active patient trajectories evaluated against post-op clinical corridors and daily check-in logs.
             </p>
           </div>
-          <span className="badge badge-teal" style={{ fontSize: 11 }}>
-            Strict Patient Splitting (No Leakage)
+          <span className="badge badge-neutral" style={{ fontSize: 11 }}>
+            {patients.length} Monitored Patients
           </span>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)', fontSize: 11.5 }}>
-                <th style={{ padding: '10px 12px' }}>RANK</th>
-                <th style={{ padding: '10px 12px' }}>MODEL ARCHITECTURE</th>
-                <th style={{ padding: '10px 12px' }}>CATEGORY</th>
-                <th style={{ padding: '10px 12px' }}>PARAMS</th>
-                <th style={{ padding: '10px 12px' }}>TEST MAE</th>
-                <th style={{ padding: '10px 12px' }}>TEST RMSE</th>
-                <th style={{ padding: '10px 12px' }}>PEARSON r</th>
-                <th style={{ padding: '10px 12px' }}>LATENCY</th>
-                <th style={{ padding: '10px 12px' }}>EVALUATION STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {models.map((m, idx) => (
-                <tr key={m.id} style={{
-                  borderBottom: '1px solid var(--border)',
-                  background: idx === 0 ? 'rgba(0, 212, 184, 0.04)' : 'transparent'
-                }}>
-                  <td style={{ padding: '12px 12px', fontWeight: 800, color: idx === 0 ? 'var(--p)' : 'var(--text-dim)' }}>
-                    #{idx + 1}
-                  </td>
-                  <td style={{ padding: '12px 12px', fontWeight: 700, color: 'var(--text)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {idx === 0 && <Award size={15} style={{ color: 'var(--p)' }} />}
-                      <span>{m.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 12px' }}>
-                    <span className="badge badge-teal" style={{ fontSize: 10 }}>
-                      {m.type}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 12px', fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>
-                    {m.parameters > 0 ? m.parameters.toLocaleString() : '—'}
-                  </td>
-                  <td style={{ padding: '12px 12px', fontWeight: 800, color: idx === 0 ? 'var(--success)' : 'var(--text)' }}>
-                    {m.test_mae.toFixed(3)}
-                  </td>
-                  <td style={{ padding: '12px 12px', color: 'var(--text-dim)' }}>
-                    {m.test_rmse.toFixed(3)}
-                  </td>
-                  <td style={{ padding: '12px 12px', color: 'var(--p)', fontWeight: 600 }}>
-                    {m.pearson_r ? m.pearson_r.toFixed(3) : '—'}
-                  </td>
-                  <td style={{ padding: '12px 12px', fontSize: 12, color: 'var(--text-muted)' }}>
-                    {m.latency_ms.toFixed(3)} ms
-                  </td>
-                  <td style={{ padding: '12px 12px' }}>
-                    <span className={`badge ${idx < 3 ? 'badge-green' : 'badge-amber'}`} style={{ fontSize: 10 }}>
-                      {m.status}
-                    </span>
-                  </td>
+        {error && (
+          <div className="alert alert-error" style={{ marginBottom: 16 }}>
+            {error}
+          </div>
+        )}
+
+        {patients.length === 0 && !loading ? (
+          <div style={{ padding: 36, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            No active post-discharge patients currently registered in the clinical workspace.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table" style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)', fontSize: 11.5 }}>
+                  <th style={{ padding: '10px 12px' }}>PATIENT</th>
+                  <th style={{ padding: '10px 12px' }}>ATTENDING CLINICIAN</th>
+                  <th style={{ padding: '10px 12px' }}>RECOVERY TIMELINE</th>
+                  <th style={{ padding: '10px 12px' }}>SCORE (Rt)</th>
+                  <th style={{ padding: '10px 12px' }}>DEVIATION (Dt)</th>
+                  <th style={{ padding: '10px 12px' }}>TELEMETRY VECTORS</th>
+                  <th style={{ padding: '10px 12px' }}>CLINICAL STATUS</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>ACTION</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {patients.map((p) => {
+                  const tb = getTierBadge(p.deviation_tier);
+                  return (
+                    <tr
+                      key={p.id}
+                      style={{
+                        borderBottom: '1px solid var(--border)',
+                        transition: 'background 0.15s ease'
+                      }}
+                    >
+                      <td style={{ padding: '12px 12px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                          {p.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {p.patient_code} • {p.age ? `${p.age}y` : ''} {p.gender ? `(${p.gender})` : ''}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '12px 12px' }}>
+                        <div style={{ color: 'var(--text)', fontSize: 12.5 }}>
+                          {p.doctor_name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {p.specialization}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '12px 12px' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <Clock size={13} style={{ color: 'var(--text-muted)' }} />
+                          <span style={{ fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                            Day {p.elapsed_day} of 14
+                          </span>
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '12px 12px' }}>
+                        <span style={{ fontWeight: 700, color: p.recovery_score >= 80 ? 'var(--p)' : 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                          {p.recovery_score}%
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '12px 12px' }}>
+                        <span style={{
+                          fontWeight: 600,
+                          color: p.composite_deviation > 25 ? 'var(--danger)' : p.composite_deviation > 15 ? 'var(--warning, #f59e0b)' : 'var(--text-dim)',
+                          fontVariantNumeric: 'tabular-nums'
+                        }}>
+                          {p.composite_deviation}%
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '12px 12px' }}>
+                        <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'var(--text-dim)' }}>
+                          <span title="Symptom divergence score">St: <strong style={{ color: 'var(--text)' }}>{p.symptom_score}%</strong></span>
+                          <span>•</span>
+                          <span title="Medication adherence gap">At: <strong style={{ color: 'var(--text)' }}>{p.adherence_score}%</strong></span>
+                          <span>•</span>
+                          <span title="Telemetry missingness">Qt: <strong style={{ color: 'var(--text)' }}>{p.missingness_score}%</strong></span>
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '12px 12px' }}>
+                        <span className={`badge ${tb.cls}`} style={{ fontSize: 10 }}>
+                          {tb.label}
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '12px 12px', textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => {
+                            window.location.hash = `#/staff/patients/${p.id}/digital-twin`;
+                          }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <span>Open Twin</span>
+                          <ChevronRight size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Deep Learning Methodology & Clinical Safety Gating */}
+      {/* Clinical Governance & Mathematical Formulation Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div className="card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <Database size={20} style={{ color: 'var(--p)' }} />
+            <Activity size={18} style={{ color: 'var(--p)' }} />
             <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-              Data Sufficiency & Archetype Generation
+              Deterministic State Formulation
             </h4>
           </div>
-          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.5 }}>
-            To protect patient safety and prevent deep learning overfitting on sparse local hospital records, models are pre-trained on a standardized longitudinal cohort (N=420) incorporating realistic clinical recovery archetypes: Standard Recovery (60%), Delayed Recovery (20%), Sudden Deterioration (10%), and Medication Non-Adherence (10%).
+          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.55 }}>
+            Each patient's clinical digital twin continuously calculates a composite deviation score <code style={{ color: 'var(--p)', padding: '1px 4px', background: 'var(--surface2)', borderRadius: 4 }}>D_t = 0.35·S_t + 0.25·A_t + 0.20·T_t + 0.10·F_t + 0.10·Q_t</code>, mapping symptom divergence, medication adherence gaps, acute vitals, and missing logs against post-operative surgical corridors.
           </p>
         </div>
 
         <div className="card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <ShieldCheck size={20} style={{ color: 'var(--success)' }} />
+            <ShieldCheck size={18} style={{ color: 'var(--success)' }} />
             <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-              Gated Production Deployment Boundary
+              Supervised Clinical Governance
             </h4>
           </div>
-          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.5 }}>
-            Deep learning projections serve as <em>advisory decision-support signals</em>. Live patient deviation scoring continues to be anchored in deterministic, explainable mathematical rules (D_t) and supervised clinical milestone envelopes [Y_min, Y_max] with mandatory clinician acknowledgement.
+          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.55 }}>
+            Digital twin state monitoring operates strictly as an <em>advisory decision-support system</em>. Automated deviation flags notify attending physicians to review clinical progress, adjust care instructions, or schedule emergency consults without autonomous diagnosis.
           </p>
         </div>
       </div>

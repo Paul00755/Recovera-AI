@@ -155,3 +155,7 @@ logs/
 *.temp
 scratch/
 .neon
+neon.ts
+package.json
+package-lock.json
+*.pdf
