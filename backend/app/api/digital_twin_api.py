@@ -349,27 +349,38 @@ def get_hospital_digital_twin_cohort_summary(
         tier_counts[tier_key] += 1
         total_score += twin.current_recovery_score
 
-        comp = twin.component_breakdown_json or {}
-        adherence_val = max(0.0, 100.0 - float(comp.get("medication_adherence_at", 0.0)))
+        adherence_gap = getattr(twin, "adherence_deviation_score", 0.0) or 0.0
+        adherence_val = max(0.0, 100.0 - float(adherence_gap))
         adherence_sum += adherence_val
         adherence_count += 1
+
+        rec_score = getattr(twin, "current_recovery_score", 100.0) or 100.0
+        comp_dev = getattr(twin, "composite_deviation", 0.0) or 0.0
+        sym_score = getattr(twin, "symptom_deviation_score", 0.0) or 0.0
+        mis_score = getattr(twin, "uncertainty_score", 0.0) or 0.0
+        acute_flag = bool((getattr(twin, "followup_deviation_score", 0.0) or 0.0) > 0)
+
+        p_name = p.user.name if (p.user and p.user.name) else (p.patient_code or f"Patient {str(p.id)[:8]}")
+        p_age = None
+        if p.dob:
+            p_age = today_d.year - p.dob.year - ((today_d.month, today_d.day) < (p.dob.month, p.dob.day))
 
         cohort.append({
             "id": str(p.id),
             "patient_code": p.patient_code or f"P-{str(p.id)[:8]}",
-            "name": p.name,
-            "age": p.age,
+            "name": p_name,
+            "age": p_age,
             "gender": p.gender,
             "doctor_name": doctor_name,
             "specialization": doctor_spec,
             "elapsed_day": elapsed,
-            "recovery_score": round(twin.current_recovery_score, 1),
-            "composite_deviation": round(twin.composite_deviation_score, 1),
-            "deviation_tier": twin.deviation_tier,
-            "symptom_score": round(float(comp.get("symptom_divergence_st", 0.0)), 1),
-            "adherence_score": round(float(comp.get("medication_adherence_at", 0.0)), 1),
-            "missingness_score": round(float(comp.get("telemetry_missingness_qt", 0.0)), 1),
-            "acute_flag": bool(float(comp.get("acute_vital_ft", 0.0)) > 0)
+            "recovery_score": round(float(rec_score), 1),
+            "composite_deviation": round(float(comp_dev), 1),
+            "deviation_tier": twin.deviation_tier or "normal",
+            "symptom_score": round(float(sym_score), 1),
+            "adherence_score": round(float(adherence_gap), 1),
+            "missingness_score": round(float(mis_score), 1),
+            "acute_flag": acute_flag
         })
 
     avg_score = round(total_score / max(1, len(patients)), 1)

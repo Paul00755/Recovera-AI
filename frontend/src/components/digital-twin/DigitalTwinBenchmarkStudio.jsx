@@ -22,12 +22,24 @@ export function DigitalTwinBenchmarkStudio({ session }) {
       setLoading(true);
       setError(null);
       const res = await fetch(`${API_BASE}/api/digital-twin/hospital-cohort-summary`, { headers });
-      if (!res.ok) throw new Error('Failed to load clinical cohort telemetry');
+      if (!res.ok) {
+        let msg = 'Failed to load clinical cohort telemetry';
+        try {
+          const errData = await res.json();
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        throw new Error(msg);
+      }
       const json = await res.json();
       setData(json);
     } catch (err) {
-      console.error(err);
-      setError(err.message || 'Error loading clinical telemetry data');
+      console.error('Digital twin fetch error:', err);
+      const isNetworkErr = err.name === 'TypeError' || err.message === 'Failed to fetch';
+      setError(
+        isNetworkErr
+          ? 'Unable to connect to hospital clinical telemetry server. Please ensure the backend server is running.'
+          : (err.message || 'Error loading clinical telemetry data')
+      );
     } finally {
       setLoading(false);
     }

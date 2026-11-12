@@ -126,6 +126,8 @@ def on_startup():
                 conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS care_status VARCHAR(20) DEFAULT 'active';"))
                 conn.execute(text("ALTER TABLE sms_jobs ADD COLUMN IF NOT EXISTS first_failed_at TIMESTAMP;"))
                 conn.execute(text("ALTER TABLE staff_conversations ADD COLUMN IF NOT EXISTS direct_key VARCHAR(75);"))
+                conn.execute(text("ALTER TABLE recovery_plans ADD COLUMN IF NOT EXISTS version_number INTEGER DEFAULT 1;"))
+                conn.execute(text("ALTER TABLE recovery_plans ADD COLUMN IF NOT EXISTS source_document_ids TEXT;"))
     except Exception as e:
         pass
 
