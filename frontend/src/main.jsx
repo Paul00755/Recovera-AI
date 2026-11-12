@@ -2605,8 +2605,16 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
                             style={{ padding: '4px 8px', fontSize: 12 }}
                             value={m.food_relation || 'after_food'}
                             onChange={e => {
+                              const val = e.target.value;
                               const next = [...medicationsList];
-                              next[idx] = { ...next[idx], food_relation: e.target.value };
+                              let autoInst = next[idx].instructions || '';
+                              if (!autoInst || autoInst.toLowerCase().includes('meals') || autoInst.toLowerCase().includes('food') || autoInst.toLowerCase().includes('stomach')) {
+                                if (val === 'before_food') autoInst = 'Take 30 minutes before meals with water';
+                                else if (val === 'after_food') autoInst = 'Take after meals with water';
+                                else if (val === 'empty_stomach') autoInst = 'Take on an empty stomach with water';
+                                else if (val === 'with_food') autoInst = 'Take with food/meals';
+                              }
+                              next[idx] = { ...next[idx], food_relation: val, instructions: autoInst };
                               updateMedicationsList(next);
                             }}
                           >
@@ -3462,12 +3470,364 @@ function LandingPage({ initialTab = 'login', onLogin, theme, setTheme, notice = 
 }
 
 /* ===========================================================
+   CARE COORDINATION WORKFLOW STEPS DEFINITION (REAL-TIME ANIMATED FLOW)
+   =========================================================== */
+const WORKFLOW_STEPS = [
+  {
+    step: 1,
+    title: '1. Patient Books Slot',
+    short: 'Patient Books Slot',
+    role: 'PATIENT',
+    roleColor: '#a855f7',
+    icon: Calendar,
+    statusText: 'Slot reserved across 14 specialties'
+  },
+  {
+    step: 2,
+    title: '2. Nurse Triage Review',
+    short: 'Nurse Triage Review',
+    role: 'NURSE',
+    roleColor: '#38bdf8',
+    icon: Users,
+    statusText: 'Triage prioritization & clinical queue check'
+  },
+  {
+    step: 3,
+    title: '3. Doctor Confirms / Teleconsult',
+    short: 'Doctor Confirms / Teleconsult',
+    role: 'DOCTOR',
+    roleColor: 'var(--p)',
+    icon: Stethoscope,
+    statusText: 'Attending physician consult & care plan review'
+  },
+  {
+    step: 4,
+    title: '4. Post-Op Daily Tracking',
+    short: 'Post-Op Daily Tracking',
+    role: 'PATIENT & NURSE',
+    roleColor: '#10b981',
+    icon: Activity,
+    statusText: 'Daily symptom check-in & Digital Twin sync'
+  },
+  {
+    step: 5,
+    title: '5. EOD Expiration Gate',
+    short: 'EOD Expiration Gate',
+    role: 'SYSTEM & ADMIN',
+    roleColor: 'var(--amber)',
+    icon: Clock,
+    statusText: '23:59:59 Hard safety expiration check'
+  }
+];
+
+/* ===========================================================
+   SIMULATOR PRESCRIPTION EDIT MODAL (REACTIVE FOOD INTAKE SYNC)
+   =========================================================== */
+function EditSimMedModal({ med, onClose, onSave }) {
+  if (!med) return null;
+
+  const [dose, setDose] = useState(med.dose || (med.name === 'Acedo MR' ? '500mg / 325mg' : '1 tablet'));
+  const [tabletCount, setTabletCount] = useState(med.tabletCount || '1 tablet');
+  const [duration, setDuration] = useState(med.duration || 5);
+  const [intakeType, setIntakeType] = useState(med.intakeType || 'after_food');
+  const [breakfast, setBreakfast] = useState(med.breakfast !== 0);
+  const [lunch, setLunch] = useState(med.lunch === 1);
+  const [dinner, setDinner] = useState(med.dinner !== 0);
+  const [autoNotice, setAutoNotice] = useState('');
+
+  // Helper function to generate clean standard instruction based on food timing and period
+  const computeAutoInstruction = (food, b, l, d) => {
+    if (food === 'before_food') {
+      if (b && d && !l) return 'Take 30 minutes before breakfast & dinner with water';
+      if (b && !d && !l) return 'Take 30 minutes before breakfast with water';
+      if (!b && d && !l) return 'Take 30 minutes before dinner with water';
+      return 'Take 30 minutes before meals with water';
+    } else {
+      if (b && d && !l) return 'Take after breakfast & dinner with water';
+      if (b && !d && !l) return 'Morning dose after breakfast with water';
+      if (!b && d && !l) return 'Night dose after dinner with water';
+      return 'Take after meals with water';
+    }
+  };
+
+  const [description, setDescription] = useState(() => {
+    if (med.description) return med.description;
+    return computeAutoInstruction(med.intakeType || 'after_food', med.breakfast !== 0, med.lunch === 1, med.dinner !== 0);
+  });
+
+  // When Intake Type changes, immediately update the special instruction automatically!
+  const handleIntakeChange = (newIntake) => {
+    setIntakeType(newIntake);
+    const updated = computeAutoInstruction(newIntake, breakfast, lunch, dinner);
+    setDescription(updated);
+    setAutoNotice(newIntake === 'before_food' ? 'Updated to Before Food (AC) protocol' : 'Updated to After Food (PC) protocol');
+    setTimeout(() => setAutoNotice(''), 3000);
+  };
+
+  const handleMealToggle = (mealKey) => {
+    let nb = breakfast, nl = lunch, nd = dinner;
+    if (mealKey === 'breakfast') { nb = !breakfast; setBreakfast(nb); }
+    if (mealKey === 'lunch') { nl = !lunch; setLunch(nl); }
+    if (mealKey === 'dinner') { nd = !dinner; setDinner(nd); }
+
+    // Update instruction to match new meal combination
+    const newDesc = computeAutoInstruction(intakeType, nb, nl, nd);
+    setDescription(newDesc);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!dose.trim()) {
+      alert('Dosage is mandatory. Please enter a valid dose (e.g. 500mg, 1 tablet).');
+      return;
+    }
+    const dInt = parseInt(duration, 10);
+    if (!dInt || dInt < 1) {
+      alert('Duration (days) is mandatory and must be at least 1 day.');
+      return;
+    }
+    if (!intakeType) {
+      alert('Intake type (Before Food / After Food) is mandatory.');
+      return;
+    }
+    const b = breakfast ? 1 : 0;
+    const l = lunch ? 1 : 0;
+    const d = dinner ? 1 : 0;
+    if (b === 0 && l === 0 && d === 0) {
+      alert('Please select at least one dosing period (Breakfast, Lunch, or Dinner).');
+      return;
+    }
+
+    onSave({
+      id: med.id,
+      dose: dose.trim(),
+      tabletCount: (tabletCount || '1 tablet').trim(),
+      duration: dInt,
+      intakeType,
+      period: `${b}-${l}-${d}`,
+      breakfast: b,
+      lunch: l,
+      dinner: d,
+      description: description.trim(),
+      missingDose: false,
+      checked: true
+    });
+  };
+
+  return (
+    <Modal
+      open
+      title={`Edit Prescription Details: ${med.name}`}
+      onClose={onClose}
+      size="md"
+    >
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ background: 'var(--surface2)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{med.name}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{med.comp}</div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="form-field" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: 11.5 }}>
+              Dosage * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
+            </label>
+            <input
+              name="dose"
+              required
+              className="form-input"
+              value={dose}
+              onChange={e => setDose(e.target.value)}
+              placeholder="e.g. 500mg, 40mg, 150mg"
+              list="sim-dose-suggestions"
+              style={{ fontSize: 12.5 }}
+            />
+            <datalist id="sim-dose-suggestions">
+              <option value="500mg / 325mg" />
+              <option value="500mg" />
+              <option value="400mg" />
+              <option value="150mg" />
+              <option value="40mg" />
+              <option value="6mg" />
+              <option value="1 tablet" />
+              <option value="2 tablets" />
+            </datalist>
+          </div>
+
+          <div className="form-field" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: 11.5 }}>
+              Tablet Count / Form * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
+            </label>
+            <input
+              name="tabletCount"
+              required
+              className="form-input"
+              value={tabletCount}
+              onChange={e => setTabletCount(e.target.value)}
+              placeholder="e.g. 1 tablet, 1 capsule"
+              style={{ fontSize: 12.5 }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="form-field" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: 11.5 }}>
+              Duration (Days) * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
+            </label>
+            <input
+              type="number"
+              name="duration"
+              required
+              min="1"
+              max="365"
+              className="form-input"
+              value={duration}
+              onChange={e => setDuration(e.target.value)}
+              style={{ fontSize: 12.5 }}
+            />
+          </div>
+
+          <div className="form-field" style={{ margin: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="form-label" style={{ fontSize: 11.5, margin: 0 }}>
+                Intake Type * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
+              </label>
+              {autoNotice && (
+                <span style={{ fontSize: 10, color: 'var(--p)', fontWeight: 600 }}>
+                  ✓ {autoNotice}
+                </span>
+              )}
+            </div>
+            <select
+              name="intakeType"
+              required
+              className="form-input"
+              value={intakeType}
+              onChange={e => handleIntakeChange(e.target.value)}
+              style={{ fontSize: 12.5, borderColor: intakeType === 'before_food' ? '#f59e0b' : 'var(--border)' }}
+            >
+              <option value="after_food">After Food (PC)</option>
+              <option value="before_food">Before Food (AC)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-field" style={{ margin: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <label className="form-label" style={{ fontSize: 11.5, margin: 0 }}>
+              Dosing Period (1-1-1 Notation) *
+            </label>
+            <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+              1st = Breakfast · 2nd = Lunch · 3rd = Dinner · 0 = Absent
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
+              <input type="checkbox" name="breakfast" checked={breakfast} onChange={() => handleMealToggle('breakfast')} />
+              <Sun size={14} color="#f59e0b" />
+              <span>Breakfast (1st)</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
+              <input type="checkbox" name="lunch" checked={lunch} onChange={() => handleMealToggle('lunch')} />
+              <Sun size={14} color="#f59e0b" />
+              <span>Lunch (2nd)</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
+              <input type="checkbox" name="dinner" checked={dinner} onChange={() => handleMealToggle('dinner')} />
+              <Moon size={14} color="#818cf8" />
+              <span>Dinner (3rd)</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="form-field" style={{ margin: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <label className="form-label" style={{ fontSize: 11.5, margin: 0 }}>
+              Special Instructions / Description <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>(Optional)</span>
+            </label>
+            <span style={{ fontSize: 10, color: 'var(--p)', fontWeight: 600 }}>
+              ⚡ Auto-updates based on food selection
+            </span>
+          </div>
+          <input
+            name="description"
+            className="form-input"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="e.g. Take with warm water after meals, avoid dairy"
+            style={{ fontSize: 12.5 }}
+          />
+
+          {/* Quick Preset Buttons */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+            <button
+              type="button"
+              className="badge"
+              style={{ fontSize: 10, cursor: 'pointer', background: intakeType === 'before_food' ? 'rgba(245, 158, 11, 0.15)' : 'var(--surface2)', border: '1px solid var(--border)' }}
+              onClick={() => { setIntakeType('before_food'); setDescription('Take 30 minutes before meals with water'); }}
+            >
+              Before Food (AC)
+            </button>
+            <button
+              type="button"
+              className="badge"
+              style={{ fontSize: 10, cursor: 'pointer', background: intakeType === 'after_food' ? 'rgba(0, 229, 192, 0.15)' : 'var(--surface2)', border: '1px solid var(--border)' }}
+              onClick={() => { setIntakeType('after_food'); setDescription('Take after meals with water'); }}
+            >
+              After Food (PC)
+            </button>
+            <button
+              type="button"
+              className="badge"
+              style={{ fontSize: 10, cursor: 'pointer', background: 'var(--surface2)', border: '1px solid var(--border)' }}
+              onClick={() => setDescription('Take on an empty stomach with a full glass of water')}
+            >
+              Empty Stomach
+            </button>
+            <button
+              type="button"
+              className="badge"
+              style={{ fontSize: 10, cursor: 'pointer', background: 'var(--surface2)', border: '1px solid var(--border)' }}
+              onClick={() => setDescription(prev => prev ? `${prev}, with warm water` : 'Take with warm water')}
+            >
+              + Warm Water
+            </button>
+          </div>
+        </div>
+
+        <div className="modal-footer" style={{ marginTop: 8 }}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary btn-sm">
+            Save Medication Details
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ===========================================================
    3. RECOVERA AI PRODUCTION HOME PAGE & CAPABILITIES SHOWCASE
    Comprehensive hospital-supervised recovery telemetry showcase
    =========================================================== */
 function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeRole, setActiveRole] = useState('doctor'); // 'doctor' | 'nurse' | 'patient' | 'admin'
+
+  // Real-Time Animated Care Coordination Workflow Stepper (Moving like a GIF)
+  const [workflowActiveStep, setWorkflowActiveStep] = useState(0);
+  const [workflowIsPaused, setWorkflowIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (workflowIsPaused) return;
+    const interval = setInterval(() => {
+      setWorkflowActiveStep(prev => (prev + 1) % 5);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, [workflowIsPaused]);
 
   // Simulator 1: Digital Twin 2.0 State (Local sample only - 0 backend writes)
   const [simDay, setSimDay] = useState(11);
@@ -4580,200 +4940,15 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
 
                 {/* Simulator Edit Medication Modal */}
                 {editingSimMed && (
-                  <Modal
-                    open
-                    title={`Edit Prescription Details: ${editingSimMed.name}`}
+                  <EditSimMedModal
+                    med={editingSimMed}
                     onClose={() => setEditingSimMed(null)}
-                    size="md"
-                  >
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const fd = new FormData(e.target);
-                        const dose = (fd.get('dose') || '').trim();
-                        const tabletCount = (fd.get('tabletCount') || '').trim();
-                        const duration = parseInt(fd.get('duration'), 10) || 1;
-                        const intakeType = fd.get('intakeType') || 'after_food';
-                        const description = (fd.get('description') || '').trim();
-                        const b = fd.get('breakfast') ? 1 : 0;
-                        const l = fd.get('lunch') ? 1 : 0;
-                        const d = fd.get('dinner') ? 1 : 0;
-
-                        if (!dose) {
-                          alert('Dosage is mandatory. Please enter a valid dose (e.g. 500mg, 1 tablet).');
-                          return;
-                        }
-                        if (!duration || duration < 1) {
-                          alert('Duration (days) is mandatory and must be at least 1 day.');
-                          return;
-                        }
-                        if (!intakeType) {
-                          alert('Intake type (Before Food / After Food) is mandatory.');
-                          return;
-                        }
-                        if (b === 0 && l === 0 && d === 0) {
-                          alert('Please select at least one dosing period (Breakfast, Lunch, or Dinner).');
-                          return;
-                        }
-
-                        const periodCode = `${b}-${l}-${d}`;
-
-                        setOcrMedications(prev => prev.map(m => {
-                          if (m.id === editingSimMed.id) {
-                            return {
-                              ...m,
-                              dose,
-                              tabletCount: tabletCount || '1 tablet',
-                              duration,
-                              intakeType,
-                              period: periodCode,
-                              breakfast: b,
-                              lunch: l,
-                              dinner: d,
-                              description,
-                              missingDose: false,
-                              checked: true
-                            };
-                          }
-                          return m;
-                        }));
-
-                        setSimValidationError('');
-                        setEditingSimMed(null);
-                      }}
-                      style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
-                    >
-                      <div style={{ background: 'var(--surface2)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{editingSimMed.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{editingSimMed.comp}</div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <div className="form-field" style={{ margin: 0 }}>
-                          <label className="form-label" style={{ fontSize: 11.5 }}>
-                            Dosage * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
-                          </label>
-                          <input
-                            name="dose"
-                            required
-                            className="form-input"
-                            defaultValue={editingSimMed.dose || (editingSimMed.name === 'Acedo MR' ? '500mg / 325mg' : '1 tablet')}
-                            placeholder="e.g. 500mg, 40mg, 150mg"
-                            list="sim-dose-suggestions"
-                            style={{ fontSize: 12.5 }}
-                          />
-                          <datalist id="sim-dose-suggestions">
-                            <option value="500mg / 325mg" />
-                            <option value="500mg" />
-                            <option value="400mg" />
-                            <option value="150mg" />
-                            <option value="40mg" />
-                            <option value="6mg" />
-                            <option value="1 tablet" />
-                            <option value="2 tablets" />
-                          </datalist>
-                        </div>
-
-                        <div className="form-field" style={{ margin: 0 }}>
-                          <label className="form-label" style={{ fontSize: 11.5 }}>
-                            Tablet Count / Form * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
-                          </label>
-                          <input
-                            name="tabletCount"
-                            required
-                            className="form-input"
-                            defaultValue={editingSimMed.tabletCount || '1 tablet'}
-                            placeholder="e.g. 1 tablet, 1 capsule"
-                            style={{ fontSize: 12.5 }}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <div className="form-field" style={{ margin: 0 }}>
-                          <label className="form-label" style={{ fontSize: 11.5 }}>
-                            Duration (Days) * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
-                          </label>
-                          <input
-                            type="number"
-                            name="duration"
-                            required
-                            min="1"
-                            max="365"
-                            className="form-input"
-                            defaultValue={editingSimMed.duration || 5}
-                            style={{ fontSize: 12.5 }}
-                          />
-                        </div>
-
-                        <div className="form-field" style={{ margin: 0 }}>
-                          <label className="form-label" style={{ fontSize: 11.5 }}>
-                            Intake Type * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
-                          </label>
-                          <select
-                            name="intakeType"
-                            required
-                            className="form-input"
-                            defaultValue={editingSimMed.intakeType || 'after_food'}
-                            style={{ fontSize: 12.5 }}
-                          >
-                            <option value="after_food">After Food (PC)</option>
-                            <option value="before_food">Before Food (AC)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="form-field" style={{ margin: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <label className="form-label" style={{ fontSize: 11.5, margin: 0 }}>
-                            Dosing Period (1-1-1 Notation) *
-                          </label>
-                          <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                            1st = Breakfast · 2nd = Lunch · 3rd = Dinner · 0 = Absent
-                          </span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 4 }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
-                            <input type="checkbox" name="breakfast" defaultChecked={editingSimMed.breakfast !== 0} />
-                            <Sun size={14} color="#f59e0b" />
-                            <span>Breakfast (1st)</span>
-                          </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
-                            <input type="checkbox" name="lunch" defaultChecked={editingSimMed.lunch === 1} />
-                            <Sun size={14} color="#f59e0b" />
-                            <span>Lunch (2nd)</span>
-                          </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
-                            <input type="checkbox" name="dinner" defaultChecked={editingSimMed.dinner !== 0} />
-                            <Moon size={14} color="#818cf8" />
-                            <span>Dinner (3rd)</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="form-field" style={{ margin: 0 }}>
-                        <label className="form-label" style={{ fontSize: 11.5 }}>
-                          Special Instructions / Description <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>(Optional)</span>
-                        </label>
-                        <input
-                          name="description"
-                          className="form-input"
-                          defaultValue={editingSimMed.description || ''}
-                          placeholder="e.g. Take with warm water after meals, avoid dairy"
-                          style={{ fontSize: 12.5 }}
-                        />
-                      </div>
-
-                      <div className="modal-footer" style={{ marginTop: 8 }}>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingSimMed(null)}>
-                          Cancel
-                        </button>
-                        <button type="submit" className="btn btn-primary btn-sm">
-                          Save Medication Details
-                        </button>
-                      </div>
-                    </form>
-                  </Modal>
+                    onSave={(updated) => {
+                      setOcrMedications(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
+                      setSimValidationError('');
+                      setEditingSimMed(null);
+                    }}
+                  />
                 )}
 
                 {/* Simulator Prescription Export Preview Modal */}
@@ -5058,36 +5233,99 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
           </p>
         </div>
 
-        {/* Workflow Progression Stepper Bar */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          flexWrap: 'wrap',
-          marginBottom: 28,
-          padding: '12px 18px',
-          background: 'var(--surface)',
-          borderRadius: 12,
-          border: '1px solid var(--border)',
-          maxWidth: 900,
-          margin: '0 auto 28px'
-        }}>
-          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>1. Patient Books Slot</span>
-          <ArrowRight size={14} color="var(--text-muted)" />
-          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>2. Nurse Triage Review</span>
-          <ArrowRight size={14} color="var(--text-muted)" />
-          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>3. Doctor Confirms / Teleconsult</span>
-          <ArrowRight size={14} color="var(--text-muted)" />
-          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>4. Post-Op Daily Tracking</span>
-          <ArrowRight size={14} color="var(--text-muted)" />
-          <span className="badge" style={{ fontSize: 11, padding: "4px 8px", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}>5. EOD Expiration Gate</span>
+        {/* Real-Time Animated Workflow Stepper (Moving like a GIF) */}
+        <div className="realtime-workflow-box">
+          {/* Real-time Status Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="realtime-radar-beacon" />
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--p)' }}>
+                Real-Time Care Progression Flow · Live Dispatch
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Stage {workflowActiveStep + 1} of 5: <strong style={{ color: WORKFLOW_STEPS[workflowActiveStep].roleColor }}>{WORKFLOW_STEPS[workflowActiveStep].short}</strong>
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => setWorkflowIsPaused(p => !p)}
+                style={{ fontSize: 10.5, padding: '2px 8px', height: 22, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                title={workflowIsPaused ? 'Resume automated GIF progression' : 'Pause progression motion'}
+              >
+                {workflowIsPaused ? <Play size={11} /> : <Pause size={11} />}
+                {workflowIsPaused ? 'Resume Motion' : 'Pause'}
+              </button>
+            </div>
+          </div>
+
+          {/* Stepper Flow Track */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            flexWrap: 'wrap',
+            padding: '6px 0'
+          }}>
+            {WORKFLOW_STEPS.map((step, idx) => {
+              const isActive = workflowActiveStep === idx;
+              const isCompleted = workflowActiveStep > idx;
+
+              return (
+                <React.Fragment key={step.step}>
+                  <div
+                    onClick={() => setWorkflowActiveStep(idx)}
+                    className={`realtime-step-badge ${isActive ? 'active' : isCompleted ? 'completed' : ''}`}
+                    style={{
+                      ...(isActive ? {
+                        borderColor: step.roleColor,
+                        boxShadow: `0 0 16px ${step.roleColor}40`,
+                        background: `${step.roleColor}14`,
+                        color: 'var(--text)'
+                      } : isCompleted ? {
+                        borderColor: `${step.roleColor}50`,
+                        background: `${step.roleColor}08`
+                      } : {})
+                    }}
+                    title={`Click to inspect Stage ${step.step}: ${step.title} (${step.statusText})`}
+                  >
+                    {isActive ? (
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: step.roleColor, boxShadow: `0 0 8px ${step.roleColor}`, display: 'inline-block', animation: 'realtimeRadarPing 1.2s infinite' }} />
+                    ) : isCompleted ? (
+                      <Check size={12} color={step.roleColor} style={{ strokeWidth: 3 }} />
+                    ) : (
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)', opacity: 0.5, display: 'inline-block' }} />
+                    )}
+                    <span style={{ fontWeight: isActive ? 700 : 500 }}>{step.title}</span>
+                  </div>
+
+                  {idx < WORKFLOW_STEPS.length - 1 && (
+                    <div className={`realtime-conveyor-arrow ${workflowActiveStep === idx ? 'active' : ''}`}>
+                      <span className="realtime-conveyor-chevron">›</span>
+                      <span className="realtime-conveyor-chevron">›</span>
+                      <span className="realtime-conveyor-chevron">›</span>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+
+          {/* Real-time Progress Bar at Bottom of Box */}
+          <div className="realtime-progress-track">
+            <div
+              className="realtime-progress-bar"
+              style={{ width: `${((workflowActiveStep + 1) / WORKFLOW_STEPS.length) * 100}%` }}
+            />
+          </div>
         </div>
 
         {/* 4 Generalized Role Workflow Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
           {/* Card 1: Patient */}
-          <div className="workflow-step-card">
+          <div className={`workflow-step-card ${workflowActiveStep === 0 || workflowActiveStep === 3 ? 'active-stage' : ''}`}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(168, 85, 247, 0.15)', display: 'grid', placeItems: 'center', color: '#a855f7' }}>
                 <User size={20} />
@@ -5105,7 +5343,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
           </div>
 
           {/* Card 2: Nurse */}
-          <div className="workflow-step-card">
+          <div className={`workflow-step-card ${workflowActiveStep === 1 ? 'active-stage' : ''}`}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(56, 189, 248, 0.15)', display: 'grid', placeItems: 'center', color: '#38bdf8' }}>
                 <Users size={20} />
@@ -5123,7 +5361,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
           </div>
 
           {/* Card 3: Doctor */}
-          <div className="workflow-step-card">
+          <div className={`workflow-step-card ${workflowActiveStep === 2 ? 'active-stage' : ''}`}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0, 229, 192, 0.15)', display: 'grid', placeItems: 'center', color: 'var(--p)' }}>
                 <Stethoscope size={20} />
@@ -5141,7 +5379,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
           </div>
 
           {/* Card 4: Administrator */}
-          <div className="workflow-step-card">
+          <div className={`workflow-step-card ${workflowActiveStep === 4 ? 'active-stage' : ''}`}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(245, 158, 11, 0.15)', display: 'grid', placeItems: 'center', color: 'var(--amber)' }}>
                 <ShieldCheck size={20} />
