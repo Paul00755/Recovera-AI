@@ -14,7 +14,8 @@ Endpoints:
 import uuid
 import json
 import datetime as dt
-from typing import Optional, Any
+import re
+from typing import Optional, Any, List, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, model_validator
@@ -53,6 +54,10 @@ class ExtendRequest(BaseModel):
 
 class MessageRequest(BaseModel):
     message: str
+
+
+class TranslateTranscriptRequest(BaseModel):
+    target_lang: str = "en"  # "en", "ta", "hi"
 
 
 class SignalRequest(BaseModel):
@@ -844,6 +849,60 @@ def get_messages(
             "sender_name": m.sender_name,
             "sender_role": m.sender_role,
             "message": m.message,
+            "created_at": _format_utc(m.created_at),
+        }
+        for m in messages
+    ]
+
+
+# ---------------------------------------------------------------------------
+# POST /api/consultations/{id}/translate-messages – translate consultation transcript
+# ---------------------------------------------------------------------------
+
+@router.post("/api/consultations/{consultation_id}/translate-messages")
+def translate_consultation_messages(
+    consultation_id: str,
+    req: TranslateTranscriptRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    c = db.get(Consultation, consultation_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Consultation not found.")
+    if not _visible_to_user(c, current_user, db):
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    messages = db.scalars(
+        select(ConsultationMessage)
+        .where(ConsultationMessage.consultation_id == consultation_id)
+        .order_by(ConsultationMessage.created_at.asc())
+    ).all()
+
+    target = (req.target_lang or "en").lower()[:2]
+    items = []
+    for m in messages:
+        raw = m.message or ""
+        match = re.match(r"^🎙️\s*\[(?:Doctor|Patient)\s*-\s*[^\]]+\]:\s*([\s\S]*)$", raw)
+        clean_text = match.group(1).strip() if match else (raw.replace("🎙️", "").strip())
+        items.append({"id": str(m.id), "text": clean_text})
+
+    from app.services.recovery_ai_service import translate_clinical_texts
+    try:
+        translated_items = translate_clinical_texts(items, target_lang=target)
+        trans_map = {item["id"]: item.get("translated_text", "") for item in translated_items}
+    except Exception as e:
+        trans_map = {}
+
+    return [
+        {
+            "id": m.id,
+            "consultation_id": m.consultation_id,
+            "sender_id": m.sender_id,
+            "sender_name": m.sender_name,
+            "sender_role": m.sender_role,
+            "original_message": m.message,
+            "translated_message": trans_map.get(str(m.id)) or m.message,
+            "target_lang": target,
             "created_at": _format_utc(m.created_at),
         }
         for m in messages

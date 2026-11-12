@@ -2991,4 +2991,391 @@ h3 {
   }
 }
 
+/* ===========================================================
+   UNSLOPPED TELEMEDICINE CONSULTATION MODES (AUDIO, CHAT, VIDEO)
+   =========================================================== */
+
+/* Audio Consultation Hub */
+.audio-consult-container {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  min-height: 480px;
+}
+
+@media (max-width: 960px) {
+  .audio-consult-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.audio-consult-stage {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 440px;
+  position: relative;
+  overflow: hidden;
+}
+
+.audio-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.audio-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 229, 192, 0.1);
+  color: var(--p);
+  border: 1px solid rgba(0, 229, 192, 0.25);
+}
+
+.audio-stage-badge.waiting {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warn);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.audio-participants-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  margin: 32px 0;
+  flex-wrap: wrap;
+}
+
+.audio-participant-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  min-width: 170px;
+  max-width: 220px;
+  flex: 1;
+  position: relative;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.audio-participant-card.active-speaker {
+  border-color: var(--p);
+  box-shadow: 0 0 0 1px var(--p);
+}
+
+.audio-avatar-wrapper {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.audio-avatar-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--surface3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  border: 2px solid var(--border);
+  position: relative;
+  z-index: 2;
+}
+
+.audio-avatar-circle.doctor {
+  border-color: var(--p);
+  color: var(--p);
+  background: rgba(0, 229, 192, 0.08);
+}
+
+.audio-avatar-circle.patient {
+  border-color: #10b981;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.audio-speaking-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--p);
+  opacity: 0.7;
+  animation: audioPulseRing 1.8s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes audioPulseRing {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.3; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+.audio-soundwave-bridge {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 48px;
+  padding: 0 8px;
+}
+
+.audio-wave-bar {
+  width: 3px;
+  background: var(--p);
+  border-radius: 2px;
+  min-height: 6px;
+  transition: height 0.15s ease;
+}
+
+/* Audio Stage Live Captions Box */
+.audio-live-captions-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-top: 16px;
+  position: relative;
+}
+
+.audio-captions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.audio-captions-body {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 24px;
+}
+
+/* Audio Hardware & Output Device Selector Panel */
+.audio-device-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.audio-device-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 2px;
+}
+
+.audio-device-subtext {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.audio-output-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audio-output-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.audio-output-item:hover {
+  border-color: var(--border2);
+  background: var(--surface3);
+}
+
+.audio-output-item.selected {
+  border-color: var(--p);
+  background: rgba(0, 229, 192, 0.06);
+}
+
+.audio-output-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audio-output-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.audio-output-item.selected .audio-output-icon {
+  color: var(--p);
+  border-color: rgba(0, 229, 192, 0.3);
+  background: rgba(0, 229, 192, 0.1);
+}
+
+.audio-output-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.audio-output-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Chat-Only Telemedicine Consultation Stage */
+.chat-consult-stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  max-height: 75vh;
+}
+
+@media (max-width: 768px) {
+  .chat-consult-stage {
+    height: 78vh;
+    border-radius: var(--radius-md);
+  }
+}
+
+.chat-consult-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.chat-quick-phrases-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 16px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  scrollbar-width: none;
+}
+
+.chat-quick-phrases-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-quick-phrase-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+}
+
+.chat-quick-phrase-pill:hover {
+  background: var(--surface3);
+  color: var(--p);
+  border-color: var(--p);
+}
+
+/* Export Transcript Dialog Modal */
+.export-transcript-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 8, 14, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.export-transcript-modal-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.export-lang-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.export-lang-option:hover {
+  border-color: var(--border2);
+  background: var(--surface3);
+}
+
+.export-lang-option.selected {
+  border-color: var(--p);
+  background: rgba(0, 229, 192, 0.08);
+}
+
+
 

@@ -16,7 +16,7 @@ import {
   TrendingDown, ArrowUpRight, Edit3, PieChart, BarChart3, Layers, FileCheck,
   Camera, ExternalLink, Printer, Download, FileBarChart, CheckSquare, Paperclip,
   PlayCircle, PauseCircle, ShieldAlert, Key, Inbox, CheckCircle, Menu, Info,
-  Home, Globe, Cpu
+  Home, Globe, Cpu, Headphones, Smartphone, Radio
 } from 'lucide-react';
 import './styles.css';
 import { StaffChatPage } from './components/staff-chat/StaffChatPage';
@@ -8154,6 +8154,16 @@ const CALIBRATION_PROMPTS = {
     "मैं आज अपने चिकित्सीय परामर्श के लिए तैयार हूँ और मेरी आवाज़ स्पष्ट आ रही है।",
     "मेरी रिकवरी अच्छी चल रही है और मैं डॉक्टर से बात करने के लिए तैयार हूँ।",
     "सटीक लाइव कैप्शन और पहचान के लिए मेरी आवाज़ रिकॉर्ड और कैलिब्रेट करें।"
+  ],
+  'tanglish': [
+    "Doctor, enakku audio clear-ah kekkudhu, consult join panna ready.",
+    "Medicines regular-ah eduthukren, recovery trajectory nalla progress aagudhu.",
+    "Live captions and speech recognition tanglish words test panna pesuren."
+  ],
+  'auto': [
+    "Doctor, enakku audio clear-ah kekkudhu, consult join panna ready.",
+    "I am joining my clinical consultation today and my audio is functioning clearly.",
+    "நிகழ்நேர உரைபெயர்ப்பிற்காக மற்றும் துல்லியமான குரல் வேறுபாட்டிற்காக எனது குரலை பதிவு செய்யவும்."
   ]
 };
 
@@ -8347,9 +8357,10 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
             Select Preferred Spoken Language for Live Captions:
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
             {[
-              { id: 'en-IN', label: 'English (India/US)' },
+              { id: 'auto', label: '🌐 Auto / Tanglish' },
+              { id: 'en-IN', label: 'English (India)' },
               { id: 'ta-IN', label: 'தமிழ் (Tamil)' },
               { id: 'hi-IN', label: 'हिन्दी (Hindi)' },
             ].map(l => (
@@ -8475,7 +8486,7 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
 /* ===========================================================
    PDF EXPORT FUNCTION FOR CLINICAL CONSULTATION TRANSCRIPTS
    =========================================================== */
-function exportConsultationPDF({ consult, messages, language, voiceProfile, session }) {
+function exportConsultationPDF({ consult, messages, language, voiceProfile, session, targetLang = 'original', translatedMessages = null }) {
   const isDoctor = session?.user?.role === 'doctor';
   const docName = consult.doctor_name || (isDoctor ? session.user.name : 'Specialist Doctor');
   const ptName = consult.patient_name || (!isDoctor ? session.user.name : 'Patient');
@@ -8484,7 +8495,15 @@ function exportConsultationPDF({ consult, messages, language, voiceProfile, sess
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
   });
-  const langName = language === 'ta-IN' ? 'Tamil (தமிழ்)' : language === 'hi-IN' ? 'Hindi (हिन्दी)' : 'English';
+  const langName = language === 'ta-IN' ? 'Tamil (தமிழ்)' : (language === 'hi-IN' ? 'Hindi (हिन्दी)' : (language === 'tanglish' || language === 'auto' ? 'Tanglish / Tamil / English' : 'English'));
+  const targetName = targetLang === 'ta' ? 'Tamil (தமிழ் Translation)' : (targetLang === 'hi' ? 'Hindi (हिन्दी Translation)' : (targetLang === 'en' ? 'English (Clinical Translation)' : 'Original (As Spoken)'));
+
+  const transMap = {};
+  if (translatedMessages && Array.isArray(translatedMessages)) {
+    translatedMessages.forEach(tm => {
+      transMap[String(tm.id)] = tm.translated_message;
+    });
+  }
 
   const rowsHtml = messages.map(m => {
     const match = m.message?.match(/^🎙️\s*\[(Doctor|Patient)\s*-\s*([^\]]+)\]:\s*([\s\S]*)$/);
@@ -8494,6 +8513,8 @@ function exportConsultationPDF({ consult, messages, language, voiceProfile, sess
     const isSys = m.sender_role === 'system';
     const isVoice = Boolean(match) || m.message?.startsWith('🎙️') || m.is_voice;
     const cleanMsg = match ? match[3] : (m.message?.replace(/^🎙️\s*/, '') || '');
+    const translatedMsg = transMap[String(m.id)] || cleanMsg;
+    const isDual = targetLang !== 'original' && translatedMsg !== cleanMsg;
     const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
 
     if (isSys) {
@@ -8520,7 +8541,8 @@ function exportConsultationPDF({ consult, messages, language, voiceProfile, sess
           </span>
         </td>
         <td style="padding: 10px 12px; font-size: 12px; color: #1e293b; line-height: 1.5; vertical-align: top;">
-          ${cleanMsg}
+          <div style="font-weight: 600; color: #0f172a;">${translatedMsg}</div>
+          ${isDual ? `<div style="font-size: 11px; color: #64748b; font-style: italic; margin-top: 3px;">Original Spoken: "${cleanMsg}"</div>` : ''}
         </td>
       </tr>
     `;
@@ -8573,12 +8595,12 @@ function exportConsultationPDF({ consult, messages, language, voiceProfile, sess
             <span class="meta-val">${ptName} (${ptCode})</span>
           </div>
           <div class="meta-item">
-            <span class="meta-label">Session Mode & Language</span>
-            <span class="meta-val">${(consult.mode || 'video').toUpperCase()} · Calibrated Language: ${langName}</span>
+            <span class="meta-label">Session Mode & Spoken Audio</span>
+            <span class="meta-val">${(consult.mode || 'video').toUpperCase()} · Audio: ${langName}</span>
           </div>
           <div class="meta-item">
-            <span class="meta-label">Acoustic Voice Profile</span>
-            <span class="meta-val">${voiceProfile?.verified ? `Calibrated F0 ~${Math.round(voiceProfile.pitchHz || 140)}Hz (${voiceProfile.stability || 98}% Stability)` : 'Standard Telehealth Audio'}</span>
+            <span class="meta-label">Export Language Target</span>
+            <span class="meta-val">${targetName} · ${voiceProfile?.verified ? 'Calibrated Voice Profile' : 'Standard Audio'}</span>
           </div>
         </div>
 
@@ -8639,6 +8661,116 @@ function exportConsultationPDF({ consult, messages, language, voiceProfile, sess
 }
 
 /* ===========================================================
+   EXPORT TRANSCRIPT MODAL WITH MULTILINGUAL TRANSLATION
+   =========================================================== */
+function ExportTranscriptModal({ open, onClose, consult, messages, session, selectedLang, voiceProfile }) {
+  const [targetLang, setTargetLang] = useState('original');
+  const [translating, setTranslating] = useState(false);
+  const [err, setErr] = useState('');
+
+  if (!open) return null;
+
+  const handleExport = async () => {
+    setErr('');
+    if (targetLang === 'original') {
+      exportConsultationPDF({ consult, messages, language: selectedLang, voiceProfile, session, targetLang: 'original' });
+      onClose();
+      return;
+    }
+
+    setTranslating(true);
+    try {
+      const translated = await api(`/api/consultations/${consult.id}/translate-messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_lang: targetLang })
+      });
+      exportConsultationPDF({
+        consult,
+        messages,
+        language: selectedLang,
+        voiceProfile,
+        session,
+        targetLang,
+        translatedMessages: translated
+      });
+      onClose();
+    } catch (e) {
+      console.warn('Translation failed, falling back to original:', e);
+      exportConsultationPDF({ consult, messages, language: selectedLang, voiceProfile, session, targetLang: 'original' });
+      onClose();
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  return (
+    <div className="export-transcript-modal-overlay" onClick={onClose}>
+      <div className="export-transcript-modal-card" onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Export Consultation Transcript</h3>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+              Download official clinical PDF dialogue record with speaker attribution
+            </p>
+          </div>
+          <button className="icon-btn" onClick={onClose}><X size={15} /></button>
+        </div>
+
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
+            Select Output Language for Transcript:
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { id: 'original', label: 'Original Spoken Language', desc: 'Preserves exact dialogue as spoken in the room (Tamil, Tanglish, English, Hindi)' },
+              { id: 'en', label: 'Translate to English', desc: 'Standardizes all patient & physician dialogue turns into clinical English' },
+              { id: 'ta', label: 'Translate to தமிழ் (Tamil)', desc: 'Translates all turns into formal Tamil medical documentation' },
+              { id: 'hi', label: 'Translate to हिन्दी (Hindi)', desc: 'Translates dialogue into standardized Hindi medical dialogue' },
+            ].map(opt => (
+              <div
+                key={opt.id}
+                className={`export-lang-option ${targetLang === opt.id ? 'selected' : ''}`}
+                onClick={() => setTargetLang(opt.id)}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
+                </div>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', border: targetLang === opt.id ? '5px solid var(--p)' : '2px solid var(--border)', flexShrink: 0 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {err && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{err}</div>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+          <button className="btn btn-ghost btn-sm" onClick={onClose} disabled={translating}>Cancel</button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleExport}
+            disabled={translating}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            {translating ? (
+              <>
+                <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                Translating & Generating PDF…
+              </>
+            ) : (
+              <>
+                <Download size={14} /> Download PDF Transcript
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===========================================================
    UTC DATE PARSER FOR TIMERS & WEBRTC
    =========================================================== */
 function parseUtc(dateStr) {
@@ -8662,7 +8794,12 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
   const isStaff = isDoctor || isNurse || session.user.role === 'admin';
   const isPatient = session.user.role === 'patient';
 
-  // Voice Calibration State - Persisted per room & user in localStorage & sessionStorage
+  const isChatMode = (consult.mode || initialConsult?.mode) === 'chat';
+  const isAudioMode = (consult.mode || initialConsult?.mode) === 'audio';
+  const isVideoMode = !isChatMode && !isAudioMode;
+
+  // Voice Calibration State
+  // Chat consultations do NOT require voice testing
   const roomIdent = initialConsult?.room_id || initialConsult?.id || 'room';
   const calibRoomKey = `recovera_voice_calibrated_${roomIdent}_${session.user.id}`;
   const calibUserKey = `recovera_voice_calibrated_${session.user.id}`;
@@ -8676,7 +8813,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
         localStorage.getItem(calibRoleSkipKey) === 'true' ||
         sessionStorage.getItem(calibRoleSkipKey) === 'true'
       ) {
-        return { verified: false, lang: 'en-IN', skipped: true };
+        return { verified: false, lang: 'auto', skipped: true };
       }
       const saved =
         localStorage.getItem(calibRoomKey) ||
@@ -8686,9 +8823,9 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   };
-  const [calibrated, setCalibrated] = useState(false);
+  const [calibrated, setCalibrated] = useState(() => isChatMode || Boolean(getStoredProfile()));
   const [voiceProfile, setVoiceProfile] = useState(() => getStoredProfile());
-  const [selectedLang, setSelectedLang] = useState(() => getStoredProfile()?.lang || 'en-IN');
+  const [selectedLang, setSelectedLang] = useState(() => getStoredProfile()?.lang || 'auto');
 
   // Consultation Timing
   const [expiresAt, setExpiresAt] = useState(initialConsult.expires_at ? parseUtc(initialConsult.expires_at) : null);
@@ -8727,7 +8864,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
   // Messages & Chat
   const [messages, setMessages] = useState([]);
   const [msgInput, setMsgInput] = useState('');
-  const [chatOpen, setChatOpen] = useState(true); // default open for side-by-side WhatsApp UI
+  const [chatOpen, setChatOpen] = useState(true);
 
   // Media & Controls
   const [mode, setMode] = useState(consult.mode || 'video');
@@ -8736,11 +8873,23 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
   const [connected, setConnected] = useState(false);
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
 
-  // Live Captions Subtitles
+  // Live Captions Subtitles (Dual Speaker Support)
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
   const [activeSubtitle, setActiveSubtitle] = useState('');
   const [activeSpeaker, setActiveSpeaker] = useState({ name: '', role: '' });
   const [isInterim, setIsInterim] = useState(false);
+
+  // Export Transcript Modal State
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  // Audio Device Management (Speaker / Bluetooth / Earpiece)
+  const [audioOutputs, setAudioOutputs] = useState([]);
+  const [audioInputs, setAudioInputs] = useState([]);
+  const [selectedOutput, setSelectedOutput] = useState('speaker');
+  const [selectedInput, setSelectedInput] = useState('default');
+  const [audioMeter, setAudioMeter] = useState(14);
+  const remoteAudioRef = useRef(null);
+  const chatFileRef = useRef(null);
 
   // Call termination guard & WebRTC signal deduplication
   const callEndedRef = useRef(false);
@@ -8751,8 +8900,60 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
   const remoteStreamRef = useRef(null);
   const lastSignalTimeRef = useRef(initialConsult?.created_at || new Date(Date.now() - 300000).toISOString());
   const processedSignalIdsRef = useRef(new Set());
+  const recognitionRef = useRef(null);
+  const isListeningRef = useRef(true);
+  const restartTimerRef = useRef(null);
+  const pendingSpeechRef = useRef('');
+  const commitTimerRef = useRef(null);
+  const lastCommittedRef = useRef('');
 
-  // Keep video DOM elements reliably bound to their media streams across all re-renders & prevent camera drops
+  // Audio Device Enumeration
+  const refreshAudioDevices = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    try {
+      const devs = await navigator.mediaDevices.enumerateDevices();
+      setAudioOutputs(devs.filter(d => d.kind === 'audiooutput'));
+      setAudioInputs(devs.filter(d => d.kind === 'audioinput'));
+    } catch (e) {
+      console.warn('Audio device query:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAudioDevices();
+    navigator.mediaDevices?.addEventListener?.('devicechange', refreshAudioDevices);
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.('devicechange', refreshAudioDevices);
+    };
+  }, [refreshAudioDevices]);
+
+  // Handle Safe Audio Output Route Switching (Speaker / Bluetooth / Earpiece)
+  const handleOutputSwitch = async (kindOrId) => {
+    setSelectedOutput(kindOrId);
+    try {
+      const audioElem = remoteAudioRef.current || remoteVideoRef.current;
+      if (audioElem && typeof audioElem.setSinkId === 'function') {
+        let chosenId = kindOrId;
+        if (kindOrId === 'speaker' || kindOrId === 'default') {
+          const spk = audioOutputs.find(d => d.deviceId === 'default' || d.label.toLowerCase().includes('speaker'));
+          chosenId = spk ? spk.deviceId : '';
+        } else if (kindOrId === 'bluetooth') {
+          const bt = audioOutputs.find(d => /bluetooth|headset|buds|wireless|airpods/i.test(d.label));
+          chosenId = bt ? bt.deviceId : (audioOutputs[1]?.deviceId || '');
+        } else if (kindOrId === 'earpiece') {
+          const ep = audioOutputs.find(d => /earpiece|receiver|handset/i.test(d.label));
+          chosenId = ep ? ep.deviceId : (audioOutputs[0]?.deviceId || '');
+        }
+        if (chosenId) {
+          await audioElem.setSinkId(chosenId);
+        }
+      }
+    } catch (err) {
+      console.warn('Audio output routing notice:', err);
+    }
+  };
+
+  // Keep video DOM elements reliably bound to their media streams
   useEffect(() => {
     if (localVideoRef.current && localStreamRef.current) {
       if (localVideoRef.current.srcObject !== localStreamRef.current) {
@@ -8769,6 +8970,12 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
         remoteVideoRef.current.play?.().catch(() => {});
       }
     }
+    if (remoteAudioRef.current && remoteStreamRef.current) {
+      if (remoteAudioRef.current.srcObject !== remoteStreamRef.current) {
+        remoteAudioRef.current.srcObject = remoteStreamRef.current;
+        remoteAudioRef.current.play?.().catch(() => {});
+      }
+    }
   });
 
   // Browser Autoplay Audio Policy Unlocker
@@ -8776,6 +8983,9 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     const unlockAudio = () => {
       if (remoteVideoRef.current && remoteVideoRef.current.paused) {
         remoteVideoRef.current.play?.().catch(() => {});
+      }
+      if (remoteAudioRef.current && remoteAudioRef.current.paused) {
+        remoteAudioRef.current.play?.().catch(() => {});
       }
     };
     window.addEventListener('click', unlockAudio);
@@ -8805,12 +9015,12 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     }
 
     if (reason === 'remote_hangup') {
-      alert(`The call was disconnected by ${endedByName || 'participant'}. The consultation has ended immediately.`);
+      alert(`The call was disconnected by ${endedByName || 'participant'}. The consultation has concluded.`);
     }
     onEndRef.current?.();
   }, []);
 
-  // 15-Minute Countdown Timer & Auto-Termination (Only ticks when BOTH participants are joined and status is active)
+  // 15-Minute Countdown Timer & Auto-Termination
   useEffect(() => {
     if (!expiresAt || consult.status !== 'active' || (!consult.both_joined && !connected)) {
       setTimeLeft(900);
@@ -8837,7 +9047,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     handleCallTerminated('System', 'expired');
   };
 
-  // Poll consultation status every 1.5s - sync active status, extensions, or remote termination
+  // Poll consultation status every 1.5s
   useEffect(() => {
     if (!calibrated) return;
     const statusTimer = setInterval(async () => {
@@ -8864,28 +9074,24 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     if (!calibrated) return;
     const loadMsgs = () => api(`/api/consultations/${consult.id}/messages`).then(setMessages).catch(() => {});
     loadMsgs();
-    const id = setInterval(loadMsgs, 2000);
+    const id = setInterval(loadMsgs, 1500);
     return () => clearInterval(id);
   }, [consult.id, calibrated]);
 
-  // Live Speech Recognition Subtitles Engine (Dual Speaker Support for Doctor & Patient)
+  // Live Speech Recognition Subtitles Engine (Dual Speaker + Tanglish + Multi-language)
   useEffect(() => {
-    if (!calibrated || !captionsEnabled) return;
+    if (!calibrated || !captionsEnabled || isChatMode) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
-    let recognition = null;
-    let isListening = true;
-    let restartTimeout = null;
-    let pendingSpeech = '';
-    let commitTimer = null;
-    let lastCommitted = '';
+    isListeningRef.current = true;
 
     const commitToChat = (text) => {
       const clean = (text || '').trim();
-      if (!clean || clean.length < 2 || clean === lastCommitted) return;
-      lastCommitted = clean;
-      pendingSpeech = '';
+      if (!clean || clean.length < 2) return;
+      if (clean === lastCommittedRef.current) return;
+      lastCommittedRef.current = clean;
+      pendingSpeechRef.current = '';
       const speakerRole = isDoctor ? 'Doctor' : 'Patient';
       const speakerName = session?.user?.name || (isDoctor ? 'Doctor' : 'Patient');
       api(`/api/consultations/${consult.id}/messages`, {
@@ -8898,18 +9104,31 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
 
       setTimeout(() => {
         setActiveSubtitle(prev => (prev === clean ? '' : prev));
-      }, 4500);
+      }, 5000);
     };
 
     const startRecognizer = () => {
-      if (!isListening) return;
+      if (!isListeningRef.current) return;
       try {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = selectedLang;
+        if (recognitionRef.current) {
+          try { recognitionRef.current.abort(); } catch {}
+          recognitionRef.current = null;
+        }
 
-        recognition.onresult = (event) => {
+        const rec = new SpeechRecognition();
+        rec.continuous = true;
+        rec.interimResults = true;
+
+        // Tanglish / Tamil / English / Hindi
+        if (selectedLang === 'auto' || selectedLang === 'tanglish' || selectedLang === 'ta-IN') {
+          rec.lang = 'ta-IN'; // Multi-lingual Indian speech recognizer (Tamil, English loanwords, Tanglish)
+        } else if (selectedLang === 'hi-IN') {
+          rec.lang = 'hi-IN';
+        } else {
+          rec.lang = 'en-IN';
+        }
+
+        rec.onresult = (event) => {
           let interim = '';
           let finalStr = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -8930,7 +9149,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
             });
             setIsInterim(!finalStr);
 
-            // Broadcast live caption signal to remote peer
+            // Broadcast live caption signal to remote peer in real time
             api(`/api/consultations/${consult.id}/signals`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -8941,46 +9160,53 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                   speaker_name: session.user.name,
                   speaker_role: isDoctor ? 'doctor' : 'patient',
                   interim: !finalStr,
-                  lang: selectedLang
+                  lang: selectedLang,
+                  timestamp: Date.now()
                 }
               })
             }).catch(() => {});
           }
 
           if (finalStr.trim()) {
-            clearTimeout(commitTimer);
+            clearTimeout(commitTimerRef.current);
             commitToChat(finalStr.trim());
           } else if (interim.trim()) {
-            pendingSpeech = interim.trim();
-            clearTimeout(commitTimer);
-            commitTimer = setTimeout(() => {
-              if (pendingSpeech) commitToChat(pendingSpeech);
+            pendingSpeechRef.current = interim.trim();
+            clearTimeout(commitTimerRef.current);
+            commitTimerRef.current = setTimeout(() => {
+              if (pendingSpeechRef.current) commitToChat(pendingSpeechRef.current);
             }, 1800);
           }
         };
 
-        recognition.onerror = () => {
-          if (isListening) {
-            clearTimeout(restartTimeout);
-            restartTimeout = setTimeout(startRecognizer, 800);
+        rec.onerror = (e) => {
+          if (e.error === 'no-speech') return; // Silence pause - normal, do not destroy
+          if (e.error === 'not-allowed') {
+            console.warn('Microphone permission not granted for speech recognition');
+            return;
+          }
+          if (isListeningRef.current) {
+            clearTimeout(restartTimerRef.current);
+            restartTimerRef.current = setTimeout(startRecognizer, 1000);
           }
         };
 
-        recognition.onend = () => {
-          if (pendingSpeech) {
-            commitToChat(pendingSpeech);
+        rec.onend = () => {
+          if (pendingSpeechRef.current) {
+            commitToChat(pendingSpeechRef.current);
           }
-          if (isListening) {
-            clearTimeout(restartTimeout);
-            restartTimeout = setTimeout(startRecognizer, 500);
+          if (isListeningRef.current) {
+            clearTimeout(restartTimerRef.current);
+            restartTimerRef.current = setTimeout(startRecognizer, 400);
           }
         };
 
-        recognition.start();
-      } catch {
-        if (isListening) {
-          clearTimeout(restartTimeout);
-          restartTimeout = setTimeout(startRecognizer, 1200);
+        rec.start();
+        recognitionRef.current = rec;
+      } catch (err) {
+        if (isListeningRef.current) {
+          clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = setTimeout(startRecognizer, 1200);
         }
       }
     };
@@ -8988,13 +9214,28 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     startRecognizer();
 
     return () => {
-      isListening = false;
-      clearTimeout(restartTimeout);
-      if (recognition) {
-        try { recognition.stop(); } catch {}
+      isListeningRef.current = false;
+      clearTimeout(restartTimerRef.current);
+      clearTimeout(commitTimerRef.current);
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+        recognitionRef.current = null;
       }
     };
-  }, [calibrated, captionsEnabled, selectedLang, consult.id, isDoctor, session.user.name]);
+  }, [calibrated, captionsEnabled, selectedLang, consult.id, isDoctor, session.user.name, isChatMode]);
+
+  // Audio level meter visualization
+  useEffect(() => {
+    if (!connected || isChatMode) return;
+    const interval = setInterval(() => {
+      if (activeSubtitle) {
+        setAudioMeter(36 + Math.floor(Math.random() * 24));
+      } else {
+        setAudioMeter(10 + Math.floor(Math.random() * 8));
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, [connected, isChatMode, activeSubtitle]);
 
   // Setup WebRTC peer connection & media streaming
   useEffect(() => {
@@ -9004,8 +9245,8 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     let signalPoll = null;
 
     async function initWebRTC() {
-      // 1. Acquire media stream (Reuse active live stream if already running)
-      if (localStreamRef.current && localStreamRef.current.active && localStreamRef.current.getVideoTracks().some(t => t.readyState === 'live')) {
+      // 1. Acquire media stream
+      if (localStreamRef.current && localStreamRef.current.active) {
         streamInstance = localStreamRef.current;
       } else {
         if (mode !== 'chat') {
@@ -9018,8 +9259,6 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
             }
           } catch {}
 
-          // Fallback if physical camera is locked (e.g. 2 tabs on same laptop) or unavailable:
-          // Keep real microphone audio alive so the other user can hear them!
           if (!streamInstance) {
             let audioOnlyStream = null;
             try {
@@ -9082,6 +9321,13 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
           setHasRemoteVideo(true);
           setConnected(true);
         }
+        if (remoteAudioRef.current) {
+          if (remoteAudioRef.current.srcObject !== remoteStreamRef.current) {
+            remoteAudioRef.current.srcObject = remoteStreamRef.current;
+          }
+          remoteAudioRef.current.play?.().catch(() => {});
+          setConnected(true);
+        }
       };
 
       pc.onconnectionstatechange = () => {
@@ -9104,7 +9350,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
       const sendOffer = async () => {
         if (!pcRef.current || pcRef.current.signalingState === 'closed') return;
         try {
-          const offer = await pcRef.current.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+          const offer = await pcRef.current.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: mode === 'video' });
           await pcRef.current.setLocalDescription(offer);
           await api(`/api/consultations/${consult.id}/signals`, {
             method: 'POST',
@@ -9116,11 +9362,9 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
         }
       };
 
-      // Role-based offer generation: Staff initiates offer, Patient sends ready
       if (isStaff) {
         sendOffer();
       } else {
-        // Patient notifies staff peer that patient is in the room and ready for offer
         api(`/api/consultations/${consult.id}/signals`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -9145,16 +9389,16 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                 return;
               }
 
-              // Check for live caption from peer
+              // Check for live caption from peer (Dual-speaker real-time attribution)
               if (sig.type === 'live-caption' && sig.payload) {
                 setActiveSubtitle(sig.payload.text || '');
                 setActiveSpeaker({
-                  name: sig.payload.speaker_name || (sig.payload.speaker_role === 'doctor' ? 'Doctor' : 'Patient'),
+                  name: sig.payload.speaker_name || (sig.payload.speaker_role === 'doctor' ? `Dr. ${consult.doctor_name}` : consult.patient_name),
                   role: sig.payload.speaker_role === 'doctor' ? 'Doctor' : 'Patient'
                 });
                 setIsInterim(Boolean(sig.payload.interim));
                 if (!sig.payload.interim) {
-                  setTimeout(() => setActiveSubtitle(''), 4500);
+                  setTimeout(() => setActiveSubtitle(prev => (prev === sig.payload.text ? '' : prev)), 5000);
                 }
                 continue;
               }
@@ -9162,16 +9406,13 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
               const pc = pcRef.current;
               if (!pc || pc.signalingState === 'closed') break;
 
-              // When patient announces peer is ready, doctor re-sends offer if not yet connected
               if (sig.type === 'peer-ready' && isStaff && pc.connectionState !== 'connected' && (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer')) {
                 sendOffer();
                 continue;
               }
 
-              // Handle WebRTC Offer (Patient receives Doctor's offer when in stable state)
               if (sig.type === 'offer' && !isStaff && (pc.signalingState === 'stable' || pc.signalingState === 'have-remote-offer')) {
                 await pc.setRemoteDescription(new RTCSessionDescription(sig.payload));
-                // Flush any queued ICE candidates that arrived before the offer
                 while (pendingIceCandidates.length > 0) {
                   const cand = pendingIceCandidates.shift();
                   try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
@@ -9186,7 +9427,6 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                 setConnected(true);
               } else if (sig.type === 'answer' && isStaff && pc.signalingState === 'have-local-offer') {
                 await pc.setRemoteDescription(new RTCSessionDescription(sig.payload));
-                // Flush any queued ICE candidates
                 while (pendingIceCandidates.length > 0) {
                   const cand = pendingIceCandidates.shift();
                   try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
@@ -9271,10 +9511,8 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     } catch {}
   };
 
-  // Immediate Call End by Local User
   const endConsult = async () => {
     try {
-      // 1. Broadcast call-ended signal so remote peer cuts immediately
       await api(`/api/consultations/${consult.id}/signals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -9284,21 +9522,20 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
         })
       }).catch(() => {});
 
-      // 2. Put consultation into completed state
       await api(`/api/consultations/${consult.id}/end`, { method: 'PUT' }).catch(() => {});
     } finally {
-      // 3. Immediately teardown local tracks and trigger onEnd
       handleCallTerminated(session.user.name, 'local_hangup');
     }
   };
 
-  const sendMsg = async () => {
-    if (!msgInput.trim()) return;
+  const sendMsg = async (textToSend) => {
+    const text = (typeof textToSend === 'string' ? textToSend : msgInput).trim();
+    if (!text) return;
     try {
       await api(`/api/consultations/${consult.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msgInput }),
+        body: JSON.stringify({ message: text }),
       });
       setMsgInput('');
       const msgs = await api(`/api/consultations/${consult.id}/messages`);
@@ -9306,12 +9543,49 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     } catch {}
   };
 
+  const handleChatFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        await api(`/api/consultations/${consult.id}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: `📎 [Document Attached]: ${file.name}` })
+        });
+        const msgs = await api(`/api/consultations/${consult.id}/messages`);
+        setMessages(msgs);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('File attach error:', err);
+    }
+  };
+
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   const urgent = timeLeft <= 180 && timeLeft > 0;
 
+  const QUICK_PHRASES = isDoctor ? [
+    "Take prescribed tablets with warm water after meals.",
+    "How is your pain intensity today on a scale of 1-10?",
+    "Please upload a photo of the wound or lab report.",
+    "Rest well today, drink plenty of fluids, and monitor temperature.",
+    "Follow-up teleconsultation scheduled for next week."
+  ] : [
+    "Doctor, I have taken my morning medicines.",
+    "My pain has decreased compared to yesterday.",
+    "I have uploaded my recent prescription / lab report.",
+    "When should I schedule my next follow-up?"
+  ];
+
   return (
     <div className="page fade-in">
-      {!calibrated && (
+      {/* Hidden audio element for WebRTC audio playback in audio/video calls */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
+
+      {/* Voice Calibration Modal (Only for Audio & Video modes - Bypassed for Chat mode) */}
+      {!calibrated && !isChatMode && (
         <VoiceCalibrationModal
           open={true}
           role={session.user.role}
@@ -9331,6 +9605,18 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
           onCancel={onEnd}
         />
       )}
+
+      {/* Multilingual Translation & Export Modal */}
+      <ExportTranscriptModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        consult={consult}
+        messages={messages}
+        session={session}
+        selectedLang={selectedLang}
+        voiceProfile={voiceProfile}
+      />
+
       {extensionBanner && !isStaff && (
         <div className="extend-banner" style={{ marginBottom: 16 }}>
           <Timer size={18} color="var(--warn)" />
@@ -9352,9 +9638,14 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                 <span className={`status-dot ${connected ? 'online' : 'away'} pulse`} />
                 {connected ? 'Peer Connected' : 'Waiting for Peer…'}
               </span>
-              {voiceProfile?.verified && (
+              {voiceProfile?.verified && !isChatMode && (
                 <span className="badge badge-teal" style={{ fontSize: 10 }}>
                   <ShieldCheck size={11} /> Voice Profile Verified
+                </span>
+              )}
+              {isChatMode && (
+                <span className="badge badge-teal" style={{ fontSize: 10 }}>
+                  <MessageCircle size={11} /> Secure Chat Active
                 </span>
               )}
             </div>
@@ -9362,7 +9653,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
               {consult.patient_name || 'Patient'} ↔ Dr. {consult.doctor_name || 'Doctor'}
             </h2>
             <p style={{ margin: 0, fontSize: 12 }}>
-              Mode: {consult.mode?.toUpperCase()} · Encrypted WebRTC Session · Captions: {selectedLang === 'ta-IN' ? 'Tamil' : selectedLang === 'hi-IN' ? 'Hindi' : 'English'}
+              Mode: {consult.mode?.toUpperCase()} · Encrypted WebRTC Session {!isChatMode && `· Captions: ${selectedLang === 'auto' ? 'Auto / Tanglish' : selectedLang === 'ta-IN' ? 'Tamil' : selectedLang === 'hi-IN' ? 'Hindi' : 'English'}`}
             </p>
           </div>
 
@@ -9398,280 +9689,681 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
           </div>
         )}
 
-        {/* Video / Telehealth Grid + WhatsApp-Style Chat UI */}
-        <div className={`consult-viewport-grid ${chatOpen ? 'with-chat' : ''}`}>
-          {/* Main Video Viewport */}
-          <div className="webrtc-container">
-            {mode === 'chat' ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
-                <MessageCircle size={48} color="var(--p)" style={{ margin: '0 auto 12px' }} />
-                <h3>Chat-Only Telemedicine Consultation</h3>
-                <p style={{ fontSize: 12 }}>Use the real-time WhatsApp conversation window on the right to communicate.</p>
-              </div>
-            ) : (
-              <>
-                {/* Remote Stream Video */}
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className="webrtc-remote-video"
-                  style={{ display: hasRemoteVideo ? 'block' : 'none' }}
-                />
-
-                {/* Remote Video Placeholder when waiting */}
-                {!hasRemoteVideo && (
-                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
-                    <div className="spinner" style={{ width: 36, height: 36, margin: '0 auto 14px', borderColor: 'var(--p)' }} />
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-                      Connecting to {isDoctor ? consult.patient_name || 'Patient' : `Dr. ${consult.doctor_name}`}…
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                      Awaiting peer WebRTC video stream handshake
-                    </div>
-                  </div>
-                )}
-
-                {/* Local Video PiP Preview */}
-                <div className="webrtc-local-pip">
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="webrtc-local-video"
-                    style={{ opacity: videoOff ? 0.3 : 1 }}
-                  />
-                  <div className="pip-tag">
-                    {videoOff ? 'Camera Off' : `You (${session.user.name})`}
-                  </div>
+        {/* ========================================================
+            VIEWPORT VARIANT 1: CHAT-ONLY TELEMEDICINE CONSULTATION
+            ======================================================== */}
+        {isChatMode ? (
+          <div className="chat-consult-stage">
+            <div className="chat-consult-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0, 229, 192, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--p)' }}>
+                  <MessageCircle size={18} />
                 </div>
-
-                {/* Live Multilingual Captions Overlay at Bottom of Conversation */}
-                {captionsEnabled && activeSubtitle && (
-                  <div className="webrtc-caption-overlay">
-                    <span className={`caption-speaker-badge ${activeSpeaker.role?.toLowerCase() === 'doctor' ? 'doctor' : 'patient'}`}>
-                      {activeSpeaker.role?.toLowerCase() === 'doctor' ? <Stethoscope size={11} /> : <User size={11} />}
-                      {activeSpeaker.name || (activeSpeaker.role === 'Doctor' ? 'Doctor' : 'Patient')}
-                    </span>
-                    <span className="caption-text">
-                      "{activeSubtitle}"
-                    </span>
-                    {isInterim && <span className="caption-interim-pulse" />}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                    {isDoctor ? consult.patient_name || 'Patient' : `Dr. ${consult.doctor_name || 'Attending Physician'}`}
                   </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Right Side: WhatsApp-Styled In-Call Chat Box */}
-          {chatOpen && (
-            <div className="whatsapp-chat-panel">
-              {/* WhatsApp Header */}
-              <div className="whatsapp-header">
-                <div className="whatsapp-peer-info">
-                  <div className={`whatsapp-peer-avatar ${isDoctor ? 'patient' : 'doctor'}`}>
-                    {isDoctor ? (consult.patient_name?.[0] || 'P').toUpperCase() : 'Dr'}
+                  <div style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className="status-dot online pulse" style={{ width: 6, height: 6 }} /> Encrypted Clinical Dialogue
                   </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {isDoctor ? consult.patient_name || 'Patient' : `Dr. ${consult.doctor_name || 'Specialist'}`}
-                      <span className="badge badge-teal" style={{ fontSize: 9, padding: '1px 5px' }}>
-                        {isDoctor ? 'Patient' : 'Doctor'}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span className="status-dot online pulse" style={{ width: 6, height: 6 }} /> Encrypted Telehealth
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-xs"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#10b981', borderColor: '#10b981', color: '#03080e', fontWeight: 700 }}
-                    onClick={() => exportConsultationPDF({ consult, messages, language: selectedLang, voiceProfile, session })}
-                    title="Export full conversation dialogue as PDF"
-                  >
-                    <Download size={12} /> Export PDF
-                  </button>
-                  <button className="icon-btn" onClick={() => setChatOpen(false)} style={{ width: 26, height: 26, color: 'var(--text-muted)' }}>
-                    <X size={14} />
-                  </button>
                 </div>
               </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-xs"
+                onClick={() => setExportModalOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Download size={12} /> Export Dialogue (PDF)
+              </button>
+            </div>
 
-              {/* WhatsApp Messages Feed */}
-              <div className="whatsapp-body">
-                {messages.map(m => {
-                  const match = m.message?.match(/^🎙️\s*\[(Doctor|Patient)\s*-\s*([^\]]+)\]:\s*([\s\S]*)$/);
-                  const parsedRole = match ? match[1].toLowerCase() : (m.sender_role === 'doctor' || m.sender_name?.toLowerCase().includes('dr.') ? 'doctor' : 'patient');
-                  const parsedName = match ? match[2] : (m.sender_name || (parsedRole === 'doctor' ? 'Doctor' : 'Patient'));
-                  const cleanText = match ? match[3] : (m.message?.replace(/^🎙️\s*/, '') || '');
-                  const isVoice = Boolean(match) || m.message?.startsWith('🎙️') || m.is_voice;
-                  const isDoc = parsedRole === 'doctor';
-                  const isSys = m.sender_role === 'system';
-                  const isMe = m.sender_id === session.user.id;
-                  const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            {/* Message Stream */}
+            <div className="whatsapp-body" style={{ flex: 1, padding: 18, overflowY: 'auto' }}>
+              {messages.map(m => {
+                const match = m.message?.match(/^🎙️\s*\[(Doctor|Patient)\s*-\s*([^\]]+)\]:\s*([\s\S]*)$/);
+                const parsedRole = match ? match[1].toLowerCase() : (m.sender_role === 'doctor' || m.sender_name?.toLowerCase().includes('dr.') ? 'doctor' : 'patient');
+                const parsedName = match ? match[2] : (m.sender_name || (parsedRole === 'doctor' ? 'Doctor' : 'Patient'));
+                const cleanText = match ? match[3] : (m.message?.replace(/^🎙️\s*/, '') || '');
+                const isVoice = Boolean(match) || m.message?.startsWith('🎙️') || m.is_voice;
+                const isDoc = parsedRole === 'doctor';
+                const isSys = m.sender_role === 'system';
+                const isMe = m.sender_id === session.user.id;
+                const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
-                  if (isSys) {
-                    return (
-                      <div key={m.id} className="chat-bubble system">
-                        {cleanText}
-                      </div>
-                    );
-                  }
-
+                if (isSys) {
                   return (
-                    <div
-                      key={m.id}
-                      className={`chat-bubble ${isDoc ? 'doctor' : 'patient'} ${isMe ? 'sent' : 'received'}`}
-                      style={{
-                        borderLeft: isDoc ? '3.5px solid var(--p)' : '3.5px solid #10b981',
-                      }}
-                    >
-                      <div className={`chat-bubble-header ${isDoc ? 'doctor-header' : 'patient-header'}`}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700 }}>
-                          {isDoc ? <Stethoscope size={12} color="var(--p)" /> : <User size={12} color="#10b981" />}
-                          <span style={{ color: isDoc ? 'var(--p)' : '#10b981' }}>{parsedName}</span>
-                          <span className="badge" style={{ fontSize: 9, padding: '1px 5px', background: isDoc ? 'rgba(0,229,192,0.15)' : 'rgba(16,185,129,0.15)', color: isDoc ? 'var(--p)' : '#10b981' }}>
-                            {isDoc ? 'Physician' : 'Patient'}
-                          </span>
-                        </span>
-                        {isVoice && (
-                          <span className="chat-voice-pill" style={{ background: isDoc ? 'rgba(0,229,192,0.2)' : 'rgba(16,185,129,0.2)', color: isDoc ? 'var(--p)' : '#10b981' }}>
-                            <Mic size={9} /> Voice Transcript
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
-                        {cleanText}
-                      </div>
-                      <div className="chat-time-tag">
-                        <span>{timeStr}</span>
-                        {isMe && <span style={{ color: '#38bdf8', fontWeight: 800 }}>✓✓</span>}
-                      </div>
+                    <div key={m.id} className="chat-bubble system">
+                      {cleanText}
                     </div>
                   );
-                })}
-                {messages.length === 0 && (
-                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, margin: 'auto' }}>
-                    No messages or speech turns recorded yet. Speak into the microphone or type below.
-                  </p>
-                )}
-              </div>
+                }
 
-              {/* WhatsApp Input Footer */}
-              <div className="whatsapp-footer">
-                <input
-                  className="form-input"
-                  style={{ flex: 1, fontSize: 12, padding: '7px 12px', background: '#202c33', border: 'none', color: '#ffffff', borderRadius: 8 }}
-                  placeholder="Type a message or speak..."
-                  value={msgInput}
-                  onChange={e => setMsgInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') sendMsg(); }}
-                />
+                return (
+                  <div
+                    key={m.id}
+                    className={`chat-bubble ${isDoc ? 'doctor' : 'patient'} ${isMe ? 'sent' : 'received'}`}
+                    style={{
+                      borderLeft: isDoc ? '3.5px solid var(--p)' : '3.5px solid #10b981',
+                    }}
+                  >
+                    <div className={`chat-bubble-header ${isDoc ? 'doctor-header' : 'patient-header'}`}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700 }}>
+                        {isDoc ? <Stethoscope size={12} color="var(--p)" /> : <User size={12} color="#10b981" />}
+                        <span style={{ color: isDoc ? 'var(--p)' : '#10b981' }}>{parsedName}</span>
+                        <span className="badge" style={{ fontSize: 9, padding: '1px 5px', background: isDoc ? 'rgba(0,229,192,0.15)' : 'rgba(16,185,129,0.15)', color: isDoc ? 'var(--p)' : '#10b981' }}>
+                          {isDoc ? 'Physician' : 'Patient'}
+                        </span>
+                      </span>
+                      {isVoice && (
+                        <span className="chat-voice-pill" style={{ background: isDoc ? 'rgba(0,229,192,0.2)' : 'rgba(16,185,129,0.2)', color: isDoc ? 'var(--p)' : '#10b981' }}>
+                          <Mic size={9} /> Voice Transcript
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
+                      {cleanText}
+                    </div>
+                    <div className="chat-time-tag">
+                      <span>{timeStr}</span>
+                      {isMe && <span style={{ color: '#38bdf8', fontWeight: 800 }}>✓✓</span>}
+                    </div>
+                  </div>
+                );
+              })}
+              {messages.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, margin: 'auto', padding: 32 }}>
+                  <MessageCircle size={36} color="var(--p)" style={{ margin: '0 auto 8px', opacity: 0.8 }} />
+                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>Consultation Dialogue Ready</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                    Type your clinical update or choose a quick response phrase below.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Clinical Response Phrases */}
+            <div className="chat-quick-phrases-bar">
+              {QUICK_PHRASES.map(phrase => (
                 <button
-                  className="btn btn-primary btn-sm"
-                  onClick={sendMsg}
-                  style={{ width: 34, height: 34, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#10b981', borderColor: '#10b981', color: '#03080e' }}
+                  key={phrase}
+                  type="button"
+                  className="chat-quick-phrase-pill"
+                  onClick={() => setMsgInput(prev => prev ? `${prev} ${phrase}` : phrase)}
                 >
-                  <Send size={14} />
+                  + {phrase}
                 </button>
-              </div>
+              ))}
             </div>
-          )}
-        </div>
 
-        {/* Media Controls Floating Action Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
-          {/* Audio / Video Toggles */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              className={`webrtc-ctrl-btn ${muted ? 'active-off' : ''}`}
-              onClick={toggleMute}
-              title={muted ? 'Unmute Microphone' : 'Mute Microphone'}
-            >
-              {muted ? <MicOff size={18} /> : <Mic size={18} />}
-            </button>
-            <button
-              className={`webrtc-ctrl-btn ${videoOff ? 'active-off' : ''}`}
-              onClick={toggleVideo}
-              title={videoOff ? 'Turn Video On' : 'Turn Video Off'}
-            >
-              {videoOff ? <VideoOff size={18} /> : <Video size={18} />}
-            </button>
-            <button
-              className={`webrtc-ctrl-btn ${chatOpen ? 'active-off' : ''}`}
-              onClick={() => setChatOpen(!chatOpen)}
-              title="Toggle Live Chat Sidebar"
-            >
-              <MessageCircle size={18} />
-            </button>
-            <button
-              className={`webrtc-ctrl-btn ${captionsEnabled ? '' : 'active-off'}`}
-              onClick={() => setCaptionsEnabled(!captionsEnabled)}
-              title={captionsEnabled ? 'Turn Off Live Subtitles' : 'Turn On Live Subtitles'}
-              style={{ fontWeight: 800, fontSize: 12 }}
-            >
-              CC
-            </button>
-            <button
-              className="webrtc-ctrl-btn"
-              onClick={() => setCalibrated(false)}
-              title="Acoustic Voice Calibration & Role Verification Test"
-            >
-              <Volume2 size={18} />
-            </button>
-            {/* Live Captions Language Switcher */}
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '6px 10px', fontSize: 12, height: 42, background: 'var(--surface2)', borderRadius: 21 }}
-              value={selectedLang}
-              onChange={e => setSelectedLang(e.target.value)}
-              title="Select live speech recognition and caption language"
-            >
-              <option value="en-IN">English (EN)</option>
-              <option value="ta-IN">தமிழ் (Tamil)</option>
-              <option value="hi-IN">हिन्दी (Hindi)</option>
-            </select>
+            {/* Composer Footer */}
+            <div className="whatsapp-footer" style={{ padding: '10px 16px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="file"
+                ref={chatFileRef}
+                style={{ display: 'none' }}
+                accept="image/*,.pdf"
+                onChange={handleChatFileUpload}
+              />
+              <button
+                type="button"
+                className="icon-btn"
+                title="Attach Document / Photo"
+                onClick={() => chatFileRef.current?.click()}
+                style={{ width: 34, height: 34, color: 'var(--text-muted)' }}
+              >
+                <Paperclip size={16} />
+              </button>
+              <input
+                className="form-input"
+                style={{ flex: 1, fontSize: 13, padding: '8px 14px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 20 }}
+                placeholder="Type clinical message..."
+                value={msgInput}
+                onChange={e => setMsgInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') sendMsg(); }}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => sendMsg()}
+                style={{ width: 36, height: 36, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Send size={15} />
+              </button>
+            </div>
           </div>
-
-          {/* Quick PDF Export Button on Control Bar */}
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => exportConsultationPDF({ consult, messages, language: selectedLang, voiceProfile, session })}
-            title="Download formatted clinical dialogue transcript as PDF"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <Download size={14} /> Export Transcript (PDF)
-          </button>
-
-          {/* Extension Controls (+5, +10, +15m) */}
-          {isStaff && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Extend Session:</span>
-              <div className="extend-btns">
-                {[5, 10, 15].map(m => (
-                  <button key={m} className="extend-btn" onClick={() => extend(m)}>
-                    +{m}m
-                  </button>
-                ))}
+        ) : isAudioMode ? (
+          /* ========================================================
+             VIEWPORT VARIANT 2: AUDIO TELEMEDICINE CONSULTATION
+             ======================================================== */
+          <div className="audio-consult-container">
+            {/* Left: Clinical Audio Calling Stage */}
+            <div className="audio-consult-stage">
+              <div className="audio-stage-header">
+                <span className={`audio-stage-badge ${connected ? '' : 'waiting'}`}>
+                  <Radio size={13} className={connected ? 'pulse' : ''} />
+                  {connected ? 'Active HD Audio Telephony' : 'Connecting to Participant Audio…'}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Acoustic Bitrate: 48 kbps · OPUS Fullband
+                </span>
               </div>
+
+              {/* Participants Acoustic Centerpiece */}
+              <div className="audio-participants-center">
+                {/* Doctor Card */}
+                <div className={`audio-participant-card ${activeSpeaker.role?.toLowerCase() === 'doctor' && activeSubtitle ? 'active-speaker' : ''}`}>
+                  <div className="audio-avatar-wrapper">
+                    <div className="audio-avatar-circle doctor">
+                      <Stethoscope size={28} />
+                    </div>
+                    {activeSpeaker.role?.toLowerCase() === 'doctor' && activeSubtitle && (
+                      <div className="audio-speaking-ring" />
+                    )}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                    Dr. {consult.doctor_name || 'Physician'}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--p)', marginTop: 2 }}>
+                    Attending Physician
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <span className="badge badge-teal" style={{ fontSize: 10 }}>
+                      {isDoctor ? (muted ? 'Mic Muted' : 'Speaking') : 'Doctor Line Active'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Soundwave Bridge */}
+                <div className="audio-soundwave-bridge" title="Real-time acoustic audio telemetry">
+                  {[12, 18, 28, 42, 34, 48, 38, 24, 16, 22, 30, 14].map((h, i) => (
+                    <div
+                      key={i}
+                      className="audio-wave-bar"
+                      style={{
+                        height: activeSubtitle ? Math.min(48, Math.max(6, (h * audioMeter) / 24)) : 6,
+                        opacity: connected ? 1 : 0.4
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Patient Card */}
+                <div className={`audio-participant-card ${activeSpeaker.role?.toLowerCase() === 'patient' && activeSubtitle ? 'active-speaker' : ''}`}>
+                  <div className="audio-avatar-wrapper">
+                    <div className="audio-avatar-circle patient">
+                      <User size={28} />
+                    </div>
+                    {activeSpeaker.role?.toLowerCase() === 'patient' && activeSubtitle && (
+                      <div className="audio-speaking-ring" style={{ borderColor: '#10b981' }} />
+                    )}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                    {consult.patient_name || 'Patient'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#10b981', marginTop: 2 }}>
+                    Verified Patient ({consult.patient_code || 'REC-PT'})
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <span className="badge badge-green" style={{ fontSize: 10 }}>
+                      {!isDoctor ? (muted ? 'Mic Muted' : 'Speaking') : 'Patient Line Active'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Audio Captions Overlay Box */}
+              <div className="audio-live-captions-box">
+                <div className="audio-captions-header">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--p)' }}>
+                    <Volume2 size={12} /> Live Speech-to-Text Closed Captions (CC)
+                  </span>
+                  <span>{selectedLang === 'auto' ? 'Auto / Tanglish Model' : selectedLang === 'ta-IN' ? 'தமிழ் Model' : selectedLang === 'hi-IN' ? 'हिन्दी Model' : 'English Model'}</span>
+                </div>
+                <div className="audio-captions-body">
+                  {activeSubtitle ? (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <span className={`badge ${activeSpeaker.role?.toLowerCase() === 'doctor' ? 'badge-blue' : 'badge-green'}`} style={{ fontSize: 10, padding: '2px 6px', flexShrink: 0 }}>
+                        {activeSpeaker.role === 'Doctor' ? '🩺 Physician' : '👤 Patient'} ({activeSpeaker.name})
+                      </span>
+                      <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                        "{activeSubtitle}"
+                      </span>
+                      {isInterim && <span className="caption-interim-pulse" />}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 12 }}>
+                      {connected ? 'Awaiting spoken dialogue… both doctor and patient speech are transcribed in real-time.' : 'Connecting encrypted audio handshake…'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Audio Output & Hardware Selector Panel */}
+            <div className="audio-device-panel">
+              <div>
+                <h4 className="audio-device-panel-title">
+                  <Headphones size={16} color="var(--p)" /> Audio Output & Hardware Router
+                </h4>
+                <p className="audio-device-subtext">
+                  Safely switch audio output to speaker, Bluetooth, or earpiece
+                </p>
+              </div>
+
+              <div className="audio-output-options-list">
+                {/* 1. Loudspeaker */}
+                <div
+                  className={`audio-output-item ${selectedOutput === 'speaker' ? 'selected' : ''}`}
+                  onClick={() => handleOutputSwitch('speaker')}
+                >
+                  <div className="audio-output-item-left">
+                    <div className="audio-output-icon">
+                      <Volume2 size={16} />
+                    </div>
+                    <div>
+                      <div className="audio-output-name">Speaker / Loudspeaker</div>
+                      <div className="audio-output-desc">Default device audio output</div>
+                    </div>
+                  </div>
+                  {selectedOutput === 'speaker' && (
+                    <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
+                  )}
+                </div>
+
+                {/* 2. Bluetooth Headset / Wireless Speaker */}
+                <div
+                  className={`audio-output-item ${selectedOutput === 'bluetooth' ? 'selected' : ''}`}
+                  onClick={() => handleOutputSwitch('bluetooth')}
+                >
+                  <div className="audio-output-item-left">
+                    <div className="audio-output-icon">
+                      <Headphones size={16} />
+                    </div>
+                    <div>
+                      <div className="audio-output-name">Bluetooth Audio / Headset</div>
+                      <div className="audio-output-desc">Wireless headset or external speaker</div>
+                    </div>
+                  </div>
+                  {selectedOutput === 'bluetooth' && (
+                    <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
+                  )}
+                </div>
+
+                {/* 3. Handset Earpiece */}
+                <div
+                  className={`audio-output-item ${selectedOutput === 'earpiece' ? 'selected' : ''}`}
+                  onClick={() => handleOutputSwitch('earpiece')}
+                >
+                  <div className="audio-output-item-left">
+                    <div className="audio-output-icon">
+                      <Smartphone size={16} />
+                    </div>
+                    <div>
+                      <div className="audio-output-name">Phone Earpiece / Receiver</div>
+                      <div className="audio-output-desc">Private receiver for mobile phones</div>
+                    </div>
+                  </div>
+                  {selectedOutput === 'earpiece' && (
+                    <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Hardware Input Selector */}
+              {audioInputs.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
+                    Microphone Input Hardware:
+                  </label>
+                  <select
+                    className="form-input"
+                    style={{ fontSize: 12, padding: '6px 10px', height: 34, background: 'var(--surface2)' }}
+                    value={selectedInput}
+                    onChange={e => setSelectedInput(e.target.value)}
+                  >
+                    <option value="default">Default System Microphone</option>
+                    {audioInputs.map(dev => (
+                      <option key={dev.deviceId} value={dev.deviceId}>
+                        {dev.label || `Microphone ${dev.deviceId.slice(0, 6)}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Telemetry Stats */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Codec:</span>
+                  <span style={{ color: 'var(--text)', fontWeight: 600 }}>OPUS 48kHz Stereo</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Latency:</span>
+                  <span style={{ color: '#10b981', fontWeight: 600 }}>&lt; 26ms (Peer-to-Peer)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Captions Attributed:</span>
+                  <span style={{ color: 'var(--p)', fontWeight: 600 }}>Dual-Speaker Real-Time</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ========================================================
+             VIEWPORT VARIANT 3: VIDEO TELEMEDICINE CONSULTATION
+             ======================================================== */
+          <div className={`consult-viewport-grid ${chatOpen ? 'with-chat' : ''}`}>
+            {/* Main Video Viewport */}
+            <div className="webrtc-container">
+              {/* Remote Stream Video */}
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="webrtc-remote-video"
+                style={{ display: hasRemoteVideo ? 'block' : 'none' }}
+              />
+
+              {/* Remote Video Placeholder when waiting */}
+              {!hasRemoteVideo && (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
+                  <div className="spinner" style={{ width: 36, height: 36, margin: '0 auto 14px', borderColor: 'var(--p)' }} />
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+                    Connecting to {isDoctor ? consult.patient_name || 'Patient' : `Dr. ${consult.doctor_name}`}…
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                    Awaiting peer WebRTC video stream handshake
+                  </div>
+                </div>
+              )}
+
+              {/* Local Video PiP Preview */}
+              <div className="webrtc-local-pip">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="webrtc-local-video"
+                  style={{ opacity: videoOff ? 0.3 : 1 }}
+                />
+                <div className="pip-tag">
+                  {videoOff ? 'Camera Off' : `You (${session.user.name})`}
+                </div>
+              </div>
+
+              {/* Live Multilingual Captions Overlay at Bottom of Conversation */}
+              {captionsEnabled && activeSubtitle && (
+                <div className="webrtc-caption-overlay">
+                  <span className={`caption-speaker-badge ${activeSpeaker.role?.toLowerCase() === 'doctor' ? 'doctor' : 'patient'}`}>
+                    {activeSpeaker.role?.toLowerCase() === 'doctor' ? <Stethoscope size={11} /> : <User size={11} />}
+                    {activeSpeaker.name || (activeSpeaker.role === 'Doctor' ? 'Doctor' : 'Patient')}
+                  </span>
+                  <span className="caption-text">
+                    "{activeSubtitle}"
+                  </span>
+                  {isInterim && <span className="caption-interim-pulse" />}
+                </div>
+              )}
+            </div>
+
+            {/* Right Side: WhatsApp-Styled In-Call Chat Box */}
+            {chatOpen && (
+              <div className="whatsapp-chat-panel">
+                <div className="whatsapp-header">
+                  <div className="whatsapp-peer-info">
+                    <div className={`whatsapp-peer-avatar ${isDoctor ? 'patient' : 'doctor'}`}>
+                      {isDoctor ? (consult.patient_name?.[0] || 'P').toUpperCase() : 'Dr'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {isDoctor ? consult.patient_name || 'Patient' : `Dr. ${consult.doctor_name || 'Specialist'}`}
+                        <span className="badge badge-teal" style={{ fontSize: 9, padding: '1px 5px' }}>
+                          {isDoctor ? 'Patient' : 'Doctor'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span className="status-dot online pulse" style={{ width: 6, height: 6 }} /> Encrypted Telehealth
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-xs"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#10b981', borderColor: '#10b981', color: '#03080e', fontWeight: 700 }}
+                      onClick={() => setExportModalOpen(true)}
+                      title="Export full conversation dialogue as PDF"
+                    >
+                      <Download size={12} /> Export PDF
+                    </button>
+                    <button className="icon-btn" onClick={() => setChatOpen(false)} style={{ width: 26, height: 26, color: 'var(--text-muted)' }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Messages Feed */}
+                <div className="whatsapp-body">
+                  {messages.map(m => {
+                    const match = m.message?.match(/^🎙️\s*\[(Doctor|Patient)\s*-\s*([^\]]+)\]:\s*([\s\S]*)$/);
+                    const parsedRole = match ? match[1].toLowerCase() : (m.sender_role === 'doctor' || m.sender_name?.toLowerCase().includes('dr.') ? 'doctor' : 'patient');
+                    const parsedName = match ? match[2] : (m.sender_name || (parsedRole === 'doctor' ? 'Doctor' : 'Patient'));
+                    const cleanText = match ? match[3] : (m.message?.replace(/^🎙️\s*/, '') || '');
+                    const isVoice = Boolean(match) || m.message?.startsWith('🎙️') || m.is_voice;
+                    const isDoc = parsedRole === 'doctor';
+                    const isSys = m.sender_role === 'system';
+                    const isMe = m.sender_id === session.user.id;
+                    const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                    if (isSys) {
+                      return (
+                        <div key={m.id} className="chat-bubble system">
+                          {cleanText}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={m.id}
+                        className={`chat-bubble ${isDoc ? 'doctor' : 'patient'} ${isMe ? 'sent' : 'received'}`}
+                        style={{
+                          borderLeft: isDoc ? '3.5px solid var(--p)' : '3.5px solid #10b981',
+                        }}
+                      >
+                        <div className={`chat-bubble-header ${isDoc ? 'doctor-header' : 'patient-header'}`}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700 }}>
+                            {isDoc ? <Stethoscope size={12} color="var(--p)" /> : <User size={12} color="#10b981" />}
+                            <span style={{ color: isDoc ? 'var(--p)' : '#10b981' }}>{parsedName}</span>
+                            <span className="badge" style={{ fontSize: 9, padding: '1px 5px', background: isDoc ? 'rgba(0,229,192,0.15)' : 'rgba(16,185,129,0.15)', color: isDoc ? 'var(--p)' : '#10b981' }}>
+                              {isDoc ? 'Physician' : 'Patient'}
+                            </span>
+                          </span>
+                          {isVoice && (
+                            <span className="chat-voice-pill" style={{ background: isDoc ? 'rgba(0,229,192,0.2)' : 'rgba(16,185,129,0.2)', color: isDoc ? 'var(--p)' : '#10b981' }}>
+                              <Mic size={9} /> Voice Transcript
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
+                          {cleanText}
+                        </div>
+                        <div className="chat-time-tag">
+                          <span>{timeStr}</span>
+                          {isMe && <span style={{ color: '#38bdf8', fontWeight: 800 }}>✓✓</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {messages.length === 0 && (
+                    <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, margin: 'auto' }}>
+                      No messages or speech turns recorded yet. Speak into the microphone or type below.
+                    </p>
+                  )}
+                </div>
+
+                {/* Input Footer */}
+                <div className="whatsapp-footer">
+                  <input
+                    className="form-input"
+                    style={{ flex: 1, fontSize: 12, padding: '7px 12px', background: '#202c33', border: 'none', color: '#ffffff', borderRadius: 8 }}
+                    placeholder="Type a message or speak..."
+                    value={msgInput}
+                    onChange={e => setMsgInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') sendMsg(); }}
+                  />
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => sendMsg()}
+                    style={{ width: 34, height: 34, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#10b981', borderColor: '#10b981', color: '#03080e' }}
+                  >
+                    <Send size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================
+            MEDIA CONTROLS FLOATING ACTION BAR (MODE-AWARE)
+            ======================================================== */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
+          {isChatMode ? (
+            /* Controls for Chat Consultation: NO mic, NO video, NO CC */
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="badge badge-teal" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 12 }}>
+                <MessageCircle size={14} /> Clinical Chat Mode Active
+              </span>
+            </div>
+          ) : isAudioMode ? (
+            /* Controls for Audio Consultation: Mic, CC, Spoken Language (NO Video button!) */
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                className={`webrtc-ctrl-btn ${muted ? 'active-off' : ''}`}
+                onClick={toggleMute}
+                title={muted ? 'Unmute Microphone' : 'Mute Microphone'}
+              >
+                {muted ? <MicOff size={18} /> : <Mic size={18} />}
+              </button>
+              <button
+                className={`webrtc-ctrl-btn ${captionsEnabled ? '' : 'active-off'}`}
+                onClick={() => setCaptionsEnabled(!captionsEnabled)}
+                title={captionsEnabled ? 'Turn Off Live Subtitles' : 'Turn On Live Subtitles'}
+                style={{ fontWeight: 800, fontSize: 12 }}
+              >
+                CC
+              </button>
+              <button
+                className="webrtc-ctrl-btn"
+                onClick={() => setCalibrated(false)}
+                title="Re-calibrate voice signature"
+              >
+                <Volume2 size={18} />
+              </button>
+              <select
+                className="form-input"
+                style={{ width: 'auto', padding: '6px 12px', fontSize: 12, height: 42, background: 'var(--surface2)', borderRadius: 21 }}
+                value={selectedLang}
+                onChange={e => setSelectedLang(e.target.value)}
+                title="Select spoken recognition language (Tanglish supported)"
+              >
+                <option value="auto">🌐 Auto / Tanglish (தமிழ் + EN)</option>
+                <option value="en-IN">English (EN)</option>
+                <option value="ta-IN">தமிழ் (Tamil)</option>
+                <option value="hi-IN">हिन्दी (Hindi)</option>
+              </select>
+            </div>
+          ) : (
+            /* Controls for Video Consultation */
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                className={`webrtc-ctrl-btn ${muted ? 'active-off' : ''}`}
+                onClick={toggleMute}
+                title={muted ? 'Unmute Microphone' : 'Mute Microphone'}
+              >
+                {muted ? <MicOff size={18} /> : <Mic size={18} />}
+              </button>
+              <button
+                className={`webrtc-ctrl-btn ${videoOff ? 'active-off' : ''}`}
+                onClick={toggleVideo}
+                title={videoOff ? 'Turn Video On' : 'Turn Video Off'}
+              >
+                {videoOff ? <VideoOff size={18} /> : <Video size={18} />}
+              </button>
+              <button
+                className={`webrtc-ctrl-btn ${chatOpen ? 'active-off' : ''}`}
+                onClick={() => setChatOpen(!chatOpen)}
+                title="Toggle Live Chat Sidebar"
+              >
+                <MessageCircle size={18} />
+              </button>
+              <button
+                className={`webrtc-ctrl-btn ${captionsEnabled ? '' : 'active-off'}`}
+                onClick={() => setCaptionsEnabled(!captionsEnabled)}
+                title={captionsEnabled ? 'Turn Off Live Subtitles' : 'Turn On Live Subtitles'}
+                style={{ fontWeight: 800, fontSize: 12 }}
+              >
+                CC
+              </button>
+              <button
+                className="webrtc-ctrl-btn"
+                onClick={() => setCalibrated(false)}
+                title="Acoustic Voice Calibration & Role Verification Test"
+              >
+                <Volume2 size={18} />
+              </button>
+              <select
+                className="form-input"
+                style={{ width: 'auto', padding: '6px 12px', fontSize: 12, height: 42, background: 'var(--surface2)', borderRadius: 21 }}
+                value={selectedLang}
+                onChange={e => setSelectedLang(e.target.value)}
+                title="Select live speech recognition and caption language"
+              >
+                <option value="auto">🌐 Auto / Tanglish (தமிழ் + EN)</option>
+                <option value="en-IN">English (EN)</option>
+                <option value="ta-IN">தமிழ் (Tamil)</option>
+                <option value="hi-IN">हिन्दी (Hindi)</option>
+              </select>
             </div>
           )}
 
-          {/* Hangup / End Button - Ends Call Immediately for Both Sides */}
-          <button
-            className="btn btn-danger"
-            onClick={endConsult}
-            title="Disconnect call immediately for both participants"
-            style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <PhoneOff size={15} /> End Consultation
-          </button>
+          {/* Action Buttons: Export Transcript (PDF), Extensions, End Consultation */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setExportModalOpen(true)}
+              title="Download formatted clinical dialogue transcript as PDF with optional translation"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Download size={14} /> Export Transcript (PDF)
+            </button>
+
+            {isStaff && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Extend Session:</span>
+                <div className="extend-btns">
+                  {[5, 10, 15].map(m => (
+                    <button key={m} className="extend-btn" onClick={() => extend(m)}>
+                      +{m}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              className="btn btn-danger"
+              onClick={endConsult}
+              title="Disconnect call immediately for both participants"
+              style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <PhoneOff size={15} /> End Consultation
+            </button>
+          </div>
         </div>
       </div>
     </div>

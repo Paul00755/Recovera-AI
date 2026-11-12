@@ -178,6 +178,17 @@ def test_consultation_lifecycle_full(client: TestClient, db_session: Session, mo
         for m in get_msgs.json():
             assert m["created_at"].endswith("Z")
 
+        # Test translation endpoint
+        trans_resp = client.post(
+            f"/api/consultations/{consult_id}/translate-messages",
+            headers=doc_headers,
+            json={"target_lang": "en"}
+        )
+        assert trans_resp.status_code == 200
+        trans_data = trans_resp.json()
+        assert len(trans_data) >= 1
+        assert "translated_message" in trans_data[0]
+
         sig_resp = client.post(
             f"/api/consultations/{consult_id}/signals",
             headers=doc_headers,
