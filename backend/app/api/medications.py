@@ -179,6 +179,115 @@ def list_patient_medications(
 
     return [_format_medication(m, db) for m in meds]
 
+
+@router.get("/api/patients/{pid}/medications/export")
+def export_patient_medications(
+    pid: str,
+    format: str = Query("csv", regex="^(csv|json)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Exports official patient medication prescriptions including mandatory duration,
+    intake type (before/after food), dosage/count, 1-1-1 period notation, and descriptions.
+    """
+    patient = db.get(Patient, pid)
+    if not patient or not patient.active:
+        raise HTTPException(status_code=404, detail="Patient not found.")
+
+    enforce_patient_isolation(patient_id=pid, current_user=current_user, db=db)
+
+    meds = db.scalars(
+        select(Medication).where(Medication.patient_id == pid).order_by(Medication.created_at.desc())
+    ).all()
+
+    formatted_meds = [_format_medication(m, db) for m in meds]
+
+    export_rows = []
+    for med in formatted_meds:
+        duration_days = (med.end_date - med.start_date).days + 1 if med.end_date and med.start_date else 0
+
+        has_b = 0
+        has_l = 0
+        has_d = 0
+        intake_types = set()
+
+        for s in (med.schedules or []):
+            lbl = (s.label or "").lower()
+            time = s.time_hhmm or ""
+            f_rel = (s.food_relation or "after_food").replace("_", " ").title()
+            intake_types.add(f_rel)
+            if "breakfast" in lbl or "morning" in lbl or time == "08:00":
+                has_b = 1
+            elif "lunch" in lbl or "afternoon" in lbl or "noon" in lbl or time in ("13:00", "14:00"):
+                has_l = 1
+            elif "dinner" in lbl or "night" in lbl or "evening" in lbl or time in ("20:00", "21:00"):
+                has_d = 1
+
+        period_code = f"{has_b}-{has_l}-{has_d}"
+        active_meals = []
+        if has_b:
+            active_meals.append("Breakfast")
+        if has_l:
+            active_meals.append("Lunch")
+        if has_d:
+            active_meals.append("Dinner")
+        timing_label = " & ".join(active_meals) if active_meals else "As Needed"
+        intake_type_str = ", ".join(sorted(intake_types)) if intake_types else "After Food"
+
+        export_rows.append({
+            "patient_name": patient.name,
+            "patient_code": patient.patient_code,
+            "medication_name": med.name,
+            "generic_name": med.generic_name or "",
+            "dosage": med.dose or med.strength or "1 tablet",
+            "duration_days": duration_days,
+            "intake_type": intake_type_str,
+            "period_notation": period_code,
+            "timing_schedule": f"{period_code} ({timing_label})",
+            "instructions": med.instructions or "",
+            "start_date": str(med.start_date),
+            "end_date": str(med.end_date),
+            "status": med.status
+        })
+
+    if format == "json":
+        return {
+            "patient_id": pid,
+            "patient_name": patient.name,
+            "patient_code": patient.patient_code,
+            "export_date": dt.date.today().isoformat(),
+            "medications": export_rows
+        }
+
+    import io
+    import csv
+    from fastapi.responses import Response
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Patient Name", "Patient Code", "Medication Name", "Generic Name",
+        "Dosage / Tablet Count", "Duration (Days)", "Intake Type (Before/After Food)",
+        "Period Notation (1-1-1)", "Timing Schedule", "Special Instructions / Description",
+        "Start Date", "End Date", "Status"
+    ])
+    for r in export_rows:
+        writer.writerow([
+            r["patient_name"], r["patient_code"], r["medication_name"], r["generic_name"],
+            r["dosage"], r["duration_days"], r["intake_type"],
+            r["period_notation"], r["timing_schedule"], r["instructions"],
+            r["start_date"], r["end_date"], r["status"]
+        ])
+
+    csv_data = output.getvalue()
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=prescriptions_{patient.patient_code}.csv"}
+    )
+
+
 @router.post("/api/patients/{pid}/medications", response_model=MedicationOut, status_code=status.HTTP_201_CREATED)
 def add_patient_medication(
     pid: str,

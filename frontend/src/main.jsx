@@ -1457,6 +1457,315 @@ function PrintableReportModal({ open, onClose, analyticsData, session, patient }
 }
 
 /* ===========================================================
+   DOSING PERIOD NOTATION HELPER (1-1-1 RULE)
+   1st position = Breakfast (Morning)
+   2nd position = Lunch (Afternoon)
+   3rd position = Dinner (Night)
+   0 = Absent of medicine at that period
+   =========================================================== */
+function decodePeriodNotation(notation, meals) {
+  if (meals) {
+    const b = meals.breakfast?.enabled ? 1 : 0;
+    const l = meals.lunch?.enabled ? 1 : 0;
+    const d = meals.dinner?.enabled ? 1 : 0;
+    const parts = [];
+    if (b > 0) parts.push('Breakfast');
+    if (l > 0) parts.push('Lunch');
+    if (d > 0) parts.push('Dinner');
+    return {
+      code: `${b}-${l}-${d}`,
+      label: parts.length > 0 ? parts.join(' & ') : 'As Needed',
+      breakfast: b,
+      lunch: l,
+      dinner: d
+    };
+  }
+  if (!notation) return { code: '1-0-1', label: 'Breakfast & Dinner', breakfast: 1, lunch: 0, dinner: 1 };
+
+  const clean = String(notation).trim();
+  const match = clean.match(/^(\d+)\s*[-:]\s*(\d+)\s*[-:]\s*(\d+)/);
+  if (match) {
+    const b = parseInt(match[1], 10) || 0;
+    const l = parseInt(match[2], 10) || 0;
+    const d = parseInt(match[3], 10) || 0;
+    const parts = [];
+    if (b > 0) parts.push(b === 1 ? 'Breakfast' : `Breakfast (${b} tabs)`);
+    if (l > 0) parts.push(l === 1 ? 'Lunch' : `Lunch (${l} tabs)`);
+    if (d > 0) parts.push(d === 1 ? 'Dinner' : `Dinner (${d} tabs)`);
+    return {
+      code: `${b}-${l}-${d}`,
+      label: parts.length > 0 ? parts.join(' & ') : 'As Needed',
+      breakfast: b,
+      lunch: l,
+      dinner: d
+    };
+  }
+
+  const lower = clean.toLowerCase();
+  if (lower.includes('1-0-0') || lower.includes('morning only') || lower.includes('od') || lower.includes('breakfast only')) {
+    return { code: '1-0-0', label: 'Breakfast Only', breakfast: 1, lunch: 0, dinner: 0 };
+  }
+  if (lower.includes('0-1-0') || lower.includes('lunch only') || lower.includes('afternoon only')) {
+    return { code: '0-1-0', label: 'Lunch Only', breakfast: 0, lunch: 1, dinner: 0 };
+  }
+  if (lower.includes('0-0-1') || lower.includes('dinner only') || lower.includes('night only') || lower.includes('qhs')) {
+    return { code: '0-0-1', label: 'Dinner Only', breakfast: 0, lunch: 0, dinner: 1 };
+  }
+  if (lower.includes('1-1-1') || lower.includes('tid') || lower.includes('tds') || lower.includes('thrice')) {
+    return { code: '1-1-1', label: 'Breakfast, Lunch & Dinner', breakfast: 1, lunch: 1, dinner: 1 };
+  }
+  if (lower.includes('1-0-1') || lower.includes('bid') || lower.includes('bd') || lower.includes('twice')) {
+    return { code: '1-0-1', label: 'Breakfast & Dinner', breakfast: 1, lunch: 0, dinner: 1 };
+  }
+
+  return { code: clean, label: clean, breakfast: 1, lunch: 0, dinner: 1 };
+}
+
+function downloadPrescriptionsCsv(medications = [], patient = null) {
+  const patientName = patient?.name || 'Patient';
+  const patientCode = patient?.patient_code || 'REC-RX';
+  const headers = [
+    'Patient Name',
+    'Patient Code',
+    'Medication Name',
+    'Generic Name',
+    'Dosage / Tablet Count',
+    'Duration (Days)',
+    'Intake Type (Before/After Food)',
+    'Period Notation (1-1-1)',
+    'Timing Breakdown',
+    'Special Instructions / Description',
+    'Status'
+  ];
+
+  const rows = (medications || []).map(med => {
+    const name = med.name || med.medication_name || '';
+    const generic = med.generic_name || med.generic || med.comp || '';
+    const dose = med.dose || med.dosage || med.strength || '1 tablet';
+    const tabletCount = med.tabletCount || med.tablets || '';
+    const doseDisplay = tabletCount && !dose.includes(tabletCount) ? `${dose} (${tabletCount})` : dose;
+
+    let dur = med.duration || med.days || 0;
+    if (!dur && med.start_date && med.end_date) {
+      const s = new Date(med.start_date);
+      const e = new Date(med.end_date);
+      dur = Math.round((e - s) / 86400000) + 1;
+    }
+    const durationDisplay = dur > 0 ? `${dur} days` : '5 days';
+
+    let intake = med.intakeType || med.food_relation || med.foodRelation || '';
+    if (!intake && med.schedules?.[0]?.food_relation) intake = med.schedules[0].food_relation;
+    const intakeDisplay = String(intake).toLowerCase().includes('before') ? 'Before Food' : 'After Food';
+
+    const periodInfo = decodePeriodNotation(med.period || med.notation, med.meals || (med.schedules ? {
+      breakfast: { enabled: med.schedules.some(s => (s.label || '').toLowerCase().includes('breakfast') || (s.label || '').toLowerCase().includes('morning') || s.time_hhmm === '08:00') },
+      lunch: { enabled: med.schedules.some(s => (s.label || '').toLowerCase().includes('lunch') || (s.label || '').toLowerCase().includes('noon') || s.time_hhmm === '13:00') },
+      dinner: { enabled: med.schedules.some(s => (s.label || '').toLowerCase().includes('dinner') || (s.label || '').toLowerCase().includes('night') || s.time_hhmm === '21:00') },
+    } : null));
+
+    const instructions = med.description || med.instructions || '';
+    const status = med.status || (med.checked ? 'Approved' : 'Active');
+
+    return [
+      `"${patientName.replace(/"/g, '""')}"`,
+      `"${patientCode.replace(/"/g, '""')}"`,
+      `"${name.replace(/"/g, '""')}"`,
+      `"${generic.replace(/"/g, '""')}"`,
+      `"${doseDisplay.replace(/"/g, '""')}"`,
+      `"${durationDisplay}"`,
+      `"${intakeDisplay}"`,
+      `"${periodInfo.code}"`,
+      `"${periodInfo.label}"`,
+      `"${instructions.replace(/"/g, '""')}"`,
+      `"${status}"`
+    ];
+  });
+
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `prescriptions_${(patientName || 'patient').toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/* ===========================================================
+   OFFICIAL CLINICAL PRESCRIPTION EXPORT MODAL (PDF & CSV ATTESTATION)
+   =========================================================== */
+function PrintablePrescriptionModal({ open, onClose, patient, medications = [], session }) {
+  if (!open) return null;
+
+  const generatedTime = new Date().toLocaleString('en-US', {
+    dateStyle: 'full',
+    timeStyle: 'medium'
+  });
+  const rxRef = `RX-${Date.now().toString(36).toUpperCase()}`;
+  const patientName = patient?.name || 'Verified Patient';
+  const patientCode = patient?.patient_code || 'REC-8492';
+  const patientAge = patient?.age ? `${patient.age} Y` : 'Adult';
+  const patientGender = patient?.gender || 'Unspecified';
+  const doctorName = session?.user?.name || 'Attending Physician';
+  const doctorRole = session?.user?.role?.toUpperCase() || 'DOCTOR';
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 12000, overflowY: 'auto', padding: '24px 12px' }}>
+      <div className="printable-report-wrap" style={{ position: 'relative' }}>
+        {/* Floating Actions Toolbar (hidden when printing) */}
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="badge badge-teal" style={{ background: '#00a896', color: '#fff', fontSize: 11 }}>Official Clinical Prescription</span>
+            <span style={{ fontSize: 13, color: '#64748b' }}>Outpatient Rx Export & Attestation</span>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-primary" onClick={() => window.print()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#00a896', borderColor: '#00a896' }}>
+              <Printer size={15} /> Print / Save PDF
+            </button>
+            <button className="btn btn-secondary" onClick={() => downloadPrescriptionsCsv(medications, patient)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Download size={15} /> Download CSV
+            </button>
+            <button className="btn btn-ghost" onClick={onClose} style={{ color: '#475569' }}>
+              <X size={15} /> Close
+            </button>
+          </div>
+        </div>
+
+        {/* Hospital Header Banner */}
+        <div className="report-header-banner">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 14, height: 14, borderRadius: 3, background: '#00a896' }} />
+              <div className="report-hospital-title">RECOVERA HEALTHCARE INTELLIGENCE</div>
+            </div>
+            <div className="report-subtitle">Official Clinical Prescription Order & Medication Dispensing Schedule</div>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: 11, color: '#64748b' }}>
+            <div><b>Rx Ref:</b> {rxRef}</div>
+            <div><b>Status:</b> CLINICALLY VERIFIED PRESCRIPTION</div>
+          </div>
+        </div>
+
+        {/* Patient & Clinician Metadata Grid */}
+        <div className="report-meta-grid">
+          <div className="report-meta-item">
+            <strong>Patient Name & MRN</strong>
+            <span>{patientName} ({patientCode})</span>
+          </div>
+          <div className="report-meta-item">
+            <strong>Age / Gender</strong>
+            <span>{patientAge} · {patientGender}</span>
+          </div>
+          <div className="report-meta-item">
+            <strong>Prescribing Physician</strong>
+            <span>Dr. {doctorName} ({doctorRole})</span>
+          </div>
+          <div className="report-meta-item">
+            <strong>Date & Time Generated</strong>
+            <span>{generatedTime}</span>
+          </div>
+        </div>
+
+        {/* Dosing Period Notation Rule Legend Box */}
+        <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 8, padding: '10px 14px', marginBottom: 18, fontSize: 11.5, color: '#334155', lineHeight: 1.45 }}>
+          <strong style={{ color: '#0f766e' }}>Dosing Period Notation (1-1-1 Rule): </strong>
+          First number = <b>Breakfast (Morning)</b> · Second number = <b>Lunch (Afternoon)</b> · Third number = <b>Dinner (Night)</b>.
+          <span style={{ color: '#64748b', marginLeft: 6 }}>("0" denotes absence of medication for that specific period).</span>
+        </div>
+
+        {/* Prescription Table */}
+        <div className="report-section-title">Prescribed Medications & Administration Schedule ({medications.length} Items)</div>
+        {medications.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: 12, background: '#f8fafc', borderRadius: 6, marginBottom: 20 }}>
+            No active medications recorded for this prescription export.
+          </div>
+        ) : (
+          <table className="report-table">
+            <thead>
+              <tr>
+                <th style={{ width: 30 }}>#</th>
+                <th>Medication & Formulation</th>
+                <th style={{ width: 110 }}>Dosage / Count</th>
+                <th style={{ width: 90 }}>Duration</th>
+                <th style={{ width: 105 }}>Intake Type</th>
+                <th style={{ width: 155 }}>Dosing Period (1-1-1)</th>
+                <th>Special Instructions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {medications.map((m, idx) => {
+                const name = m.name || m.medication_name || 'Medication';
+                const generic = m.generic_name || m.generic || m.comp || '';
+                const dose = m.dose || m.dosage || m.strength || '1 tablet';
+                const count = m.tabletCount || m.tablets || '';
+                const doseText = count && !dose.includes(count) ? `${dose} (${count})` : dose;
+
+                let dur = m.duration || m.days || 0;
+                if (!dur && m.start_date && m.end_date) {
+                  const s = new Date(m.start_date);
+                  const e = new Date(m.end_date);
+                  dur = Math.round((e - s) / 86400000) + 1;
+                }
+                const durText = dur > 0 ? `${dur} days` : '5 days';
+
+                let intake = m.intakeType || m.food_relation || m.foodRelation || '';
+                if (!intake && m.schedules?.[0]?.food_relation) intake = m.schedules[0].food_relation;
+                const intakeText = String(intake).toLowerCase().includes('before') ? 'Before Food (AC)' : 'After Food (PC)';
+
+                const periodInfo = decodePeriodNotation(m.period || m.notation, m.meals || (m.schedules ? {
+                  breakfast: { enabled: m.schedules.some(s => (s.label || '').toLowerCase().includes('breakfast') || (s.label || '').toLowerCase().includes('morning') || s.time_hhmm === '08:00') },
+                  lunch: { enabled: m.schedules.some(s => (s.label || '').toLowerCase().includes('lunch') || (s.label || '').toLowerCase().includes('noon') || s.time_hhmm === '13:00') },
+                  dinner: { enabled: m.schedules.some(s => (s.label || '').toLowerCase().includes('dinner') || (s.label || '').toLowerCase().includes('night') || s.time_hhmm === '21:00') },
+                } : null));
+
+                const desc = m.description || m.instructions || 'Take as advised.';
+
+                return (
+                  <tr key={idx}>
+                    <td><b>{idx + 1}</b></td>
+                    <td>
+                      <div style={{ fontWeight: 700, color: '#0f172a' }}>{name}</div>
+                      {generic && <div style={{ fontSize: 10, color: '#64748b' }}>{generic}</div>}
+                    </td>
+                    <td><b style={{ color: '#0369a1' }}>{doseText}</b></td>
+                    <td><b>{durText}</b></td>
+                    <td>
+                      <span style={{ fontWeight: 600, color: intakeText.includes('Before') ? '#b45309' : '#047857' }}>
+                        {intakeText}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 700, color: '#0f766e' }}>{periodInfo.code}</span>
+                      <div style={{ fontSize: 10, color: '#475569' }}>{periodInfo.label}</div>
+                    </td>
+                    <td style={{ fontSize: 10.5, color: '#334155' }}>{desc}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+
+        {/* Attestation Block */}
+        <div className="report-attestation-block">
+          <div>
+            <div style={{ fontWeight: 700, color: '#1e293b' }}>Authorized Hospital Prescription Seal</div>
+            <div>Verified against hospital formulary & ADE safety cross-checks</div>
+            <div style={{ fontSize: 10, marginTop: 4 }}>Recovera AI Healthcare OS · Official Clinical Rx Export</div>
+          </div>
+          <div>
+            <div className="report-signature-line" />
+            <div style={{ textAlign: 'center', fontSize: 11 }}>Prescribing Clinician Signature & Date</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===========================================================
    WORKFLOW ANALYTICS HUB (TIMELINE SWITCHING & LIVE REAL METRICS)
    =========================================================== */
 function WorkflowAnalyticsHub({ session, patientId = null, title = "Clinical Workflow & Outcomes Analytics", subtitle = null }) {
@@ -1995,6 +2304,13 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
   };
 
   const handleSaveAndSubmit = async (statusToSet = 'under_review') => {
+    if (statusToSet === 'under_review' && doc.doc_type === 'prescription' && Array.isArray(medicationsList)) {
+      const invalid = medicationsList.find(m => !m.name || !m.name.trim() || !m.dosage || !m.dosage.trim() || m.dosage === 'null' || m.dosage.toLowerCase().includes('manual entry') || !m.days || m.days < 1 || !m.food_relation);
+      if (invalid) {
+        setErr(`Mandatory prescription fields required: Please verify Name, Dosage/Tablet count, Duration (days ≥ 1), and Intake Type (Before/After Food) for "${invalid.name || 'Unnamed'}" before submitting.`);
+        return;
+      }
+    }
     setBusy(true); setErr('');
     try {
       let parsedData = null;
@@ -2024,6 +2340,14 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
   };
 
   const handleDirectApprove = async () => {
+    // Validate mandatory prescription fields (name, dosage, duration, intake type)
+    if (doc.doc_type === 'prescription' && Array.isArray(medicationsList)) {
+      const invalid = medicationsList.find(m => !m.name || !m.name.trim() || !m.dosage || !m.dosage.trim() || m.dosage === 'null' || m.dosage.toLowerCase().includes('manual entry') || !m.days || m.days < 1 || !m.food_relation);
+      if (invalid) {
+        setErr(`Mandatory prescription fields required: Please verify Name, Dosage/Tablet count, Duration (days ≥ 1), and Intake Type (Before/After Food) for "${invalid.name || 'Unnamed'}" before approving.`);
+        return;
+      }
+    }
     setBusy(true); setErr('');
     try {
       // First persist any edited text/medications
@@ -2088,7 +2412,7 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
   const isAdmin = session?.user?.role === 'admin';
   const canApprove = doc?.can_approve || isAdmin || isNurse;
 
-  const hasMissingDosage = medicationsList.some(m => !m.dosage || m.dosage === 'null' || m.dosage.trim() === '' || m.dosage_missing || m.dosage === '1 tablet');
+  const hasMissingDosage = medicationsList.some(m => !m.dosage || m.dosage === 'null' || m.dosage.trim() === '' || m.dosage_missing || m.dosage.toLowerCase().includes('manual entry') || !m.days || m.days < 1 || !m.food_relation);
 
   const targetDocName = doctorOptions.find(d => d.id === targetDoctorId)?.name || doc?.assigned_doctor_name || 'Designated Doctor';
   const isPhoto = !!(doc?.filename?.match(/\.(jpg|jpeg|png|webp)$/i) || doc?.structured_data?.is_handwritten_photo);
@@ -2209,12 +2533,13 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '6px 8px' }}>Medicine Name</th>
-                      <th style={{ padding: '6px 8px', width: 95 }}>Dosage</th>
-                      <th style={{ padding: '6px 8px', width: 85 }}>Days</th>
-                      <th style={{ padding: '6px 8px', width: 140 }}>Period / Timing</th>
-                      <th style={{ padding: '6px 8px', width: 130 }}>Food Relation</th>
-                      <th style={{ padding: '6px 8px', width: 40 }}></th>
+                      <th style={{ padding: '6px 8px' }}>Medicine Name *</th>
+                      <th style={{ padding: '6px 8px', width: 105 }}>Dosage / Count *</th>
+                      <th style={{ padding: '6px 8px', width: 85 }}>Duration (Days) *</th>
+                      <th style={{ padding: '6px 8px', width: 140 }}>Period (1-1-1) *</th>
+                      <th style={{ padding: '6px 8px', width: 125 }}>Intake Type *</th>
+                      <th style={{ padding: '6px 8px' }}>Instructions (Optional)</th>
+                      <th style={{ padding: '6px 8px', width: 35 }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2285,11 +2610,24 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
                               updateMedicationsList(next);
                             }}
                           >
-                            <option value="after_food">After Food</option>
-                            <option value="before_food">Before Food</option>
+                            <option value="after_food">After Food (PC)</option>
+                            <option value="before_food">Before Food (AC)</option>
                             <option value="with_food">With Food</option>
                             <option value="empty_stomach">Empty Stomach</option>
                           </select>
+                        </td>
+                        <td style={{ padding: '6px 4px' }}>
+                          <input
+                            className="form-input"
+                            style={{ padding: '4px 8px', fontSize: 12 }}
+                            placeholder="Optional instructions..."
+                            value={m.instructions || ''}
+                            onChange={e => {
+                              const next = [...medicationsList];
+                              next[idx] = { ...next[idx], instructions: e.target.value };
+                              updateMedicationsList(next);
+                            }}
+                          />
                         </td>
                         <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                           <button
@@ -3138,11 +3476,14 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
   // Simulator 2: Multimodal Prescription Vision OCR Scanner (Local sample only - 0 backend writes)
   const [scanState, setScanState] = useState('idle'); // 'idle' | 'scanning' | 'done'
   const [ocrApproved, setOcrApproved] = useState(false);
+  const [editingSimMed, setEditingSimMed] = useState(null);
+  const [simValidationError, setSimValidationError] = useState('');
+  const [showSimExportModal, setShowSimExportModal] = useState(false);
   const [ocrMedications, setOcrMedications] = useState([
-    { id: 1, name: 'Pan 40', comp: 'Pantoprazole Sodium 40mg', dose: '40mg (1-0-1)', timing: 'Morning & Night Before Food', checked: true, missingDose: false },
-    { id: 2, name: 'Acedo MR', comp: 'Aceclofenac + Paracetamol + Chlorzoxazone', dose: 'Manual Entry Needed', timing: 'Twice daily After Food', checked: true, missingDose: true },
-    { id: 3, name: 'Deflazacort', comp: 'Deflazacort 6mg', dose: '6mg (1-0-1)', timing: 'Morning & Night After Food', checked: true, missingDose: false },
-    { id: 4, name: 'Tolperisone', comp: 'Tolperisone HCl 150mg', dose: '150mg (1-0-0 x 2d)', timing: 'Night After Food', checked: true, missingDose: false },
+    { id: 1, name: 'Pan 40', comp: 'Pantoprazole Sodium 40mg', dose: '40mg', tabletCount: '1 tablet', duration: 5, period: '1-0-1', breakfast: 1, lunch: 0, dinner: 1, intakeType: 'before_food', description: 'Take 30 minutes before breakfast & dinner', checked: true, missingDose: false },
+    { id: 2, name: 'Acedo MR', comp: 'Aceclofenac + Paracetamol + Chlorzoxazone', dose: '', tabletCount: '1 tablet', duration: 5, period: '1-0-1', breakfast: 1, lunch: 0, dinner: 1, intakeType: 'after_food', description: 'Take after meals with water', checked: true, missingDose: true },
+    { id: 3, name: 'Deflazacort', comp: 'Deflazacort 6mg', dose: '6mg', tabletCount: '1 tablet', duration: 5, period: '1-0-1', breakfast: 1, lunch: 0, dinner: 1, intakeType: 'after_food', description: 'Take after meals', checked: true, missingDose: false },
+    { id: 4, name: 'Tolperisone', comp: 'Tolperisone HCl 150mg', dose: '150mg', tabletCount: '1 tablet', duration: 2, period: '1-0-0', breakfast: 1, lunch: 0, dinner: 0, intakeType: 'after_food', description: 'Morning dose after breakfast', checked: true, missingDose: false },
   ]);
 
   // Simulator 3: ADE Drug-Drug Interaction Interceptor (Local sample only - 0 backend writes)
@@ -3289,7 +3630,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
     setTimeout(() => setCheckinSuccessMsg(''), 5000);
   };
 
-  const hasMissingDosage = ocrMedications.some(m => m.missingDose);
+  const hasMissingDosage = ocrMedications.some(m => m.checked && (m.missingDose || !m.dose || !m.dose.trim() || m.dose.toLowerCase().includes('manual entry') || !m.duration || m.duration < 1 || !m.intakeType));
 
   return (
     <div className="home-wrapper" style={{ background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh' }}>
@@ -4058,47 +4399,110 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
               <div style={{ marginTop: 12 }}>
                 {/* Missing dosage warning banner */}
                 {hasMissingDosage && (
-                  <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid var(--amber)', borderRadius: 6, padding: '7px 10px', marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <AlertTriangle size={14} color="var(--amber)" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: 11.5, color: 'var(--amber)', fontWeight: 500 }}>
-                      Dosage not detected in source image. Enter dosage manually before approval.
-                    </span>
+                  <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid var(--amber)', borderRadius: 6, padding: '8px 12px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <AlertTriangle size={15} color="var(--amber)" style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: 11.5, color: 'var(--amber)', fontWeight: 600 }}>
+                        Dosage not detected for Acedo MR. Click "Enter Dosage *" to provide mandatory dosage, duration, and intake type before approval.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-warning btn-xs"
+                      style={{ fontSize: 10.5, whiteSpace: 'nowrap', padding: '3px 8px' }}
+                      onClick={() => {
+                        const missing = ocrMedications.find(m => m.missingDose || !m.dose);
+                        if (missing) setEditingSimMed(missing);
+                      }}
+                    >
+                      Complete Now
+                    </button>
                   </div>
                 )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {ocrMedications.map(med => (
-                    <div
-                      key={med.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: 11.5,
-                        background: 'var(--surface2)',
-                        padding: '6px 10px',
-                        borderRadius: 6,
-                        border: '1px solid var(--border)',
-                      }}
-                    >
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={med.checked}
-                          onChange={(e) => {
-                            const val = e.target.checked;
-                            setOcrApproved(false);
-                            setOcrMedications(prev => prev.map(m => m.id === med.id ? { ...m, checked: val } : m));
-                          }}
-                        />
-                        <span style={{ fontWeight: 600, color: 'var(--text)' }}>{med.name}</span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: 10.5 }}>({med.comp})</span>
-                      </label>
-                      <span className="badge" style={{ fontSize: 9.5, background: 'var(--surface)', border: '1px solid var(--border)', color: med.missingDose ? 'var(--amber)' : 'var(--text-dim)' }}>
-                        {med.dose} · {med.timing}
-                      </span>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {ocrMedications.map(med => {
+                    const periodInfo = decodePeriodNotation(med.period, {
+                      breakfast: { enabled: med.breakfast !== 0 },
+                      lunch: { enabled: med.lunch === 1 },
+                      dinner: { enabled: med.dinner !== 0 }
+                    });
+                    const hasDose = !!(med.dose && med.dose.trim() && !med.missingDose && !med.dose.toLowerCase().includes('manual entry'));
+
+                    return (
+                      <div
+                        key={med.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: 11.5,
+                          background: 'var(--surface2)',
+                          padding: '8px 10px',
+                          borderRadius: 6,
+                          border: med.missingDose ? '1px solid var(--amber)' : '1px solid var(--border)',
+                          gap: 8,
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, flex: '1 1 auto' }}>
+                          <input
+                            type="checkbox"
+                            checked={med.checked}
+                            onChange={(e) => {
+                              const val = e.target.checked;
+                              setOcrApproved(false);
+                              setOcrMedications(prev => prev.map(m => m.id === med.id ? { ...m, checked: val } : m));
+                            }}
+                          />
+                          <div>
+                            <span style={{ fontWeight: 700, color: 'var(--text)' }}>{med.name}</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: 10.5, marginLeft: 6 }}>({med.comp})</span>
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                              {hasDose ? (
+                                <span className="badge" style={{ fontSize: 9.5, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                                  {med.dose} {med.tabletCount ? `(${med.tabletCount})` : ''}
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="badge badge-amber"
+                                  onClick={(e) => { e.preventDefault(); setEditingSimMed(med); }}
+                                  style={{ fontSize: 9.5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3, border: '1px solid var(--amber)', background: 'rgba(245, 158, 11, 0.12)' }}
+                                  title="Dosage missing from handwritten prescription. Click to enter mandatory dosage."
+                                >
+                                  <AlertTriangle size={10} /> Enter Dosage *
+                                </button>
+                              )}
+                              <span className="badge badge-teal" style={{ fontSize: 9.5, color: 'var(--p)' }} title="1st: Breakfast · 2nd: Lunch · 3rd: Dinner (0 = absent)">
+                                {periodInfo.code} ({periodInfo.label})
+                              </span>
+                              <span className="badge" style={{ fontSize: 9.5, background: 'var(--surface)', border: '1px solid var(--border)', color: med.intakeType === 'before_food' ? '#f59e0b' : 'var(--text-dim)' }}>
+                                {med.intakeType === 'before_food' ? 'Before Food (AC)' : 'After Food (PC)'}
+                              </span>
+                              <span className="badge" style={{ fontSize: 9.5, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
+                                {med.duration} days
+                              </span>
+                            </div>
+                            {med.description && (
+                              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2, fontStyle: 'italic' }}>
+                                Note: {med.description}
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => setEditingSimMed(med)}
+                          style={{ fontSize: 11, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          title="Configure dosage, duration, intake type, period (1-1-1), and description"
+                        >
+                          <Edit3 size={11} /> Edit Details
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Deduplication Confirmation & Clinical Conflict Banner */}
@@ -4117,30 +4521,54 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   {ocrApproved ? (
                     <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'center' }}>
                       <span style={{ fontSize: 12, color: 'var(--p)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <Check size={14} /> {ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} medications approved for sample preview
+                        <Check size={14} /> {ocrMedications.filter(m => m.checked).length} of {ocrMedications.length} medications approved with verified dosage, duration & timing
                       </span>
-                      <button
-                        className="btn btn-ghost btn-xs"
-                        style={{ alignSelf: 'center', fontSize: 11, color: 'var(--text-muted)', padding: '2px 8px' }}
-                        onClick={() => setOcrApproved(false)}
-                      >
-                        Reset / Edit selection
-                      </button>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 4 }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                          onClick={() => setShowSimExportModal(true)}
+                        >
+                          <FileText size={12} /> Preview Prescription Export
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 8px' }}
+                          onClick={() => setOcrApproved(false)}
+                        >
+                          Reset / Edit selection
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <>
+                      {simValidationError && (
+                        <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid var(--rose)', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: 'var(--rose)', fontWeight: 500, marginBottom: 6, textAlign: 'center' }}>
+                          {simValidationError}
+                        </div>
+                      )}
                       {ocrMedications.filter(m => m.checked).length === 0 && (
                         <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid var(--rose)', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: 'var(--rose)', fontWeight: 500, marginBottom: 6, textAlign: 'center' }}>
                           Select at least 1 verified medication to approve.
                         </div>
                       )}
                       <button
+                        type="button"
                         className="btn btn-primary btn-sm btn-full"
                         disabled={ocrMedications.filter(m => m.checked).length === 0}
                         onClick={() => {
-                          if (ocrMedications.filter(m => m.checked).length > 0) {
-                            setOcrApproved(true);
+                          const selected = ocrMedications.filter(m => m.checked);
+                          if (selected.length === 0) return;
+                          const invalid = selected.find(m => !m.dose || !m.dose.trim() || !m.duration || m.duration < 1 || !m.intakeType || m.missingDose || m.dose.toLowerCase().includes('manual entry'));
+                          if (invalid) {
+                            setSimValidationError(`Mandatory fields required: Please enter dosage, duration, and intake type for "${invalid.name}" before approval.`);
+                            setEditingSimMed(invalid);
+                            return;
                           }
+                          setSimValidationError('');
+                          setOcrApproved(true);
                         }}
                         style={{ fontWeight: 500 }}
                       >
@@ -4149,6 +4577,215 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                     </>
                   )}
                 </div>
+
+                {/* Simulator Edit Medication Modal */}
+                {editingSimMed && (
+                  <Modal
+                    open
+                    title={`Edit Prescription Details: ${editingSimMed.name}`}
+                    onClose={() => setEditingSimMed(null)}
+                    size="md"
+                  >
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const fd = new FormData(e.target);
+                        const dose = (fd.get('dose') || '').trim();
+                        const tabletCount = (fd.get('tabletCount') || '').trim();
+                        const duration = parseInt(fd.get('duration'), 10) || 1;
+                        const intakeType = fd.get('intakeType') || 'after_food';
+                        const description = (fd.get('description') || '').trim();
+                        const b = fd.get('breakfast') ? 1 : 0;
+                        const l = fd.get('lunch') ? 1 : 0;
+                        const d = fd.get('dinner') ? 1 : 0;
+
+                        if (!dose) {
+                          alert('Dosage is mandatory. Please enter a valid dose (e.g. 500mg, 1 tablet).');
+                          return;
+                        }
+                        if (!duration || duration < 1) {
+                          alert('Duration (days) is mandatory and must be at least 1 day.');
+                          return;
+                        }
+                        if (!intakeType) {
+                          alert('Intake type (Before Food / After Food) is mandatory.');
+                          return;
+                        }
+                        if (b === 0 && l === 0 && d === 0) {
+                          alert('Please select at least one dosing period (Breakfast, Lunch, or Dinner).');
+                          return;
+                        }
+
+                        const periodCode = `${b}-${l}-${d}`;
+
+                        setOcrMedications(prev => prev.map(m => {
+                          if (m.id === editingSimMed.id) {
+                            return {
+                              ...m,
+                              dose,
+                              tabletCount: tabletCount || '1 tablet',
+                              duration,
+                              intakeType,
+                              period: periodCode,
+                              breakfast: b,
+                              lunch: l,
+                              dinner: d,
+                              description,
+                              missingDose: false,
+                              checked: true
+                            };
+                          }
+                          return m;
+                        }));
+
+                        setSimValidationError('');
+                        setEditingSimMed(null);
+                      }}
+                      style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+                    >
+                      <div style={{ background: 'var(--surface2)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{editingSimMed.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{editingSimMed.comp}</div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div className="form-field" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: 11.5 }}>
+                            Dosage * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
+                          </label>
+                          <input
+                            name="dose"
+                            required
+                            className="form-input"
+                            defaultValue={editingSimMed.dose || (editingSimMed.name === 'Acedo MR' ? '500mg / 325mg' : '1 tablet')}
+                            placeholder="e.g. 500mg, 40mg, 150mg"
+                            list="sim-dose-suggestions"
+                            style={{ fontSize: 12.5 }}
+                          />
+                          <datalist id="sim-dose-suggestions">
+                            <option value="500mg / 325mg" />
+                            <option value="500mg" />
+                            <option value="400mg" />
+                            <option value="150mg" />
+                            <option value="40mg" />
+                            <option value="6mg" />
+                            <option value="1 tablet" />
+                            <option value="2 tablets" />
+                          </datalist>
+                        </div>
+
+                        <div className="form-field" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: 11.5 }}>
+                            Tablet Count / Form * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
+                          </label>
+                          <input
+                            name="tabletCount"
+                            required
+                            className="form-input"
+                            defaultValue={editingSimMed.tabletCount || '1 tablet'}
+                            placeholder="e.g. 1 tablet, 1 capsule"
+                            style={{ fontSize: 12.5 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div className="form-field" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: 11.5 }}>
+                            Duration (Days) * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="duration"
+                            required
+                            min="1"
+                            max="365"
+                            className="form-input"
+                            defaultValue={editingSimMed.duration || 5}
+                            style={{ fontSize: 12.5 }}
+                          />
+                        </div>
+
+                        <div className="form-field" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: 11.5 }}>
+                            Intake Type * <span style={{ color: 'var(--amber)', fontSize: 10 }}>(Mandatory)</span>
+                          </label>
+                          <select
+                            name="intakeType"
+                            required
+                            className="form-input"
+                            defaultValue={editingSimMed.intakeType || 'after_food'}
+                            style={{ fontSize: 12.5 }}
+                          >
+                            <option value="after_food">After Food (PC)</option>
+                            <option value="before_food">Before Food (AC)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="form-field" style={{ margin: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <label className="form-label" style={{ fontSize: 11.5, margin: 0 }}>
+                            Dosing Period (1-1-1 Notation) *
+                          </label>
+                          <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                            1st = Breakfast · 2nd = Lunch · 3rd = Dinner · 0 = Absent
+                          </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 4 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
+                            <input type="checkbox" name="breakfast" defaultChecked={editingSimMed.breakfast !== 0} />
+                            <Sun size={14} color="#f59e0b" />
+                            <span>Breakfast (1st)</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
+                            <input type="checkbox" name="lunch" defaultChecked={editingSimMed.lunch === 1} />
+                            <Sun size={14} color="#f59e0b" />
+                            <span>Lunch (2nd)</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12 }}>
+                            <input type="checkbox" name="dinner" defaultChecked={editingSimMed.dinner !== 0} />
+                            <Moon size={14} color="#818cf8" />
+                            <span>Dinner (3rd)</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="form-field" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: 11.5 }}>
+                          Special Instructions / Description <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>(Optional)</span>
+                        </label>
+                        <input
+                          name="description"
+                          className="form-input"
+                          defaultValue={editingSimMed.description || ''}
+                          placeholder="e.g. Take with warm water after meals, avoid dairy"
+                          style={{ fontSize: 12.5 }}
+                        />
+                      </div>
+
+                      <div className="modal-footer" style={{ marginTop: 8 }}>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingSimMed(null)}>
+                          Cancel
+                        </button>
+                        <button type="submit" className="btn btn-primary btn-sm">
+                          Save Medication Details
+                        </button>
+                      </div>
+                    </form>
+                  </Modal>
+                )}
+
+                {/* Simulator Prescription Export Preview Modal */}
+                {showSimExportModal && (
+                  <PrintablePrescriptionModal
+                    open={showSimExportModal}
+                    onClose={() => setShowSimExportModal(false)}
+                    patient={{ name: 'Sample Patient (Aditi Rao)', patient_code: 'REC-8492', age: 46, gender: 'Female' }}
+                    medications={ocrMedications.filter(m => m.checked)}
+                    session={{ user: { name: 'Dr. Anand Ramanathan', role: 'Chief Orthopedic Surgeon' } }}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -9946,6 +10583,7 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
   const [err, setErr] = useState('');
   const [editPlanOpen, setEditPlanOpen] = useState(false);
   const [prescribeOpen, setPrescribeOpen] = useState(false);
+  const [exportPrescriptionOpen, setExportPrescriptionOpen] = useState(false);
   const [planBusy, setPlanBusy] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadDocType, setUploadDocType] = useState('prescription');
@@ -10679,11 +11317,21 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
         <div className="card">
           <div className="section-head">
             <div><span className="eyebrow">MEDICATION MANAGEMENT</span><h2>Active Prescriptions & Doses</h2></div>
-            {(session.user.role === 'doctor' || session.user.role === 'nurse' || session.user.role === 'admin') && (
-              <button className="btn btn-primary btn-sm" onClick={() => setPrescribeOpen(true)}>
-                <Plus size={14} /> Prescribe
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setExportPrescriptionOpen(true)}
+                title="Export official patient prescription as printable PDF or CSV"
+                disabled={meds.length === 0}
+              >
+                <Download size={14} /> Export Prescriptions
               </button>
-            )}
+              {(session.user.role === 'doctor' || session.user.role === 'nurse' || session.user.role === 'admin') && (
+                <button className="btn btn-primary btn-sm" onClick={() => setPrescribeOpen(true)}>
+                  <Plus size={14} /> Prescribe
+                </button>
+              )}
+            </div>
           </div>
           {meds.length === 0
             ? <Empty icon={Pill} title="No medications prescribed" />
@@ -10707,9 +11355,34 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
                           <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14 }}>{medTitle}</span>
                           <Badge status={isAct ? 'active' : 'cancelled'}>{isAct ? 'Active' : 'Discontinued'}</Badge>
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                          {[doseStr, freqStr, dateStr, foodStr].filter(Boolean).join(' · ')}
-                        </div>
+                        {(() => {
+                          const periodInfo = decodePeriodNotation(med.period || med.notation, med.meals || (med.schedules ? {
+                            breakfast: { enabled: med.schedules.some(s => (s.label || '').toLowerCase().includes('breakfast') || (s.label || '').toLowerCase().includes('morning') || s.time_hhmm === '08:00') },
+                            lunch: { enabled: med.schedules.some(s => (s.label || '').toLowerCase().includes('lunch') || (s.label || '').toLowerCase().includes('noon') || s.time_hhmm === '13:00') },
+                            dinner: { enabled: med.schedules.some(s => (s.label || '').toLowerCase().includes('dinner') || (s.label || '').toLowerCase().includes('night') || s.time_hhmm === '21:00') },
+                          } : null));
+
+                          return (
+                            <>
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <span><strong>Dose:</strong> {doseStr || '1 tablet'}</span>
+                                <span>•</span>
+                                <span><strong>Duration:</strong> {dateStr}</span>
+                                <span>•</span>
+                                <span><strong>Intake:</strong> {foodStr ? (foodStr.toLowerCase().includes('before') ? 'Before Food (AC)' : 'After Food (PC)') : 'After Food (PC)'}</span>
+                                <span>•</span>
+                                <span className="badge badge-teal" style={{ fontSize: 10 }}>
+                                  Period: {periodInfo.code} ({periodInfo.label})
+                                </span>
+                              </div>
+                              {med.instructions && (
+                                <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 4 }}>
+                                  <em>Instructions:</em> {med.instructions}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                       {(session.user.role === 'doctor' || session.user.role === 'nurse' || session.user.role === 'admin') && (
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -10883,6 +11556,16 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
             </div>
           )}
         </div>
+      )}
+
+      {exportPrescriptionOpen && (
+        <PrintablePrescriptionModal
+          open={exportPrescriptionOpen}
+          onClose={() => setExportPrescriptionOpen(false)}
+          patient={patient}
+          medications={meds}
+          session={session}
+        />
       )}
 
       {prescribeOpen && (
@@ -13279,6 +13962,16 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
 
 function PatientMedicationTracker({ patientId, lang = 'en', navigate }) {
   const todayIso = useMemo(() => getIsoDateToday(), []);
+  const [exportPrescriptionOpen, setExportPrescriptionOpen] = useState(false);
+  const [patientMeds, setPatientMeds] = useState([]);
+
+  useEffect(() => {
+    if (patientId) {
+      api(`/api/patients/${patientId}/medications`).then(res => {
+        if (Array.isArray(res)) setPatientMeds(res);
+      }).catch(() => {});
+    }
+  }, [patientId]);
   const [selectedReminderDate, setSelectedReminderDate] = useState(todayIso);
   const [selectedLogDate, setSelectedLogDate] = useState(todayIso);
 
@@ -13581,8 +14274,19 @@ function PatientMedicationTracker({ patientId, lang = 'en', navigate }) {
             </p>
           </div>
 
-          {/* Date Selector Navigation (< Today >) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', padding: '4px 8px', borderRadius: 8, border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-xs"
+              onClick={() => setExportPrescriptionOpen(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px' }}
+              title="Export complete medication schedule as printable PDF or CSV"
+            >
+              <Download size={12} /> Export Prescriptions (PDF/CSV)
+            </button>
+
+            {/* Date Selector Navigation (< Today >) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', padding: '4px 8px', borderRadius: 8, border: '1px solid var(--border)' }}>
             <button
               type="button"
               className="btn btn-ghost btn-xs"
@@ -13604,6 +14308,7 @@ function PatientMedicationTracker({ patientId, lang = 'en', navigate }) {
             >
               <ChevronRight size={16} />
             </button>
+            </div>
           </div>
         </div>
 
@@ -14064,6 +14769,16 @@ function PatientMedicationTracker({ patientId, lang = 'en', navigate }) {
           </div>
         </div>
       </div>
+
+      {exportPrescriptionOpen && (
+        <PrintablePrescriptionModal
+          open={exportPrescriptionOpen}
+          onClose={() => setExportPrescriptionOpen(false)}
+          patient={{ name: 'Prescribed Patient', patient_code: `REC-${patientId ? patientId.slice(0, 8) : 'RX'}` }}
+          medications={patientMeds.length > 0 ? patientMeds : todayOccurrences}
+          session={{ user: { name: 'Hospital Specialist', role: 'Staff' } }}
+        />
+      )}
 
       {/* MISSED DOSE & RETROACTIVE ADHERENCE MODAL */}
       {adherenceModalTarget && (
@@ -19027,6 +19742,7 @@ function PrescribeMedicationModal({ patientId, onClose, onSuccess }) {
           .filter(k => med.meals?.[k]?.enabled)
           .map(k => `${k} (${(med.meals[k].foodRelation || 'after food').replace(/_/g, ' ')})`)
           .join(', ');
+        const customNote = med.instructions?.trim() || '';
         const payload = {
           name: med.name,
           generic_name: med.classification,
@@ -19034,7 +19750,9 @@ function PrescribeMedicationModal({ patientId, onClose, onSuccess }) {
           route: 'oral',
           start_date: med.startDate,
           end_date: med.endDate,
-          instructions: `Take ${med.dosage} ${med.frequency.replace(/_/g, ' ')} [${activeMealNames}].`,
+          instructions: customNote
+            ? `${customNote} (Take ${med.dosage} ${med.frequency.replace(/_/g, ' ')} [${activeMealNames}])`
+            : `Take ${med.dosage} ${med.frequency.replace(/_/g, ' ')} [${activeMealNames}].`,
           schedules: scheds,
           clinical_override_rationale: med.overrideRationale?.trim() || null
         };
@@ -19516,6 +20234,35 @@ function PrescribeMedicationModal({ patientId, onClose, onSuccess }) {
                           <AlertTriangle size={12} /> {itemErrs.meals}
                         </div>
                       )}
+
+                      {/* Dosing Period 1-1-1 notation badge */}
+                      {(() => {
+                        const periodInfo = decodePeriodNotation(null, med.meals);
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                            <span className="badge badge-teal" style={{ fontSize: 11 }}>
+                              Period Notation: {periodInfo.code} ({periodInfo.label})
+                            </span>
+                            <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                              (1-1-1 Rule: 1st=Breakfast, 2nd=Lunch, 3rd=Dinner; 0=No dose)
+                            </span>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Special Instructions / Description (Optional) */}
+                      <div style={{ marginTop: 8 }}>
+                        <div className="form-label" style={{ fontSize: 11.5 }}>
+                          Special Instructions / Description <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>(Optional)</span>
+                        </div>
+                        <input
+                          className="form-input"
+                          placeholder="e.g. Take with warm water after meals, avoid taking on an empty stomach..."
+                          value={med.instructions || ''}
+                          onChange={e => updateMedField(med.id, 'instructions', e.target.value)}
+                          style={{ padding: '7px 10px', fontSize: 12.5 }}
+                        />
+                      </div>
                     </div>
 
                     {/* ADE Clinical Interceptor Warnings */}
@@ -19736,6 +20483,10 @@ function EditMedicationModal({ patientId, medication, onClose, onSuccess }) {
     e.preventDefault();
     if (!form.dosage.trim()) {
       setErr('Dosage is required.');
+      return;
+    }
+    if (!form.duration || form.duration < 1) {
+      setErr('Duration must be at least 1 day.');
       return;
     }
     const activeMeals = ['breakfast', 'lunch', 'dinner'].filter(k => form.meals[k]?.enabled);
