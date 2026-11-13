@@ -45,8 +45,14 @@ def test_checkin_7_day_cutoff_and_pretreatment_restrictions(client: TestClient, 
 
     today = dt.date.today()
 
-    # Assign an active medication with start_date = 5 days ago
-    med_start = today - dt.timedelta(days=5)
+    # Normalize existing medications for patient so start_date is within recent 7 days
+    db_session.query(Medication).filter(Medication.patient_id == patient.id).update(
+        {"start_date": today - dt.timedelta(days=4)}
+    )
+    db_session.commit()
+
+    # Assign an active medication with start_date = 4 days ago
+    med_start = today - dt.timedelta(days=4)
     med = Medication(
         patient_id=patient.id,
         name="Amoxicillin",

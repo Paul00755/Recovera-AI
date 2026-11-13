@@ -581,19 +581,11 @@ def _perform_patient_deletion(patient: Patient, db: Session, actor_id: str) -> d
     db.execute(delete(PatientDeletionTicket).where(PatientDeletionTicket.patient_id == pid))
     db.execute(delete(PatientReactivationTicket).where(PatientReactivationTicket.patient_id == pid))
     db.execute(delete(PatientDoctorAssignment).where(PatientDoctorAssignment.patient_id == pid))
-    try:
-        db.execute(text("DELETE FROM patient_staff_assignments WHERE patient_id = :pid"), {"pid": pid})
-    except Exception:
-        pass
 
     # 4. Medication hierarchy
     occ_sub = select(MedicationOccurrence.id).where(MedicationOccurrence.patient_id == pid)
     db.execute(delete(MedicationAdherence).where(MedicationAdherence.occurrence_id.in_(occ_sub)))
     db.execute(delete(MedicationOccurrence).where(MedicationOccurrence.patient_id == pid))
-    try:
-        db.execute(text("DELETE FROM medication_events WHERE patient_id = :pid"), {"pid": pid})
-    except Exception:
-        pass
     db.execute(delete(MedicationSchedule).where(MedicationSchedule.patient_id == pid))
     db.execute(delete(Medication).where(Medication.patient_id == pid))
 
@@ -601,20 +593,17 @@ def _perform_patient_deletion(patient: Patient, db: Session, actor_id: str) -> d
     doc_sub = select(ClinicalDocument.id).where(ClinicalDocument.patient_id == pid)
     db.execute(delete(OCRExtraction).where(OCRExtraction.document_id.in_(doc_sub)))
     db.execute(delete(ClinicalDocument).where(ClinicalDocument.patient_id == pid))
-    try:
-        db.execute(text("DELETE FROM document_extractions WHERE document_id IN (SELECT id FROM documents WHERE patient_id = :pid)"), {"pid": pid})
-        db.execute(text("DELETE FROM documents WHERE patient_id = :pid"), {"pid": pid})
-    except Exception:
-        pass
 
-    # 6. Recovery alerts & plans & follow ups
-    try:
-        db.execute(text("DELETE FROM alert_feedback WHERE alert_id IN (SELECT id FROM recovery_alerts WHERE patient_id = :pid)"), {"pid": pid})
-        db.execute(text("DELETE FROM recovery_alerts WHERE patient_id = :pid"), {"pid": pid})
-        db.execute(text("DELETE FROM recovery_check_ins WHERE patient_id = :pid"), {"pid": pid})
-        db.execute(text("DELETE FROM follow_up_appointments WHERE patient_id = :pid"), {"pid": pid})
-    except Exception:
-        pass
+    # 6. Recovery alerts & plans & digital twin telemetry
+    from app.models.digital_twin import (
+        DigitalTwinTrajectory, DigitalTwinEvent, DigitalTwinDailyPoint,
+        DigitalTwinModelMetric, DigitalTwinDeviationAlert
+    )
+    db.execute(delete(DigitalTwinDeviationAlert).where(DigitalTwinDeviationAlert.patient_id == pid))
+    db.execute(delete(DigitalTwinDailyPoint).where(DigitalTwinDailyPoint.patient_id == pid))
+    db.execute(delete(DigitalTwinModelMetric).where(DigitalTwinModelMetric.patient_id == pid))
+    db.execute(delete(DigitalTwinEvent).where(DigitalTwinEvent.patient_id == pid))
+    db.execute(delete(DigitalTwinTrajectory).where(DigitalTwinTrajectory.patient_id == pid))
     db.execute(delete(RecoveryPlan).where(RecoveryPlan.patient_id == pid))
 
     # 7. Consultations & appointments
@@ -638,11 +627,15 @@ def _perform_patient_deletion(patient: Patient, db: Session, actor_id: str) -> d
 
     # 9. Clean up user references if patient had a linked user
     if user_id:
+        from app.models.user import PasswordResetTicket, ProfileUpdateRequest
+        from app.models.announcement import StaffAnnouncementRead
         db.execute(delete(Notification).where(Notification.user_id == user_id))
-        try:
-            db.execute(text("DELETE FROM password_reset_tickets WHERE requester_user_id = :uid OR resolved_by = :uid"), {"uid": user_id})
-        except Exception:
-            pass
+        db.execute(delete(PasswordResetTicket).where(
+            (PasswordResetTicket.user_id == user_id) | (PasswordResetTicket.handled_by == user_id)
+        ))
+        db.execute(delete(ProfileUpdateRequest).where(ProfileUpdateRequest.user_id == user_id))
+        db.execute(update(ProfileUpdateRequest).where(ProfileUpdateRequest.reviewed_by == user_id).values(reviewed_by=None))
+        db.execute(delete(StaffAnnouncementRead).where(StaffAnnouncementRead.user_id == user_id))
         db.execute(delete(ConsultationSignal).where(ConsultationSignal.sender_id == user_id))
         db.execute(delete(ConsultationMessage).where(ConsultationMessage.sender_id == user_id))
         db.execute(delete(ConsultationParticipant).where(ConsultationParticipant.user_id == user_id))

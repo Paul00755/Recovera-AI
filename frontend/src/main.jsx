@@ -741,7 +741,15 @@ async function api(path, opts = {}) {
   const s = getSession();
   const headers = { ...(opts.headers || {}) };
   if (s?.token) headers.Authorization = `Bearer ${s.token}`;
-  const r = await fetch(API + path, { ...opts, headers });
+  let r;
+  try {
+    r = await fetch(API + path, { ...opts, headers });
+  } catch (err) {
+    if (err?.name === 'TypeError' && /fetch/i.test(err?.message || '')) {
+      throw new Error(`Network error: Unable to reach server (${API}). Please verify backend server status.`);
+    }
+    throw err;
+  }
   if (!r.ok) {
     let m = 'Request failed';
     try { const j = await r.json(); m = j.detail || m; } catch {}

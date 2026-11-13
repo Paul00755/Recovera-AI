@@ -1,5 +1,7 @@
 import datetime as dt
-from fastapi import FastAPI, WebSocket
+import logging
+from fastapi import FastAPI, WebSocket, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.constants import SMSCategory, RiskLevel, DoctorStatus, ConsultationStatus
@@ -41,6 +43,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logging.getLogger("recovera.error").exception("Unhandled server exception: %s", exc)
+    origin = request.headers.get("origin") or "*"
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Server error: {str(exc)}"},
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 app.include_router(auth_router)
 app.include_router(patients_router)

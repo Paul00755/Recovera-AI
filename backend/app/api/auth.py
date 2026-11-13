@@ -781,96 +781,153 @@ def delete_user_for_admin(
             _perform_patient_deletion(patient=p, db=db, actor_id=current_user.id)
             return {"message": f"Patient user {user_name} ({user_email}) and profile deleted successfully."}
 
-    from sqlalchemy import delete, update, text, select
+    return _perform_staff_deletion_internal(user=user, db=db, current_user=current_user)
+
+
+def _perform_staff_deletion_internal(user: User, db: Session, current_user: User) -> dict:
+    from sqlalchemy import delete, update, select
     from app.models.notification import Notification
     from app.models.chat_session import ChatSession, ChatMessage
     from app.models.audit_log import AuditLog
     from app.models.appointment import Appointment, DoctorAvailability
     from app.models.consultation import Consultation, ConsultationMessage, ConsultationParticipant, ConsultationSignal
-    from app.models.patient import PatientDoctorAssignment, Patient, PatientDeletionTicket
+    from app.models.patient import PatientDoctorAssignment, Patient, PatientDeletionTicket, PatientReactivationTicket
     from app.models.clinical_document import ClinicalDocument
     from app.models.medication import Medication, MedicationAdherence
     from app.models.risk_history import RiskClassificationHistory
-
-    # 1. Doctor assignments & primary doctor
-    db.execute(delete(PatientDoctorAssignment).where(
-        (PatientDoctorAssignment.doctor_id == user_id) |
-        (PatientDoctorAssignment.assigned_by == user_id)
-    ))
-    db.execute(update(PatientDoctorAssignment).where(PatientDoctorAssignment.revoked_by == user_id).values(revoked_by=None))
-    try:
-        db.execute(text("DELETE FROM patient_staff_assignments WHERE staff_user_id = :uid"), {"uid": user_id})
-    except Exception:
-        pass
-
-    patients_with_doc = db.scalars(select(Patient).where(Patient.assigned_doctor_id == user_id)).all()
-    for p in patients_with_doc:
-        p.assigned_doctor_id = None
-
-    db.execute(update(Patient).where(Patient.created_by == user_id).values(created_by=current_user.id))
-    db.execute(update(Patient).where(Patient.sms_opt_in_recorded_by == user_id).values(sms_opt_in_recorded_by=None))
-
-    # 2. Appointments & Doctor schedules
-    db.execute(delete(DoctorAvailability).where(DoctorAvailability.doctor_id == user_id))
-    db.execute(delete(Appointment).where(Appointment.doctor_id == user_id))
-    db.execute(update(Appointment).where(Appointment.booked_by == user_id).values(booked_by=current_user.id))
-
-    # 3. Consultations
-    db.execute(delete(ConsultationSignal).where(ConsultationSignal.sender_id == user_id))
-    db.execute(delete(ConsultationMessage).where(ConsultationMessage.sender_id == user_id))
-    db.execute(delete(ConsultationParticipant).where(ConsultationParticipant.user_id == user_id))
-    c_sub = select(Consultation.id).where((Consultation.doctor_id == user_id) | (Consultation.initiated_by == user_id))
-    db.execute(delete(ConsultationSignal).where(ConsultationSignal.consultation_id.in_(c_sub)))
-    db.execute(delete(ConsultationMessage).where(ConsultationMessage.consultation_id.in_(c_sub)))
-    db.execute(delete(ConsultationParticipant).where(ConsultationParticipant.consultation_id.in_(c_sub)))
-    db.execute(delete(Consultation).where((Consultation.doctor_id == user_id) | (Consultation.initiated_by == user_id)))
-
-    # 4. Clinical documents & Medications
-    db.execute(update(ClinicalDocument).where(ClinicalDocument.uploaded_by == user_id).values(uploaded_by=current_user.id))
-    db.execute(update(ClinicalDocument).where(ClinicalDocument.reviewed_by == user_id).values(reviewed_by=None))
-    db.execute(update(ClinicalDocument).where(ClinicalDocument.assigned_doctor_id == user_id).values(assigned_doctor_id=None))
-    try:
-        db.execute(text("UPDATE documents SET uploaded_by = :aid WHERE uploaded_by = :uid"), {"aid": current_user.id, "uid": user_id})
-        db.execute(text("UPDATE documents SET approved_by = NULL WHERE approved_by = :uid"), {"uid": user_id})
-    except Exception:
-        pass
-    db.execute(update(Medication).where(Medication.created_by == user_id).values(created_by=current_user.id))
-    db.execute(update(MedicationAdherence).where(MedicationAdherence.recorded_by == user_id).values(recorded_by=current_user.id))
-
-    # 5. Tickets & Risk history
-    db.execute(update(PatientDeletionTicket).where(PatientDeletionTicket.requested_by == user_id).values(requested_by=current_user.id))
-    db.execute(update(PatientDeletionTicket).where(PatientDeletionTicket.reviewed_by == user_id).values(reviewed_by=None))
-    db.execute(update(RiskClassificationHistory).where(RiskClassificationHistory.overridden_by == user_id).values(overridden_by=None))
-
-    # 6. Chat sessions & messages
-    chat_sub = select(ChatSession.id).where(ChatSession.user_id == user_id)
-    db.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(chat_sub)))
-    db.execute(delete(ChatSession).where(ChatSession.user_id == user_id))
-
-    # 7. Notifications & Reset tickets & Profile update requests & Audit logs
-    db.execute(delete(Notification).where(Notification.user_id == user_id))
-    db.execute(delete(ProfileUpdateRequest).where(ProfileUpdateRequest.user_id == user_id))
-    db.execute(update(ProfileUpdateRequest).where(ProfileUpdateRequest.reviewed_by == user_id).values(reviewed_by=None))
-    try:
-        db.execute(text("DELETE FROM password_reset_tickets WHERE requester_user_id = :uid OR resolved_by = :uid"), {"uid": user_id})
-    except Exception:
-        pass
-    db.execute(update(AuditLog).where(AuditLog.actor_id == user_id).values(actor_id=None))
-
-    # 8. Delete user
-    db.delete(user)
-    db.flush()
-
-    record_audit(
-        db=db,
-        actor_id=current_user.id,
-        action="user_deleted",
-        target_type="user",
-        target_id=user_id,
-        details={"name": user_name, "email": user_email, "role": user_role}
+    from app.models.recovery_plan import RecoveryPlan
+    from app.models.digital_twin import DigitalTwinDeviationAlert
+    from app.models.staff_chat import (
+        StaffConversation, StaffConversationParticipant, StaffMessage, 
+        StaffMessageDeletion, StaffCall
     )
-    db.commit()
-    return {"message": f"User {user_name} ({user_email}, {user_role}) deleted permanently."}
+    from app.models.announcement import StaffAnnouncement, StaffAnnouncementRead
+    from app.models.user import PasswordResetTicket, ProfileUpdateRequest
+
+    user_id = user.id
+    user_name = user.name
+    user_email = user.email
+    user_role = user.role
+
+    try:
+        # 1. Doctor assignments & primary doctor
+        db.execute(delete(PatientDoctorAssignment).where(
+            (PatientDoctorAssignment.doctor_id == user_id) |
+            (PatientDoctorAssignment.assigned_by == user_id)
+        ))
+        db.execute(update(PatientDoctorAssignment).where(PatientDoctorAssignment.revoked_by == user_id).values(revoked_by=None))
+
+        db.execute(update(Patient).where(Patient.assigned_doctor_id == user_id).values(assigned_doctor_id=None))
+        db.execute(update(Patient).where(Patient.created_by == user_id).values(created_by=current_user.id))
+        db.execute(update(Patient).where(Patient.sms_opt_in_recorded_by == user_id).values(sms_opt_in_recorded_by=None))
+
+        # 2. Appointments & Doctor schedules
+        db.execute(delete(DoctorAvailability).where(DoctorAvailability.doctor_id == user_id))
+        db.execute(delete(Appointment).where(Appointment.doctor_id == user_id))
+        db.execute(update(Appointment).where(Appointment.booked_by == user_id).values(booked_by=current_user.id))
+
+        # 3. Consultations
+        db.execute(delete(ConsultationSignal).where(ConsultationSignal.sender_id == user_id))
+        db.execute(delete(ConsultationMessage).where(ConsultationMessage.sender_id == user_id))
+        db.execute(delete(ConsultationParticipant).where(ConsultationParticipant.user_id == user_id))
+        c_sub = select(Consultation.id).where((Consultation.doctor_id == user_id) | (Consultation.initiated_by == user_id))
+        db.execute(delete(ConsultationSignal).where(ConsultationSignal.consultation_id.in_(c_sub)))
+        db.execute(delete(ConsultationMessage).where(ConsultationMessage.consultation_id.in_(c_sub)))
+        db.execute(delete(ConsultationParticipant).where(ConsultationParticipant.consultation_id.in_(c_sub)))
+        db.execute(delete(Consultation).where((Consultation.doctor_id == user_id) | (Consultation.initiated_by == user_id)))
+
+        # 4. Clinical documents & Medications
+        db.execute(update(ClinicalDocument).where(ClinicalDocument.uploaded_by == user_id).values(uploaded_by=current_user.id))
+        db.execute(update(ClinicalDocument).where(ClinicalDocument.reviewed_by == user_id).values(reviewed_by=None))
+        db.execute(update(ClinicalDocument).where(ClinicalDocument.assigned_doctor_id == user_id).values(assigned_doctor_id=None))
+        db.execute(update(Medication).where(Medication.created_by == user_id).values(created_by=current_user.id))
+        db.execute(update(MedicationAdherence).where(MedicationAdherence.recorded_by == user_id).values(recorded_by=current_user.id))
+
+        # 5. Tickets, Plans, & Digital Twin
+        db.execute(update(PatientDeletionTicket).where(PatientDeletionTicket.requested_by == user_id).values(requested_by=current_user.id))
+        db.execute(update(PatientDeletionTicket).where(PatientDeletionTicket.reviewed_by == user_id).values(reviewed_by=None))
+        db.execute(update(PatientReactivationTicket).where(PatientReactivationTicket.requested_by == user_id).values(requested_by=current_user.id))
+        db.execute(update(PatientReactivationTicket).where(PatientReactivationTicket.reviewed_by == user_id).values(reviewed_by=None))
+        db.execute(update(RiskClassificationHistory).where(RiskClassificationHistory.overridden_by == user_id).values(overridden_by=None))
+        db.execute(update(RecoveryPlan).where(RecoveryPlan.approved_by == user_id).values(approved_by=None))
+        db.execute(update(DigitalTwinDeviationAlert).where(DigitalTwinDeviationAlert.reviewed_by == user_id).values(reviewed_by=None))
+
+        # 6. Chat sessions & messages (AI Assistant)
+        chat_sub = select(ChatSession.id).where(ChatSession.user_id == user_id)
+        db.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(chat_sub)))
+        db.execute(delete(ChatSession).where(ChatSession.user_id == user_id))
+
+        # 7. Staff Chat & Calls
+        db.execute(delete(StaffMessageDeletion).where(StaffMessageDeletion.user_id == user_id))
+        db.execute(delete(StaffCall).where((StaffCall.caller_id == user_id) | (StaffCall.receiver_id == user_id)))
+
+        # Clear reply_to_id referencing user's messages so no self-FK violation
+        user_msg_sub = select(StaffMessage.id).where(StaffMessage.sender_id == user_id)
+        db.execute(update(StaffMessage).where(StaffMessage.reply_to_id.in_(user_msg_sub)).values(reply_to_id=None))
+
+        # Direct 1-on-1 conversations involving this user
+        direct_conv_ids = db.scalars(
+            select(StaffConversationParticipant.conversation_id)
+            .join(StaffConversation)
+            .where(
+                StaffConversationParticipant.user_id == user_id,
+                StaffConversation.conversation_type == "direct"
+            )
+        ).all()
+        if direct_conv_ids:
+            db.execute(delete(StaffMessageDeletion).where(StaffMessageDeletion.message_id.in_(
+                select(StaffMessage.id).where(StaffMessage.conversation_id.in_(direct_conv_ids))
+            )))
+            db.execute(delete(StaffMessage).where(StaffMessage.conversation_id.in_(direct_conv_ids)))
+            db.execute(delete(StaffConversationParticipant).where(StaffConversationParticipant.conversation_id.in_(direct_conv_ids)))
+            db.execute(delete(StaffConversation).where(StaffConversation.id.in_(direct_conv_ids)))
+
+        # Remaining messages sent by user (e.g. in group channels)
+        db.execute(delete(StaffMessageDeletion).where(StaffMessageDeletion.message_id.in_(
+            select(StaffMessage.id).where(StaffMessage.sender_id == user_id)
+        )))
+        db.execute(delete(StaffMessage).where(StaffMessage.sender_id == user_id))
+
+        # Remaining conversation participations
+        db.execute(delete(StaffConversationParticipant).where(StaffConversationParticipant.user_id == user_id))
+
+        # Reassign conversations created by user
+        db.execute(update(StaffConversation).where(StaffConversation.created_by == user_id).values(created_by=current_user.id))
+
+        # 8. Announcements
+        db.execute(delete(StaffAnnouncementRead).where(StaffAnnouncementRead.user_id == user_id))
+        db.execute(update(StaffAnnouncement).where(StaffAnnouncement.author_id == user_id).values(author_id=current_user.id))
+        db.execute(update(StaffAnnouncement).where(StaffAnnouncement.staff_ref_id == user_id).values(staff_ref_id=None))
+
+        # 9. Notifications, Password Reset Tickets, Profile Updates, Audit Logs
+        db.execute(delete(Notification).where(Notification.user_id == user_id))
+        db.execute(delete(PasswordResetTicket).where(
+            (PasswordResetTicket.user_id == user_id) | (PasswordResetTicket.handled_by == user_id)
+        ))
+        db.execute(delete(ProfileUpdateRequest).where(ProfileUpdateRequest.user_id == user_id))
+        db.execute(update(ProfileUpdateRequest).where(ProfileUpdateRequest.reviewed_by == user_id).values(reviewed_by=None))
+        db.execute(update(AuditLog).where(AuditLog.actor_id == user_id).values(actor_id=None))
+
+        # 10. Delete the user record
+        db.delete(user)
+        db.flush()
+
+        record_audit(
+            db=db,
+            actor_id=current_user.id,
+            action="user_deleted",
+            target_type="user",
+            target_id=user_id,
+            details={"name": user_name, "email": user_email, "role": user_role}
+        )
+        db.commit()
+        return {"message": f"User {user_name} ({user_email}, {user_role}) deleted permanently."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete staff member: {str(e)}"
+        )
 
 
 @router.patch("/users/{user_id}")
