@@ -372,29 +372,60 @@ export function ResearchEvaluationStudio({ session, navigate }) {
                   )}
 
                   {/* Top Feature Importances */}
-                  {Object.keys(feats).length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                        Primary Feature Importances / Clinical Weights
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {Object.entries(feats).slice(0, 4).map(([fKey, fVal]) => {
-                          const pct = Math.min(100, Math.round(Number(fVal) * 100));
-                          return (
-                            <div key={fKey} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {(() => {
+                    let featList = [];
+                    if (Array.isArray(feats)) {
+                      featList = feats.map(item => {
+                        if (typeof item === 'object' && item !== null) {
+                          const name = item.feature || item.name || item.label || 'Feature';
+                          const rawVal = item.weight ?? item.importance ?? item.value ?? 0;
+                          const numVal = Number(rawVal);
+                          const pct = isNaN(numVal) ? 0 : Math.min(100, Math.max(0, Math.round(Math.abs(numVal) * 100)));
+                          const displayVal = isNaN(numVal) ? String(rawVal) : (Math.abs(numVal) <= 1 ? (numVal >= 0 ? `+${numVal.toFixed(3)}` : numVal.toFixed(3)) : numVal.toFixed(2));
+                          return { name: String(name), displayVal, pct };
+                        }
+                        return { name: String(item), displayVal: String(item), pct: 50 };
+                      });
+                    } else if (typeof feats === 'object' && feats !== null) {
+                      featList = Object.entries(feats).map(([k, v]) => {
+                        if (typeof v === 'object' && v !== null) {
+                          const name = v.feature || v.name || k;
+                          const rawVal = v.weight ?? v.importance ?? v.value ?? 0;
+                          const numVal = Number(rawVal);
+                          const pct = isNaN(numVal) ? 0 : Math.min(100, Math.max(0, Math.round(Math.abs(numVal) * 100)));
+                          const displayVal = isNaN(numVal) ? String(rawVal) : (Math.abs(numVal) <= 1 ? (numVal >= 0 ? `+${numVal.toFixed(3)}` : numVal.toFixed(3)) : numVal.toFixed(2));
+                          return { name: String(name), displayVal, pct };
+                        }
+                        const numVal = Number(v);
+                        const pct = isNaN(numVal) ? 0 : Math.min(100, Math.max(0, Math.round(Math.abs(numVal) * 100)));
+                        const displayVal = isNaN(numVal) ? String(v) : (Math.abs(numVal) <= 1 ? (numVal >= 0 ? `+${numVal.toFixed(3)}` : numVal.toFixed(3)) : numVal.toFixed(2));
+                        return { name: String(k), displayVal, pct };
+                      });
+                    }
+
+                    if (!featList || featList.length === 0) return null;
+
+                    return (
+                      <div>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+                          Primary Feature Importances / Clinical Weights
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {featList.slice(0, 4).map((f, fIdx) => (
+                            <div key={f.name + fIdx} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-dim)' }}>
-                                <span>{fKey.replace(/_/g, ' ')}</span>
-                                <span style={{ fontWeight: 600, color: 'var(--text)' }}>{fVal}</span>
+                                <span>{f.name.replace(/_/g, ' ')}</span>
+                                <span style={{ fontWeight: 600, color: 'var(--text)' }}>{f.displayVal}</span>
                               </div>
                               <div style={{ height: 5, borderRadius: 3, background: 'var(--surface2)', overflow: 'hidden' }}>
-                                <div style={{ width: `${pct}%`, height: '100%', background: 'var(--p)', borderRadius: 3 }} />
+                                <div style={{ width: `${f.pct}%`, height: '100%', background: 'var(--p)', borderRadius: 3 }} />
                               </div>
                             </div>
-                          );
-                        })}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Academic Strengths & Weaknesses */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
