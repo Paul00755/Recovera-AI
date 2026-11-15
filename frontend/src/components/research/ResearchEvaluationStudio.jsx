@@ -17,7 +17,15 @@ export function ResearchEvaluationStudio({ session, navigate }) {
   const [statusMessage, setStatusMessage] = useState(null);
   const [error, setError] = useState(null);
 
-  const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
+  const getStoredToken = () => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}');
+      return session?.token || session?.access_token || stored?.token || stored?.access_token || '';
+    } catch {
+      return session?.token || session?.access_token || '';
+    }
+  };
+  const token = getStoredToken();
   const headers = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -33,7 +41,13 @@ export function ResearchEvaluationStudio({ session, navigate }) {
       ]);
 
       if (!mRes.ok || !oRes.ok) {
-        throw new Error('Failed to retrieve academic research evaluation data');
+        let msg = 'Failed to retrieve academic research evaluation data';
+        try {
+          const failedRes = !mRes.ok ? mRes : oRes;
+          const errJson = await failedRes.json();
+          msg = errJson.detail || errJson.message || msg;
+        } catch {}
+        throw new Error(msg);
       }
 
       const mJson = await mRes.json();
@@ -66,7 +80,14 @@ export function ResearchEvaluationStudio({ session, navigate }) {
         headers,
         body: JSON.stringify({ version_tag: `v1.${Date.now().toString().slice(-3)}` })
       });
-      if (!res.ok) throw new Error('Model retraining failed');
+      if (!res.ok) {
+        let msg = 'Model retraining failed';
+        try {
+          const errJson = await res.json();
+          msg = errJson.detail || errJson.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
       const retrainResult = await res.json();
       await loadResearchData();
       setStatusMessage(`Models successfully retrained and validated. New version active.`);

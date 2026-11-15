@@ -23,7 +23,15 @@ export function DigitalTwinTab({ patientId, session }) {
   const [simulating, setSimulating] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState('adherence_drop');
 
-  const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
+  const getStoredToken = () => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}');
+      return session?.token || session?.access_token || stored?.token || stored?.access_token || '';
+    } catch {
+      return session?.token || session?.access_token || '';
+    }
+  };
+  const token = getStoredToken();
   const headers = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -118,7 +126,14 @@ export function DigitalTwinTab({ patientId, session }) {
         headers,
         body: JSON.stringify({ scenario_type: scenarioType })
       });
-      if (!res.ok) throw new Error('Simulation failed');
+      if (!res.ok) {
+        let msg = 'Simulation failed';
+        try {
+          const errJson = await res.json();
+          msg = errJson.detail || errJson.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
       const sJson = await res.json();
       setSimulationResult(sJson);
     } catch (err) {

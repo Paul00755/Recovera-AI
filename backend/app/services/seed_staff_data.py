@@ -19,11 +19,7 @@ logger = logging.getLogger("recovera.seed_staff")
 
 DEFAULT_PASSWORD = "Password123!"
 
-STAFF_PROFILES = []
-
-def seed_staff_system_data(db: Session):
-    """Seed is disabled in production to preserve authentic hospital accounts."""
-    return {}
+STAFF_PROFILES = [
     {
         "email": "arjun.menon@hospital.org",
         "name": "Dr. Arjun Menon",

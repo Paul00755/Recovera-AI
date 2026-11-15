@@ -15,7 +15,15 @@ export function ExperimentalTrackingDashboard({ session, navigate }) {
   const [statusMessage, setStatusMessage] = useState(null);
   const [error, setError] = useState(null);
 
-  const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
+  const getStoredToken = () => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}');
+      return session?.token || session?.access_token || stored?.token || stored?.access_token || '';
+    } catch {
+      return session?.token || session?.access_token || '';
+    }
+  };
+  const token = getStoredToken();
   const headers = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -26,7 +34,14 @@ export function ExperimentalTrackingDashboard({ session, navigate }) {
       setLoading(true);
       setError(null);
       const res = await fetch(`${API_BASE}/api/research/experimental/cohort`, { headers });
-      if (!res.ok) throw new Error('Failed to load experimental cohort data');
+      if (!res.ok) {
+        let msg = 'Failed to load experimental cohort data';
+        try {
+          const errJson = await res.json();
+          msg = errJson.detail || errJson.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
       const data = await res.json();
       setCohortData(data);
       if (data.patients && data.patients.length > 0 && !selectedPatient) {

@@ -11,7 +11,15 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
+    const getStoredToken = () => {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}');
+        return session?.token || session?.access_token || stored?.token || stored?.access_token || '';
+      } catch {
+        return session?.token || session?.access_token || '';
+      }
+    };
+    const token = getStoredToken();
     if (!patientId || !token) return;
 
     fetch(`${API_BASE}/api/digital-twin/patients/${patientId}/trajectory`, {
