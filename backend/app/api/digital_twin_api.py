@@ -164,11 +164,11 @@ def get_patient_trajectory_corridor(
             current_day = max(1, min(14, diff_days + 1))
             has_started = True
         else:
-            current_day = 1
+            current_day = 0
             has_started = False
     else:
         has_started = False
-        current_day = 1
+        current_day = 0
 
     last_val = state.current_recovery_score
 

@@ -1732,32 +1732,60 @@ def fallback_translate_text(text: str, target_lang: str) -> str:
         (r"(?i)###\s*Activity & Rest", "### செயல்பாடு மற்றும் ஓய்வு"),
         (r"(?i)###\s*General Care", "### பொதுவான பராமரிப்பு"),
         (r"(?i)###\s*Diet & Hydration", "### உணவு மற்றும் நீர்ச்சத்து வழிகாட்டுதல்"),
+        (r"(?i)^Diet & Nutrition:\s*", "உணவு மற்றும் ஊட்டச்சத்து: "),
+        (r"(?i)^Activity & Rest:\s*", "உடற்பயிற்சி மற்றும் ஓய்வு: "),
+        (r"(?i)^Hygiene & Wound Care:\s*", "சுகாதாரம் மற்றும் காயப் பராமரிப்பு: "),
+        (r"(?i)^Medication Routine:\s*", "மருந்து வழக்கம்: "),
+        (r"(?i)^Warning Signs?:\s*", "எச்சரிக்கை அறிகுறிகள்: "),
         (r"(?i)\* Avoid:\s*", "* தவிர்க்கவும்: "),
         (r"(?i)\* Rest:\s*", "* ஓய்வு: "),
         (r"(?i)\* Movement:\s*", "* உடற்பயிற்சி/இயக்கம்: "),
         (r"(?i)Stay away from oily, spicy foods and high-sodium snacks", "எண்ணெய், காரமான உணவுகள் மற்றும் அதிக உப்பு உள்ள உணவுகளைத் தவிர்க்கவும்"),
+        (r"(?i)Drink plenty of warm or clean water.*", "நிறைய வெதுவெதுப்பான அல்லது சுத்தமான நீரைக் குடிக்கவும் (தினமும் 8-10 டம்ளர்கள்). சூடான பால், ரொட்டி, கஞ்சி போன்ற எளிதில் செரிமானமாகும் சத்தான உணவுகளை உண்ணுங்கள். கோழி, ஆடு, மாடு போன்ற கனமான அசைவ உணவுகளையும் அதிக எண்ணெய், கார உணவுகளையும் தவிர்க்கவும்."),
+        (r"(?i)Prioritize bed rest, sleep before 10 PM.*", "படுக்கை ஓய்வுக்கு முன்னுரிமை கொடுங்கள், இரவு 10 மணிக்குள் தூங்கவும், மென்மையான இயக்கங்களை மேற்கொள்ளவும். வலி குறையும் வரை கடுமையான உடற்பயிற்சிகளையும் அதிக பளு தூக்குவதையும் தவிர்க்கவும்."),
         (r"(?i)Prioritize adequate sleep and rest to help your body fight the infection", "உடல் தொற்றை எதிர்த்துப் போராட போதுமான தூக்கத்திற்கும் ஓய்விற்கும் முன்னுரிமை கொடுங்கள்"),
+        (r"(?i)Keep dressing clean and dry.*", "காயக்கட்டை சுத்தமாகவும் உலர்வாகவும் வைத்திருக்கவும். காயத்தைத் தொடுவதற்கு முன் கைகளை சோப்பு போட்டு நன்கு கழுவவும். அசாதாரண சிவத்தல் அல்லது வீக்கம் உள்ளதா என தினமும் கவனியுங்கள்."),
+        (r"(?i)Follow your prescribed medication schedule punctually.*", "மருத்துவர் பரிந்துரைத்த மருந்து அட்டவணையை காலை, மதியம் மற்றும் இரவு வேளைகளில் தவறாமல் பின்பற்றி, உங்கள் மருந்து உட்கொள்ளல் டிராக்கரில் பதிவு செய்யவும்."),
         (r"(?i)Please monitor your condition closely", "உங்கள் உடல்நிலையை உன்னிப்பாகக் கவனியுங்கள்"),
-        (r"(?i)Seek immediate medical attention or contact Dr\. Samuel if you experience:", "பின்வரும் அறிகுறிகள் ஏற்பட்டால் உடனடியாக மருத்துவரை அணுகவும்:"),
+        (r"(?i)Seek immediate medical attention or contact.*?if you experience:", "பின்வரும் அறிகுறிகள் ஏற்பட்டால் உடனடியாக மருத்துவரை அணுகவும்:"),
         (r"(?i)Fever remaining above 100\.4°F despite taking medication", "மருந்து உட்கொண்ட பின்னரும் 100.4°F-க்கு மேல் காய்ச்சல் நீடித்தால்"),
+        (r"(?i)High fever \([^\)]+\) or fever that does not decrease after medication", "மருந்து உட்கொண்ட பின்னரும் 100.4°F-க்கு மேல் அதிக காய்ச்சல் நீடித்தால்"),
+        (r"(?i)Severe,?\s*sharp,?\s*or suddenly worsening pain not controlled by prescribed drugs", "பரிந்துரைக்கப்பட்ட மருந்துகளால் கட்டுப்படுத்த முடியாத கடுமையான, திடீர் தீவிர வலி"),
         (r"(?i)Severe sharp pain or sudden difficulty breathing", "கடுமையான கூர்மையான வலி அல்லது திடீர் மூச்சுத்திணறல்"),
+        (r"(?i)Shortness of breath, persistent chest tightness, severe dizziness, or fainting", "மூச்சுத்திணறல், நெஞ்சு இறுக்கம், தீவிர தலைசுற்றல் அல்லது மயக்கம்"),
         (r"(?i)Increased dizziness or extreme exhaustion", "அதிகரித்த மயக்கம் அல்லது அதீத சோர்வு"),
+        (r"(?i)Inability to keep liquids down, intractable vomiting, or severe dehydration", "தண்ணீர் அல்லது திரவங்களை உட்கொள்ள இயலாமை, தொடர் வாந்தி அல்லது தீவிர நீரிழப்பு"),
+        (r"(?i)Spreading redness, warmth, foul-smelling discharge, or wound breakdown", "காயத்தைச் சுற்றி சிவத்தல் பரவுதல், துர்நாற்றத்துடன் சீழ் வடிதல்"),
     ]
     hi_map = [
         (r"(?i)###\s*Warning Signs\s*\(Red Flags\)", "### चेतावनी संकेत (रेड फ्लैग्स)"),
         (r"(?i)###\s*Activity & Rest", "### गतिविधि और आराम"),
         (r"(?i)###\s*General Care", "### सामान्य देखभाल"),
         (r"(?i)###\s*Diet & Hydration", "### आहार और जलयोजन"),
+        (r"(?i)^Diet & Nutrition:\s*", "आहार और पोषण: "),
+        (r"(?i)^Activity & Rest:\s*", "गतिविधि और आराम: "),
+        (r"(?i)^Hygiene & Wound Care:\s*", "स्वच्छता और घाव की देखभाल: "),
+        (r"(?i)^Medication Routine:\s*", "दवा दिनचर्या: "),
+        (r"(?i)^Warning Signs?:\s*", "चेतावनी संकेत: "),
         (r"(?i)\* Avoid:\s*", "* बचें: "),
         (r"(?i)\* Rest:\s*", "* आराम: "),
         (r"(?i)\* Movement:\s*", "* हलचल: "),
         (r"(?i)Stay away from oily, spicy foods and high-sodium snacks", "तैलीय, मसालेदार खाद्य पदार्थों और अधिक सोडियम वाले स्नैक्स से दूर रहें"),
+        (r"(?i)Drink plenty of warm or clean water.*", "दिन भर में पर्याप्त गुनगुना या साफ पानी पिएं (8-10 गिलास)। हल्का, पोषक तत्वों से भरपूर और आसानी से पचने वाला भोजन करें (हल्का दलिया, रोटी, दूध, खिचड़ी)। भारी मांसाहार जैसे चिकन, मटन और अधिक तैलीय/मसालेदार भोजन से पूरी तरह बचें।"),
+        (r"(?i)Prioritize bed rest, sleep before 10 PM.*", "आराम को प्राथमिकता दें, रात 10 बजे से पहले सो जाएं और हल्का चलना-फिरना जारी रखें। दर्द और सूजन कम होने तक भारी कसरत या वजन उठाने से बचें।"),
         (r"(?i)Prioritize adequate sleep and rest to help your body fight the infection", "संक्रमण से लड़ने के लिए पर्याप्त नींद और आराम को प्राथमिकता दें"),
+        (r"(?i)Keep dressing clean and dry.*", "पट्टी को साफ और सूखा रखें। घाव को छूने से पहले हाथों को अच्छी तरह धोएं। असामान्य लालिमा या सूजन की रोजाना जांच करें।"),
+        (r"(?i)Follow your prescribed medication schedule punctually.*", "अपनी निर्धारित दवाओं का समय पर सुबह, दोपहर और रात में सेवन करें और मेडिकेशन ट्रैकर में दर्ज करें।"),
         (r"(?i)Please monitor your condition closely", "कृपया अपनी स्थिति पर बारीकी से नज़र रखें"),
-        (r"(?i)Seek immediate medical attention or contact Dr\. Samuel if you experience:", "यदि आप अनुभव करते हैं तो तत्काल चिकित्सा सहायता लें:"),
+        (r"(?i)Seek immediate medical attention or contact.*?if you experience:", "यदि आप अनुभव करते हैं तो तत्काल चिकित्सा सहायता लें:"),
         (r"(?i)Fever remaining above 100\.4°F despite taking medication", "दवा लेने के बावजूद बुखार 100.4°F से ऊपर बना रहना"),
+        (r"(?i)High fever \([^\)]+\) or fever that does not decrease after medication", "दवा लेने के बाद भी कम न होने वाला 100.4°F से अधिक तेज बुखार"),
+        (r"(?i)Severe,?\s*sharp,?\s*or suddenly worsening pain not controlled by prescribed drugs", "दवाओं से नियंत्रित न होने वाला गंभीर या अचानक तेज दर्द"),
         (r"(?i)Severe sharp pain or sudden difficulty breathing", "गंभीर तेज दर्द या अचानक सांस लेने में कठिनाई"),
+        (r"(?i)Shortness of breath, persistent chest tightness, severe dizziness, or fainting", "सांस फूलना, सीने में जकड़न, तेज चक्कर या बेहोशी"),
         (r"(?i)Increased dizziness or extreme exhaustion", "चक्कर आना या अत्यधिक थकान"),
+        (r"(?i)Inability to keep liquids down, intractable vomiting, or severe dehydration", "तरल पदार्थ न ले पाना, लगातार उल्टी या अत्यधिक निर्जलीकरण"),
+        (r"(?i)Spreading redness, warmth, foul-smelling discharge, or wound breakdown", "घाव के आसपास लालिमा फैलना, दुर्गंधयुक्त मवाद निकलना"),
     ]
 
     rules = ta_map if target_lang == "ta" else (hi_map if target_lang == "hi" else [])
@@ -1833,7 +1861,7 @@ def translate_clinical_texts(
                 f"Input Data:\n{json.dumps(pending_to_translate, ensure_ascii=False)}"
             )
 
-            candidate_models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+            candidate_models = ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-3.8-flash"]
             for model_name in candidate_models:
                 try:
                     resp = client.models.generate_content(

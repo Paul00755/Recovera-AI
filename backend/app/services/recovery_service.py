@@ -136,7 +136,7 @@ def generate_plan_from_approved_documents(patient_id: str, db: Session, user_id:
         select(RecoveryPlan).where(RecoveryPlan.patient_id == patient_id).order_by(RecoveryPlan.created_at.desc())
     )
     # Only auto-generate when the medicines or patient condition changes (unless explicitly forced)
-    if not force and existing_plan and existing_plan.content and existing_plan.status == DocStatus.PUBLISHED.value:
+    if not force and existing_plan and existing_plan.content and existing_plan.status in (DocStatus.PUBLISHED.value, "approved", "active"):
         prev_hash = existing_plan.content.get("care_context_hash")
         if prev_hash and prev_hash == current_care_hash:
             logger.info("Care context unchanged for patient %s. Skipping auto-generation.", patient_id)

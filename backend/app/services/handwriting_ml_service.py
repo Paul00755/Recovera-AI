@@ -252,15 +252,22 @@ class MedicalPrescriptionParser:
         """
         lower = text.lower()
 
-        # 1. Flexible 1s and 0s pattern detection (e.g. 1-0-0, 1 0 0, 1.0.0, 1/0/0, 1-O-0, 0-0-1, 0 0 1, 1-1-1, 1 1 1)
-        m_code = re.search(r"\b([01oOqQdDlI|!])[\s\.\-\/_]+([01oOqQdDlI|!])[\s\.\-\/_]+([01oOqQdDlI|!])(?:[\s\.\-\/_]+([01oOqQdDlI|!]))?\b", text)
-        if m_code:
-            def norm_c(c):
-                return "0" if c in "0oOqQdD" else "1"
-            parts = [norm_c(m_code.group(1)), norm_c(m_code.group(2)), norm_c(m_code.group(3))]
-            if m_code.group(4):
-                parts.append(norm_c(m_code.group(4)))
-            code = "-".join(parts)
+        # 1. Look for explicit clinical acronyms first (e.g. '1 OD', 'OD', '1 BD', 'BD', 'TDS', 'TID')
+        for key in ["qid", "tid", "tds", "bid", "bd", "qhs", "hs", "od", "sos", "prn"]:
+            if re.search(rf"\b(?:1\s*[-/\.]?\s*)?{key}\b", lower):
+                mapped = cls.PERIOD_MAP[key]
+                return {
+                    "period_label": f"Period: {mapped.get('notation', key.upper())}",
+                    "notation": mapped.get("notation", key.upper()),
+                    "frequency": mapped["frequency"],
+                    "schedules": mapped["schedules"],
+                    "daily_times": mapped["daily_times"]
+                }
+
+        # 2. Contiguous 3-digit binary notation (e.g. 101, 100, 111, 001, 010, 110, 011)
+        m_contig = re.search(r"\b([01])([01])([01])\b", text)
+        if m_contig:
+            code = f"{m_contig.group(1)}-{m_contig.group(2)}-{m_contig.group(3)}"
             mapped = cls.PERIOD_MAP.get(code)
             if mapped:
                 return {
@@ -271,13 +278,21 @@ class MedicalPrescriptionParser:
                     "daily_times": mapped["daily_times"]
                 }
 
-        # 2. Look for acronyms (with optional leading 1 e.g. '1 OD', '1-OD', '1 BD')
-        for key in ["qid", "tid", "tds", "bid", "bd", "qhs", "hs", "od", "sos", "prn"]:
-            if re.search(rf"\b(1\s*[-/\.]?\s*)?{key}\b", lower):
-                mapped = cls.PERIOD_MAP[key]
+        # 3. Flexible separated 1s and 0s pattern detection (e.g. 1-0-0, 1 0 0, 1.0.0, 1/0/0, 1-O-0, 0-0-1, 0 0 1, 1-1-1, 1 1 1)
+        # Note: Do NOT include 'd' or 'D' in the digit set to prevent consuming 'OD' or 'BD' as digits
+        m_code = re.search(r"\b([01oOlI|!])[\s\.\-\/_]+([01oOlI|!])[\s\.\-\/_]+([01oOlI|!])(?:[\s\.\-\/_]+([01oOlI|!]))?\b", text)
+        if m_code:
+            def norm_c(c):
+                return "0" if c in "0oO" else "1"
+            parts = [norm_c(m_code.group(1)), norm_c(m_code.group(2)), norm_c(m_code.group(3))]
+            if m_code.group(4):
+                parts.append(norm_c(m_code.group(4)))
+            code = "-".join(parts)
+            mapped = cls.PERIOD_MAP.get(code)
+            if mapped:
                 return {
-                    "period_label": f"Period: {mapped.get('notation', key.upper())}",
-                    "notation": mapped.get("notation", key.upper()),
+                    "period_label": f"Period: {code}",
+                    "notation": code,
                     "frequency": mapped["frequency"],
                     "schedules": mapped["schedules"],
                     "daily_times": mapped["daily_times"]

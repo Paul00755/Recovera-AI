@@ -82,14 +82,36 @@ def parse_prescription_fields(cleaned_text: str) -> List[Dict[str, Any]]:
                 )
 
                 # Period & Timing with robust 1s and 0s extraction
-                # Matches 1-0-1, 1-0-0, 0-0-1, 1-1-1, 1 0 0, 1.0.0, 1-O-0, etc.
+                # Matches explicit OD, BD, TDS, contiguous 101, 100, 111, or separated 1-0-1, 1-0-0, 0-0-1, etc.
                 period_val = "1-0-1"
                 frequency = "twice_daily"
 
-                m_code = re.search(r"\b([01oOqQdDlI|!])[\s\.\-\/_]+([01oOqQdDlI|!])[\s\.\-\/_]+([01oOqQdDlI|!])(?:[\s\.\-\/_]+([01oOqQdDlI|!]))?\b", line)
-                if m_code:
+                m_contig = re.search(r"\b([01])([01])([01])\b", line)
+                m_code = re.search(r"\b([01oOlI|!])[\s\.\-\/_]+([01oOlI|!])[\s\.\-\/_]+([01oOlI|!])(?:[\s\.\-\/_]+([01oOlI|!]))?\b", line)
+
+                if re.search(r"(?i)\b(?:1\s*[-/\.]?\s*)?od\b|once", line):
+                    period_val = "1-0-0"
+                    frequency = "once_daily"
+                elif re.search(r"(?i)\b(?:1\s*[-/\.]?\s*)?(?:tds|tid)\b|thrice", line):
+                    period_val = "1-1-1"
+                    frequency = "thrice_daily"
+                elif re.search(r"(?i)\b(?:1\s*[-/\.]?\s*)?(?:qhs|hs)\b|night|bedtime", line):
+                    period_val = "0-0-1"
+                    frequency = "once_daily"
+                elif re.search(r"(?i)\b(?:1\s*[-/\.]?\s*)?(?:bd|bid)\b|twice", line):
+                    period_val = "1-0-1"
+                    frequency = "twice_daily"
+                elif m_contig:
+                    period_val = f"{m_contig.group(1)}-{m_contig.group(2)}-{m_contig.group(3)}"
+                    if period_val in ("1-0-0", "0-0-1", "0-1-0"):
+                        frequency = "once_daily"
+                    elif period_val == "1-1-1":
+                        frequency = "thrice_daily"
+                    else:
+                        frequency = "twice_daily"
+                elif m_code:
                     def norm_digit(c):
-                        return "0" if c in "0oOqQdD" else "1"
+                        return "0" if c in "0oO" else "1"
                     digits = [norm_digit(m_code.group(1)), norm_digit(m_code.group(2)), norm_digit(m_code.group(3))]
                     if m_code.group(4):
                         digits.append(norm_digit(m_code.group(4)))
@@ -102,17 +124,6 @@ def parse_prescription_fields(cleaned_text: str) -> List[Dict[str, Any]]:
                         frequency = "four_times_daily"
                     else:
                         frequency = "twice_daily"
-                elif re.search(r"(?i)\bod\b|once", line):
-                    period_val = "1-0-0"
-                    frequency = "once_daily"
-                elif re.search(r"(?i)\btds\b|\btid\b|thrice", line):
-                    period_val = "1-1-1"
-                    frequency = "thrice_daily"
-                elif re.search(r"(?i)\bqhs\b|\bhs\b|night|bedtime", line):
-                    period_val = "0-0-1"
-                    frequency = "once_daily"
-                elif re.search(r"(?i)\bbd\b|\bbid\b|twice", line):
-                    period_val = "1-0-1"
                     frequency = "twice_daily"
 
                 # Duration in days

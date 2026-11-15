@@ -2,7 +2,7 @@ import datetime as dt
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.core.database import get_db
 from app.core.constants import Role, DocStatus
@@ -10,6 +10,8 @@ from app.core.audit import record_audit
 from app.models.recovery_plan import RecoveryPlan
 from app.models.patient import Patient
 from app.models.user import User
+from app.models.clinical_document import ClinicalDocument
+from app.models.medication import Medication
 from app.schemas.recovery_plan import RecoveryPlanOut, RecoveryPlanUpdate
 from app.services.recovery_service import (
     generate_plan_from_approved_documents,
@@ -32,10 +34,10 @@ def get_recovery_plan(
     enforce_patient_isolation(patient_id=pid, current_user=current_user, db=db)
 
     if current_user.role == Role.PATIENT.value:
-        # First query for latest published plan
+        # First query for latest published or approved plan
         plan = db.scalar(
             select(RecoveryPlan)
-            .where(RecoveryPlan.patient_id == pid, RecoveryPlan.status == DocStatus.PUBLISHED.value)
+            .where(RecoveryPlan.patient_id == pid, RecoveryPlan.status.in_([DocStatus.PUBLISHED.value, "approved", "active"]))
             .order_by(RecoveryPlan.version.desc(), RecoveryPlan.created_at.desc())
         )
         if not plan:
@@ -50,10 +52,34 @@ def get_recovery_plan(
                 db.commit()
                 db.refresh(plan)
             else:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Your recovery plan is currently being prepared or updated by the clinical team. Please check back shortly."
-                )
+                # Check if patient has approved documents or medications and auto-generate initial plan
+                has_approved_docs = db.scalar(
+                    select(func.count(ClinicalDocument.id)).where(
+                        ClinicalDocument.patient_id == pid,
+                        ClinicalDocument.status == DocStatus.APPROVED.value
+                    )
+                ) or 0
+                has_active_meds = db.scalar(
+                    select(func.count(Medication.id)).where(
+                        Medication.patient_id == pid,
+                        Medication.status == "active"
+                    )
+                ) or 0
+                if has_approved_docs > 0 or has_active_meds > 0:
+                    try:
+                        plan = generate_plan_from_approved_documents(patient_id=pid, db=db, user_id=current_user.id, force=False)
+                        if plan:
+                            plan.status = DocStatus.PUBLISHED.value
+                            db.commit()
+                            db.refresh(plan)
+                    except Exception:
+                        pass
+
+                if not plan:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Your recovery plan is currently being prepared or updated by the clinical team. Please check back shortly."
+                    )
     else:
         plan = db.scalar(
             select(RecoveryPlan)

@@ -2355,6 +2355,10 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
   };
 
   const handleSaveAndSubmit = async (statusToSet = 'under_review') => {
+    if (isNurse && !targetDoctorId && statusToSet === 'under_review') {
+      setErr('As a nurse, please select which assigned specialist doctor should review and approve this prescription.');
+      return;
+    }
     if (statusToSet === 'under_review' && doc.doc_type === 'prescription' && Array.isArray(medicationsList)) {
       const invalid = medicationsList.find(m => !m.name || !m.name.trim() || !m.dosage || !m.dosage.trim() || m.dosage === 'null' || m.dosage.toLowerCase().includes('manual entry') || !m.days || m.days < 1 || !m.food_relation);
       if (invalid) {
@@ -2379,7 +2383,7 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
           extracted_text: extractedText,
           structured_data: parsedData,
           status: statusToSet,
-          assigned_doctor_id: targetDoctorId || undefined
+          assigned_doctor_id: isDoctor ? session?.user?.id : (targetDoctorId || undefined)
         })
       });
       onSuccess();
@@ -5802,15 +5806,23 @@ function AppShell({ session, logout, theme, setTheme }) {
 
   // Ensure doctor availability is online on login/mount unless explicit future away schedule exists
   useEffect(() => {
-    if (session?.user?.role === 'doctor') {
+    if (session?.user?.role === 'doctor' || session?.user?.role === 'physician') {
       const hasFutureAway = session.user.away_until && new Date(session.user.away_until) > new Date();
-      if (!hasFutureAway && doctorStatus !== 'online') {
+      if (!hasFutureAway) {
         setDoctorStatus('online');
+        const s = getSession();
+        if (s && s.user) {
+          s.user.availability_status = 'online';
+          s.user.away_until = null;
+          saveSession(s);
+        }
         api('/api/doctors/availability', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'online' }),
         }).catch(() => {});
+      } else {
+        setDoctorStatus(session.user.availability_status || 'away');
       }
     }
   }, [session?.user?.id]);
@@ -8235,11 +8247,17 @@ function createSyntheticStream(label = 'Recovera Telehealth') {
 /* ===========================================================
    VOICE CALIBRATION & ACOUSTIC ROLE PROFILING ENGINE
    =========================================================== */
-function getRoleCalibrationPrompts(langCode, isDoctor, userName) {
-  const name = userName || (isDoctor ? 'Doctor' : 'Patient');
+function getRoleCalibrationPrompts(langCode, roleOrIsDoctor, userName) {
+  const roleStr = typeof roleOrIsDoctor === 'string' ? roleOrIsDoctor.toLowerCase() : (roleOrIsDoctor ? 'doctor' : 'patient');
+  const isDoc = roleStr === 'doctor' || roleStr === 'physician';
+  const isNurse = roleStr === 'nurse';
+  const isPat = roleStr === 'patient';
+  const defaultTitle = isDoc ? 'Doctor' : isNurse ? 'Nurse' : isPat ? 'Patient' : 'Staff';
+  const name = userName || defaultTitle;
   const l = (langCode || 'en-IN').toLowerCase();
 
-  if (isDoctor) {
+  // 1. Doctor / Physician Role
+  if (isDoc) {
     if (l === 'ta-in' || l === 'ta') {
       return [
         `நான் மருத்துவர் ${name}, இன்றைய மருத்துவ ஆலோசனையை நடத்துகிறேன். எனது குரல் தெளிவாக கேட்கிறது.`,
@@ -8275,39 +8293,102 @@ function getRoleCalibrationPrompts(langCode, isDoctor, userName) {
     ];
   }
 
-  // Patient role prompts
+  // 2. Nurse Role
+  if (isNurse) {
+    if (l === 'ta-in' || l === 'ta') {
+      return [
+        `நான் செவிலியர் ${name}, இன்றைய மருத்துவ ஆலோசனையில் நோயாளியின் உடல் நலம் மற்றும் மருந்துகளை சரிபார்க்க இணைந்துள்ளேன்.`,
+        `நோயாளியின் முக்கிய அறிகுறிகள் மற்றும் மீட்புத் திட்டத்தை நான் கண்காணித்து வருகிறேன்.`,
+        `மருத்துவர் மற்றும் நோயாளி இடையேயான உரையாடலை ஒருங்கிணைக்க எனது ஆடியோ தயாராக உள்ளது.`
+      ];
+    }
+    if (l === 'hi-in' || l === 'hi') {
+      return [
+        `मैं नर्स ${name}, आज के चिकित्सकीय परामर्श में मरीज़ की सेहत और दवाओं की समीक्षा में सहायता के लिए उपस्थित हूँ।`,
+        `मरीज़ के विटल्स और रिकवरी प्लान की निगरानी की जा रही है।`,
+        `क्लिनिकल समन्वय और लाइव ट्रांसक्रिप्शन के लिए मेरी आवाज़ रिकॉर्ड करें।`
+      ];
+    }
+    if (l === 'tanglish') {
+      return [
+        `Naan Nurse ${name}, innaiku clinical consultation-la patient vitals and medications assist panna join panren.`,
+        `Patient recovery monitoring and doctor bridge coordination ready-ah irukku.`,
+        `Acoustic audio clarity verify panna test sentence pesuren.`
+      ];
+    }
+    if (l === 'auto') {
+      return [
+        `I am Nurse ${name}, assisting with patient care and verifying audio clarity.`,
+        `நான் செவிலியர் ${name}, இன்றைய ஆலோசனையில் இணைந்துள்ளேன்.`,
+        `मैं नर्स ${name}, आज के चिकित्सकीय परामर्श में सहायता कर रही हूँ।`
+      ];
+    }
+    return [
+      `I am Nurse ${name}, assisting with today's clinical consultation and verifying audio clarity.`,
+      `I am monitoring the patient's vital signs, medication adherence, and daily check-in reports.`,
+      `Please calibrate my microphone for clinical coordination and real-time transcription.`
+    ];
+  }
+
+  // 3. Patient Role
+  if (isPat) {
+    if (l === 'ta-in' || l === 'ta') {
+      return [
+        `நான் ${name}, இன்று எனது மருத்துவ ஆலோசனையில் இணைந்துள்ளேன், எனது குரல் தெளிவாக கேட்கிறது.`,
+        `எனது உடல் நலம் சீராக தேறி வருகிறது, மருத்துவ குழுவுடன் ஆலோசிக்க நான் தயாராக இருக்கிறேன்.`,
+        `நிகழ்நேர உரைபெயர்ப்பிற்காக மற்றும் துல்லியமான குரல் வேறுபாட்டிற்காக எனது குரலை பதிவு செய்யவும்.`
+      ];
+    }
+    if (l === 'hi-in' || l === 'hi') {
+      return [
+        `मैं ${name}, आज अपने चिकित्सकीय परामर्श में शामिल हुआ हूँ और मेरी आवाज़ स्पष्ट आ रही है।`,
+        `मेरी सेहत में सुधार हो रहा है और मैं डॉक्टर से बात करने के लिए तैयार हूँ।`,
+        `सटीक लाइव कैप्शन के लिए मेरी आवाज़ की जांच और कैलिब्रेशन करें।`
+      ];
+    }
+    if (l === 'tanglish') {
+      return [
+        `Doctor, naan ${name}, consult-la join panniten, audio clear-ah kekkudhu.`,
+        `Medicines regular-ah eduthukren, recovery trajectory nalla progress aagudhu.`,
+        `Audio test panna pesuren, en voice clear-ah irukka nu check pannunga.`
+      ];
+    }
+    if (l === 'auto') {
+      return [
+        `I am ${name}, joining today's teleconsultation and my audio is functioning clearly.`,
+        `நான் ${name}, இன்றைய ஆலோசனையில் இணைந்துள்ளேன், குரல் தெளிவாக கேட்கிறது.`,
+        `मैं ${name}, आज के परामर्श में शामिल हुआ हूँ, मेरी आवाज़ स्पष्ट है।`
+      ];
+    }
+    return [
+      `I am ${name}, joining my clinical consultation today and my audio is functioning clearly.`,
+      `My recovery trajectory is on track and I am ready to review my vitals with the care team.`,
+      `Please verify my acoustic voice signature for real-time transcription and role separation.`
+    ];
+  }
+
+  // 4. General Staff / Clinical Admin Role
   if (l === 'ta-in' || l === 'ta') {
     return [
-      `நான் ${name}, இன்று எனது மருத்துவ ஆலோசனையில் இணைந்துள்ளேன், எனது குரல் தெளிவாக கேட்கிறது.`,
-      `எனது உடல் நலம் சீராக தேறி வருகிறது, மருத்துவ குழுவுடன் ஆலோசிக்க நான் தயாராக இருக்கிறேன்.`,
-      `நிகழ்நேர உரைபெயர்ப்பிற்காக மற்றும் துல்லியமான குரல் வேறுபாட்டிற்காக எனது குரலை பதிவு செய்யவும்.`
+      `நான் ${name}, இன்றைய மருத்துவ அமர்வில் இணைந்து எனது குரல் தரத்தை சரிபார்க்கிறேன்.`,
+      `மருத்துவமனை தகவல் தொடர்பு மற்றும் நிகழ்நேர மொழிபெயர்ப்பிற்காக எனது மைக்ரோஃபோன் தயாராக உள்ளது.`
     ];
   }
   if (l === 'hi-in' || l === 'hi') {
     return [
-      `मैं ${name}, आज अपने चिकित्सकीय परामर्श में शामिल हुआ हूँ और मेरी आवाज़ स्पष्ट आ रही है।`,
-      `मेरी सेहत में सुधार हो रहा है और मैं डॉक्टर से बात करने के लिए तैयार हूँ।`,
-      `सटीक लाइव कैप्शन के लिए मेरी आवाज़ की जांच और कैलिब्रेशन करें।`
+      `मैं ${name}, आज के क्लिनिकल सत्र में शामिल होकर अपनी आवाज़ की स्पष्टता की जांच कर रहा हूँ।`,
+      `लाइव ट्रांसक्रिप्शन और ऑडियो संचार के लिए मेरा माइक्रोफ़ोन तैयार है।`
     ];
   }
   if (l === 'tanglish') {
     return [
-      `Doctor, naan ${name}, consult-la join panniten, audio clear-ah kekkudhu.`,
-      `Medicines regular-ah eduthukren, recovery trajectory nalla progress aagudhu.`,
-      `Audio test panna pesuren, en voice clear-ah irukka nu check pannunga.`
-    ];
-  }
-  if (l === 'auto') {
-    return [
-      `I am ${name}, joining today's teleconsultation and my audio is functioning clearly.`,
-      `நான் ${name}, இன்றைய ஆலோசனையில் இணைந்துள்ளேன், குரல் தெளிவாக கேட்கிறது.`,
-      `मैं ${name}, आज के परामर्श में शामिल हुआ हूँ, मेरी आवाज़ स्पष्ट है।`
+      `Naan ${name}, session-la audio test panna pesuren, en voice clear-ah kekkudhu.`,
+      `Live speech transcription test panna mic check pandren.`
     ];
   }
   return [
-    `I am ${name}, joining my clinical consultation today and my audio is functioning clearly.`,
-    `My recovery trajectory is on track and I am ready to review my vitals with the care team.`,
-    `Please verify my acoustic voice signature for real-time transcription and role separation.`
+    `I am ${name}, joining today's clinical session and verifying audio clarity.`,
+    `My microphone is functioning properly for live transcription and team communication.`
   ];
 }
 
@@ -8340,7 +8421,7 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
   const animRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  const sentences = getRoleCalibrationPrompts(lang, isDoctor, userName || session?.user?.name);
+  const sentences = getRoleCalibrationPrompts(lang, role || (isDoctor ? 'doctor' : 'patient'), userName || session?.user?.name);
   const currentSentence = (sentences && sentences[promptIdx % sentences.length]) || "I am joining my clinical consultation today and my audio is functioning clearly.";
 
   const startCalibration = async () => {
@@ -8975,7 +9056,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   };
-  const [calibrated, setCalibrated] = useState(() => isChatMode || Boolean(getStoredProfile()));
+  const [calibrated, setCalibrated] = useState(() => isChatMode);
   const [voiceProfile, setVoiceProfile] = useState(() => getStoredProfile());
   const [selectedLang, setSelectedLang] = useState(() => getStoredProfile()?.lang || 'auto');
   const [audioPanelTab, setAudioPanelTab] = useState('dialogue'); // 'dialogue' | 'hardware'
@@ -9535,7 +9616,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
 
       // 3. Ephemeral signaling polling loop (every 1200ms)
       signalPoll = setInterval(async () => {
-        if (!active || !pcRef.current || pcRef.current.signalingState === 'closed') return;
+        if (!active) return;
         try {
           const signals = await api(`/api/consultations/${consult.id}/signals?since=${encodeURIComponent(lastSignalTimeRef.current)}`);
           if (signals && signals.length > 0) {
@@ -9770,10 +9851,82 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     "When should I schedule my next follow-up?"
   ];
 
+  const renderAttachmentOrText = (cleanText) => {
+    const isImageMsg = cleanText.includes('data:image/') || cleanText.startsWith('📸 [Image Attached') || cleanText.startsWith('📎 [Document Attached') || cleanText.startsWith('📸') || cleanText.startsWith('📎');
+    if (isImageMsg) {
+      const imgUrlMatch = cleanText.match(/(data:image\/[a-zA-Z0-9+.-]+;base64,[^\s]+)/);
+      const imgNameMatch = cleanText.match(/\[(?:Image|Document) Attached:\s*([^\]]+)\]/i);
+      const fileName = imgNameMatch ? imgNameMatch[1] : (cleanText.match(/IMG_[0-9_]+\.(?:jpg|jpeg|png|webp)/i)?.[0] || 'Clinical Photo Attachment');
+      const imgSrc = imgUrlMatch ? imgUrlMatch[1] : null;
+
+      return (
+        <div style={{ marginTop: 6, maxWidth: 360 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Camera size={13} color="var(--p)" />
+            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{fileName}</span>
+          </div>
+          {imgSrc ? (
+            <img
+              src={imgSrc}
+              alt="Consultation Attachment"
+              style={{
+                width: '100%',
+                maxHeight: 260,
+                borderRadius: 8,
+                cursor: 'pointer',
+                objectFit: 'contain',
+                border: '1px solid var(--border)',
+                background: '#090d16',
+                display: 'block'
+              }}
+              onClick={() => {
+                const w = window.open('');
+                if (w) {
+                  w.document.write(`<title>${fileName}</title><body style="margin:0;background:#090d16;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${imgSrc}" style="max-width:95vw;max-height:95vh;object-fit:contain;box-shadow:0 10px 40px rgba(0,0,0,0.8);border-radius:8px;" /></body>`);
+                }
+              }}
+              title="Click to view full photo in new tab"
+            />
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 14px',
+              background: 'rgba(255,255,255,0.04)',
+              borderRadius: 8,
+              border: '1px solid var(--border)'
+            }}>
+              <Camera size={20} color="var(--p)" />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{fileName}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Image Photo (Stored in consultation record)</div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
+        {cleanText}
+      </div>
+    );
+  };
+
   return (
     <div className="page fade-in">
       {/* Hidden audio element for WebRTC audio playback in audio/video calls */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
+
+      {/* Global Image File Picker for Consultation Chat, Audio, and Video modes */}
+      <input
+        type="file"
+        ref={chatFileRef}
+        style={{ display: 'none' }}
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        onChange={handleChatFileUpload}
+      />
 
       {/* Voice Calibration Modal (Only for Audio & Video modes - Bypassed for Chat mode) */}
       {!calibrated && !isChatMode && (
@@ -9952,42 +10105,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                         </span>
                       )}
                     </div>
-                    {cleanText.includes('data:image/') || cleanText.startsWith('📸 [Image Attached') ? (
-                      (() => {
-                        const imgUrlMatch = cleanText.match(/(data:image\/[a-zA-Z0-9+]+;base64,[^\s]+)/);
-                        const imgNameMatch = cleanText.match(/\[Image Attached:\s*([^\]]+)\]/);
-                        const imgSrc = imgUrlMatch ? imgUrlMatch[1] : null;
-                        return (
-                          <div style={{ marginTop: 4 }}>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <Camera size={13} color="var(--p)" />
-                              <span>{imgNameMatch ? imgNameMatch[1] : 'Attached Clinical Photo'}</span>
-                            </div>
-                            {imgSrc && (
-                              <img
-                                src={imgSrc}
-                                alt="Consultation Attachment"
-                                style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, cursor: 'pointer', objectFit: 'contain', border: '1px solid var(--border)', background: '#000' }}
-                                onClick={() => window.open(imgSrc, '_blank')}
-                                title="Click to view full image in new tab"
-                              />
-                            )}
-                          </div>
-                        );
-                      })()
-                    ) : cleanText.startsWith('📎 [Document Attached]') ? (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.06)', borderRadius: 8, border: '1px solid var(--border)', marginTop: 4 }}>
-                        <Camera size={16} color="var(--p)" />
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 600 }}>{cleanText.replace('📎 [Document Attached]:', '').trim()}</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Image Photo Attachment</div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
-                        {cleanText}
-                      </div>
-                    )}
+                    {renderAttachmentOrText(cleanText)}
                     <div className="chat-time-tag">
                       <span>{timeStr}</span>
                       {isMe && <span style={{ color: '#38bdf8', fontWeight: 800 }}>✓✓</span>}
@@ -10022,17 +10140,10 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
 
             {/* Composer Footer */}
             <div className="whatsapp-footer" style={{ padding: '10px 16px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="file"
-                ref={chatFileRef}
-                style={{ display: 'none' }}
-                accept="image/png,image/jpeg,image/jpg,image/webp"
-                onChange={handleChatFileUpload}
-              />
               <button
                 type="button"
                 className="icon-btn"
-                title="Attach Document / Photo"
+                title="Attach Clinical Photo (PNG, JPG, WEBP)"
                 onClick={() => chatFileRef.current?.click()}
                 style={{ width: 34, height: 34, color: 'var(--text-muted)' }}
               >
@@ -10141,7 +10252,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--p)' }}>
                     <Volume2 size={12} /> Live Speech-to-Text Closed Captions (CC)
                   </span>
-                  <span>{selectedLang === 'auto' ? 'Auto / Tanglish Model' : selectedLang === 'ta-IN' ? 'தமிழ் Model' : selectedLang === 'hi-IN' ? 'हिन्दी Model' : 'English Model'}</span>
+                  <span>{selectedLang === 'auto' ? (voiceProfile?.detectedLang ? `Auto-Detected (${voiceProfile.detectedLang})` : 'Auto-Detect (EN/HI/TA/Tanglish)') : selectedLang === 'ta-IN' ? 'தமிழ் Model' : selectedLang === 'hi-IN' ? 'हिन्दी Model' : 'English Model'}</span>
                 </div>
                 <div className="audio-captions-body">
                   {activeSubtitle ? (
@@ -10228,34 +10339,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                               </span>
                             )}
                           </div>
-                          {cleanText.includes('data:image/') || cleanText.startsWith('📸 [Image Attached') ? (
-                            (() => {
-                              const imgUrlMatch = cleanText.match(/(data:image\/[a-zA-Z0-9+]+;base64,[^\s]+)/);
-                              const imgNameMatch = cleanText.match(/\[Image Attached:\s*([^\]]+)\]/);
-                              const imgSrc = imgUrlMatch ? imgUrlMatch[1] : null;
-                              return (
-                                <div style={{ marginTop: 4 }}>
-                                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <Camera size={12} color="var(--p)" />
-                                    <span>{imgNameMatch ? imgNameMatch[1] : 'Attached Photo'}</span>
-                                  </div>
-                                  {imgSrc && (
-                                    <img
-                                      src={imgSrc}
-                                      alt="Attachment"
-                                      style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, cursor: 'pointer', objectFit: 'contain' }}
-                                      onClick={() => window.open(imgSrc, '_blank')}
-                                      title="Click to view full image"
-                                    />
-                                  )}
-                                </div>
-                              );
-                            })()
-                          ) : (
-                            <div style={{ fontSize: 12.5, color: '#ffffff', lineHeight: 1.4, marginTop: 4 }}>
-                              {cleanText}
-                            </div>
-                          )}
+                          {renderAttachmentOrText(cleanText)}
                           <div className="chat-time-tag"><span>{timeStr}</span></div>
                         </div>
                       );
@@ -10450,16 +10534,16 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
               </div>
 
               {/* Live Multilingual Captions Overlay at Bottom of Conversation */}
-              {captionsEnabled && activeSubtitle && (
+              {captionsEnabled && (activeSubtitle || messages.length > 0) && (
                 <div className="webrtc-caption-overlay">
                   <span className={`caption-speaker-badge ${activeSpeaker.role?.toLowerCase() === 'doctor' ? 'doctor' : 'patient'}`}>
                     {activeSpeaker.role?.toLowerCase() === 'doctor' ? <Stethoscope size={11} /> : <User size={11} />}
-                    {activeSpeaker.name || (activeSpeaker.role === 'Doctor' ? 'Doctor' : 'Patient')}
+                    {activeSubtitle ? (activeSpeaker.name || (activeSpeaker.role === 'Doctor' ? 'Doctor' : 'Patient')) : 'Recent Dialogue'}
                   </span>
                   <span className="caption-text">
-                    "{activeSubtitle}"
+                    "{activeSubtitle || messages[messages.length - 1].message?.replace(/^🎙️\s*\[[^\]]+\]:\s*/, '')}"
                   </span>
-                  {isInterim && <span className="caption-interim-pulse" />}
+                  {activeSubtitle && isInterim && <span className="caption-interim-pulse" />}
                 </div>
               )}
             </div>
@@ -10544,43 +10628,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                             </span>
                           )}
                         </div>
-                        {cleanText.includes('data:image/') || cleanText.startsWith('📸 [Image Attached') ? (
-                          (() => {
-                            const imgMatch = cleanText.match(/^📸\s*\[Image Attached:\s*([^\]]+)\]:\s*(data:image\/[^;]+;base64,[^\s]+)/) ||
-                              cleanText.match(/(data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+)/);
-                            const imgSrc = imgMatch ? (imgMatch[2] || imgMatch[1]) : null;
-                            const imgNameMatch = cleanText.match(/\[(?:Image|Document) Attached:\s*([^\]]+)\]/i);
-                            return (
-                              <div style={{ marginTop: 6 }}>
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  <Camera size={13} color="var(--p)" />
-                                  <span>{imgNameMatch ? imgNameMatch[1] : 'Attached Clinical Photo'}</span>
-                                </div>
-                                {imgSrc && (
-                                  <img
-                                    src={imgSrc}
-                                    alt="Consultation Attachment"
-                                    style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 8, cursor: 'pointer', objectFit: 'contain', border: '1px solid var(--border)', background: '#000' }}
-                                    onClick={() => window.open(imgSrc, '_blank')}
-                                    title="Click to view full image in new tab"
-                                  />
-                                )}
-                              </div>
-                            );
-                          })()
-                        ) : cleanText.startsWith('📎 [Document Attached]') ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.06)', borderRadius: 8, border: '1px solid var(--border)', marginTop: 4 }}>
-                            <Camera size={16} color="var(--p)" />
-                            <div>
-                              <div style={{ fontSize: 12, fontWeight: 600 }}>{cleanText.replace('📎 [Document Attached]:', '').trim()}</div>
-                              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Image Photo Attachment</div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
-                            {cleanText}
-                          </div>
-                        )}
+                        {renderAttachmentOrText(cleanText)}
                         <div className="chat-time-tag">
                           <span>{timeStr}</span>
                           {isMe && <span style={{ color: '#38bdf8', fontWeight: 800 }}>✓✓</span>}
@@ -10670,7 +10718,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                 onChange={e => setSelectedLang(e.target.value)}
                 title="Select spoken recognition language (Tanglish supported)"
               >
-                <option value="auto">🌐 Auto / Tanglish (தமிழ் + EN)</option>
+                <option value="auto">🌐 Auto-Detect (EN / தமிழ் / हिन्दी / Tanglish)</option>
                 <option value="en-IN">English (EN)</option>
                 <option value="ta-IN">தமிழ் (Tamil)</option>
                 <option value="hi-IN">हिन्दी (Hindi)</option>
@@ -10722,7 +10770,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                 onChange={e => setSelectedLang(e.target.value)}
                 title="Select live speech recognition and caption language"
               >
-                <option value="auto">🌐 Auto / Tanglish (தமிழ் + EN)</option>
+                <option value="auto">🌐 Auto-Detect (EN / தமிழ் / हिन्दी / Tanglish)</option>
                 <option value="en-IN">English (EN)</option>
                 <option value="ta-IN">தமிழ் (Tamil)</option>
                 <option value="hi-IN">हिन्दी (Hindi)</option>
@@ -11564,16 +11612,37 @@ function RiskAnalyticsTab({ patientId, session }) {
   );
 }
 
-function getInstructionsList(raw) {
+function getInstructionsList(raw, langCode = 'en') {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.filter(Boolean);
   if (typeof raw === 'object') {
     const list = [];
+    const prefixes = {
+      ta: {
+        diet: 'உணவு மற்றும் ஊட்டச்சத்து: ',
+        activity: 'உடற்பயிற்சி மற்றும் ஓய்வு: ',
+        wound: 'சுகாதாரம் மற்றும் காயப் பராமரிப்பு: ',
+        med: 'மருந்து வழக்கம்: ',
+      },
+      hi: {
+        diet: 'आहार और पोषण: ',
+        activity: 'गतिविधि और आराम: ',
+        wound: 'स्वच्छता और घाव की देखभाल: ',
+        med: 'दवा दिनचर्या: ',
+      },
+      en: {
+        diet: 'Diet & Nutrition: ',
+        activity: 'Activity & Rest: ',
+        wound: 'Hygiene & Wound Care: ',
+        med: 'Medication Routine: ',
+      }
+    };
+    const p = prefixes[langCode] || prefixes.en;
     if (raw.general) list.push(raw.general);
-    if (raw.diet) list.push(`Diet & Nutrition: ${raw.diet}`);
-    if (raw.activity) list.push(`Activity & Rest: ${raw.activity}`);
-    if (raw.wound_care) list.push(`Hygiene & Wound Care: ${raw.wound_care}`);
-    if (raw.medications_summary) list.push(`Medication Routine: ${raw.medications_summary}`);
+    if (raw.diet) list.push(`${p.diet}${raw.diet}`);
+    if (raw.activity) list.push(`${p.activity}${raw.activity}`);
+    if (raw.wound_care) list.push(`${p.wound}${raw.wound_care}`);
+    if (raw.medications_summary) list.push(`${p.med}${raw.medications_summary}`);
     if (Array.isArray(raw.hospital_specific)) {
       raw.hospital_specific.forEach(s => list.push(s));
     }
@@ -14193,7 +14262,7 @@ function PatientSettingsView({ session, patientId, lang = 'en', setLang, patient
 function PatientPortal({ session, route, navigate, lang = 'en', setLang }) {
   const parts = route.replace(/^#\/?/, '').split('/');
   const page = parts[1] || 'overview';
-  const [patientId, setPatientId] = useState(null);
+  const [patientId, setPatientId] = useState(() => session?.user?.patient_profile?.id || session?.user?.id || null);
   const [patientData, setPatientData] = useState(null);
 
   useEffect(() => {
@@ -15398,7 +15467,7 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
       .then(setPlan).catch(() => setPlan(null)).finally(() => setLoading(false));
   }, [patientId]);
 
-  const instructions = useMemo(() => getInstructionsList(plan?.instructions), [plan]);
+  const instructions = useMemo(() => getInstructionsList(plan?.instructions, planLang), [plan, planLang]);
   const warningSigns = useMemo(() => getWarningSignsList(plan?.warning_signs), [plan]);
 
   // Request complete AI translations when switching to Tamil or Hindi if not pre-embedded
@@ -15489,7 +15558,7 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
   const chunks = translatedRecoveryChunks[planLang] || translatedRecoveryChunks.en;
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size={28} /></div>;
-  if (!plan || plan.status !== 'published') {
+  if (!plan || (plan.status !== 'published' && plan.status !== 'approved' && plan.status !== 'active')) {
     return (
       <div className="card">
         <Empty icon={FileText} title={getTranslation('pending_plan_title', planLang)}

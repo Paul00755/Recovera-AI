@@ -30,9 +30,11 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
 
   if (loading || !data) return null;
 
-  const hasStarted = data.has_started !== false && Boolean(data.has_started || data.medication_start_date);
-  const currentDay = hasStarted && data.current_day != null ? Math.max(1, Math.min(14, Number(data.current_day))) : 1;
-  const progressPct = hasStarted ? Math.min(100, Math.round((currentDay / 14) * 100)) : 0;
+  const hasStarted = Boolean(data.has_started) && Boolean(data.medication_start_date);
+  const currentDay = hasStarted && data.current_day != null && Number(data.current_day) > 0
+    ? Math.max(1, Math.min(14, Number(data.current_day)))
+    : 0;
+  const progressPct = hasStarted && currentDay > 0 ? Math.min(100, Math.round((currentDay / 14) * 100)) : 0;
 
   const tier = (data.deviation_tier || 'normal').toLowerCase();
   let badgeKey = 'on_track';
@@ -197,7 +199,8 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 16 }}>
         {t.milestones.map((m, idx) => {
           const isDone = hasStarted && ((idx + 1) * 3.5 <= currentDay);
-          const isCurrent = hasStarted ? (!isDone && (idx * 3.5 <= currentDay)) : (idx === 0);
+          const isCurrent = hasStarted && !isDone && (idx * 3.5 <= currentDay);
+          const isAwaiting = !hasStarted;
 
           return (
             <div key={m.day} style={{
@@ -205,6 +208,7 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
               borderRadius: 8,
               background: isCurrent ? 'rgba(0, 212, 184, 0.08)' : 'var(--surface2)',
               border: `1px solid ${isCurrent ? 'var(--p)' : 'var(--border)'}`,
+              opacity: isAwaiting ? 0.75 : 1,
               display: 'flex',
               flexDirection: 'column',
               gap: 4
@@ -217,7 +221,11 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
                   <CheckCircle2 size={13} style={{ color: 'var(--success)' }} />
                 ) : isCurrent ? (
                   <span className="badge badge-teal" style={{ fontSize: 9 }}>
-                    {hasStarted ? t.currentLabel : t.pendingLabel}
+                    {t.currentLabel}
+                  </span>
+                ) : isAwaiting && idx === 0 ? (
+                  <span className="badge badge-blue" style={{ fontSize: 9 }}>
+                    {t.pendingLabel}
                   </span>
                 ) : null}
               </div>

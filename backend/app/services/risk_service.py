@@ -108,10 +108,19 @@ def evaluate_patient_risk(
     ).all()
 
     checkin_count = len(checkins)
-    max_pain = max((c.pain_level for c in checkins), default=None)
+    max_pain = max((c.pain_level for c in checkins if c.pain_level is not None), default=None)
     latest_checkin = checkins[0] if checkins else None
     has_fever = any(c.fever for c in checkins)
     has_cough = any(c.cough for c in checkins)
+
+    # Telemetry in the active window (last 48 hours / most recent submission)
+    recent_checkins = [c for c in checkins if c.checkin_date >= (today_date - dt.timedelta(days=2))]
+    if not recent_checkins and checkins:
+        recent_checkins = [checkins[0]]
+    recent_max_pain = max((c.pain_level for c in recent_checkins if c.pain_level is not None), default=None)
+    recent_has_fever = any(c.fever for c in recent_checkins)
+    recent_has_cough = any(c.cough for c in recent_checkins)
+    recent_max_temp = max((c.temperature for c in recent_checkins if getattr(c, 'temperature', None) is not None), default=None)
 
     # 3. Missed Appointments in Window
     missed_appointments = db.scalar(
@@ -214,12 +223,16 @@ def evaluate_patient_risk(
     symptom_yellow: List[str] = []
 
     if checkins:
-        if max_pain is not None:
+        # Acute vs resolving pain evaluation
+        if recent_max_pain is not None and recent_max_pain >= 8:
             loc = f" at {latest_checkin.pain_location}" if latest_checkin and latest_checkin.pain_location else ""
-            if max_pain >= 8:
-                symptom_red.append(f"Severe pain reported: {max_pain}/10 on visual analog scale{loc}")
-            elif max_pain >= 5:
-                symptom_yellow.append(f"Elevated pain reported: {max_pain}/10{loc}")
+            symptom_red.append(f"Severe active pain reported: {recent_max_pain}/10 on visual analog scale{loc}")
+        elif recent_max_pain is not None and recent_max_pain >= 5:
+            loc = f" at {latest_checkin.pain_location}" if latest_checkin and latest_checkin.pain_location else ""
+            symptom_yellow.append(f"Elevated pain reported: {recent_max_pain}/10{loc}")
+        elif max_pain is not None and max_pain >= 6:
+            # Historical pain earlier in the week that has now improved
+            symptom_yellow.append(f"Prior elevated discomfort ({max_pain}/10) earlier in window; currently controlled at {recent_max_pain or 'mild'}/10")
 
         if latest_checkin and latest_checkin.pain_location:
             locs = [p.strip() for p in latest_checkin.pain_location.split(",") if p.strip()]
@@ -234,15 +247,19 @@ def evaluate_patient_risk(
                         f"Deteriorating pain trajectory: Pain escalated from {recent_pains[-1]}/10 to {recent_pains[0]}/10"
                     )
 
-        max_temp = max((c.temperature for c in checkins if getattr(c, 'temperature', None) is not None), default=None)
-        if has_fever or (max_temp and max_temp >= 100.4):
-            if (max_temp and max_temp >= 101.5) or (max_pain is not None and max_pain >= 6):
-                symptom_red.append("Clinical red flag: Persistent/high fever reported concurrently with elevated pain")
+        # Active fever (within last 48 hours / latest check-in) vs prior resolving fever
+        if recent_has_fever or (recent_max_temp and recent_max_temp >= 100.4):
+            if (recent_max_temp and recent_max_temp >= 101.5) or (recent_max_pain is not None and recent_max_pain >= 7):
+                symptom_red.append("Clinical red flag: Active persistent/high fever reported concurrently with elevated pain")
             else:
-                symptom_yellow.append(f"Fever / elevated body temperature ({max_temp or '100.4+'}°F) reported during check-in")
+                symptom_yellow.append(f"Active fever / elevated body temperature ({recent_max_temp or '100.4+'}°F) reported in recent check-in")
+        elif has_fever:
+            symptom_yellow.append("Prior fever reported earlier in the week; currently afebrile in latest telemetry")
 
-        if has_cough:
+        if recent_has_cough:
             symptom_yellow.append("Respiratory cough symptom reported in daily check-in")
+        elif has_cough:
+            symptom_yellow.append("Intermittent cough symptom noted earlier in window")
 
         min_sleep = min((c.sleep_hours for c in checkins if c.sleep_hours is not None), default=None)
         if min_sleep is not None and min_sleep < 4.0:

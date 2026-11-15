@@ -148,6 +148,14 @@ def _gather_patient_clinical_dossier(
     max_pain = max(pains, default=0)
     has_fever = any(fevers)
 
+    # Active telemetry in the last 48 hours / most recent submission
+    today_d = now.date()
+    recent_checkins = [ci for ci in checkins if ci.checkin_date >= (today_d - dt.timedelta(days=2))]
+    if not recent_checkins and checkins:
+        recent_checkins = [checkins[0]]
+    recent_max_pain = max((ci.pain_level for ci in recent_checkins if ci.pain_level is not None), default=0)
+    has_active_fever = any(ci.fever for ci in recent_checkins)
+
     return {
         "patient_id": patient_id,
         "name": p_name,
@@ -173,8 +181,10 @@ def _gather_patient_clinical_dossier(
         "symptom_telemetry": {
             "submissions_count": len(checkins),
             "max_pain": max_pain,
+            "recent_max_pain": recent_max_pain,
             "recent_pains": pains[:4],
-            "has_active_fever": has_fever,
+            "has_active_fever": has_active_fever,
+            "prior_fever_resolved": (has_fever and not has_active_fever),
             "checkins": checkin_details[:5]
         },
         "custom_patient_messages": custom_messages
@@ -216,15 +226,22 @@ def _execute_clinical_rule_fallback(
         if "pain" in t or "ache" in t or "hurts" in t:
             extracted_flags.append(f"Subjective pain escalation: \"{msg['note']}\"")
 
-    # Determine risk level
+    # Determine risk level with single-day lapse guardrails
     final_lvl = baseline_level.lower()
-    if extracted_flags and any("infection" in f or "Hemorrhagic" in f or "Hemodynamic" in f for f in extracted_flags):
+    recent_pain = symp.get("recent_max_pain", symp["max_pain"])
+    is_acute_emergency = bool(extracted_flags and any("infection" in f or "Hemorrhagic" in f or "Hemodynamic" in f for f in extracted_flags))
+
+    if is_acute_emergency:
         final_lvl = "red"
-    elif comorbidity_hazard == "elevated" and (symp["max_pain"] >= 6 or symp["has_active_fever"]):
+    elif comorbidity_hazard == "elevated" and (recent_pain >= 7 or symp["has_active_fever"]) and not (meds["missed_doses_count"] <= 1 and not symp["has_active_fever"]):
         final_lvl = "red"
-    elif symp["max_pain"] >= 5 or meds["adherence_pct"] < 80.0 or extracted_flags:
+    elif recent_pain >= 5 or meds["adherence_pct"] < 80.0 or extracted_flags or symp.get("prior_fever_resolved"):
         if final_lvl != "red":
             final_lvl = "yellow"
+
+    # Enforce strict single-day lapse cap: missing intake or check-in for 1 day cannot be red without acute emergency
+    if final_lvl == "red" and not is_acute_emergency and not symp["has_active_fever"] and recent_pain < 8:
+        final_lvl = "yellow"
 
     # Dual-tier summaries
     if final_lvl == "red":
