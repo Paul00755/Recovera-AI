@@ -47,7 +47,7 @@ def is_doctor_assigned_to_patient(doctor_id: str, patient_id: str, db: Session) 
         select(PatientDoctorAssignment).where(
             PatientDoctorAssignment.patient_id == patient_id,
             PatientDoctorAssignment.doctor_id == doctor_id,
-            PatientDoctorAssignment.is_active == True
+            or_(PatientDoctorAssignment.is_active == True, PatientDoctorAssignment.is_active.is_(None))
         )
     )
     return active_assign is not None

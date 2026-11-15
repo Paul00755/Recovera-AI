@@ -12,6 +12,7 @@ import numpy as np
 import datetime as dt
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, desc
 
@@ -85,7 +86,7 @@ def extract_patient_feature_vector(db: Session, patient_id: str) -> Tuple[np.nda
     today_d = now.date()
     patient = db.get(Patient, str(patient_id))
     if not patient:
-        raise ValueError(f"Patient {patient_id} not found")
+        raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
 
     # 1. Post-discharge day anchored to earliest medication or created_at
     first_med = db.scalar(

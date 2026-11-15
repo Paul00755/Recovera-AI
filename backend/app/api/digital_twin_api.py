@@ -359,10 +359,17 @@ def get_hospital_digital_twin_cohort_summary(
                 doctor_name = doc.name
                 doctor_spec = getattr(doc, "specialization", "General Medicine") or "General Medicine"
 
-        # Real post-discharge day (clamped 1-14)
-        milestones = get_or_create_trajectory_milestones(db, str(p.id))
-        base_date = milestones[0].target_date if (milestones and milestones[0].target_date) else p.created_at.date()
-        elapsed = max(1, min(14, (today_d - base_date).days + 1))
+        # Real post-discharge recovery day (clamped 1-14, strictly anchored to medication start date)
+        first_med = db.scalar(
+            select(Medication).where(Medication.patient_id == str(p.id))
+            .order_by(Medication.start_date.asc(), Medication.created_at.asc()).limit(1)
+        )
+        med_start = (first_med.start_date or (first_med.created_at.date() if first_med.created_at else None)) if first_med else None
+        if med_start:
+            milestones = get_or_create_trajectory_milestones(db, str(p.id), start_date=med_start)
+            elapsed = max(1, min(14, (today_d - med_start).days + 1))
+        else:
+            elapsed = 0  # Awaiting medication assignment
 
         tier_key = twin.deviation_tier if twin.deviation_tier in tier_counts else "normal"
         tier_counts[tier_key] += 1
@@ -448,11 +455,20 @@ def run_patient_simulation(
     Always clearly marked with simulation_mode: 'hypothetical'.
     """
     _verify_patient_access(patient_id, current_user, db)
-    from app.ml.prediction_engine import simulate_hypothetical_scenario
-    return simulate_hypothetical_scenario(
-        db=db,
-        patient_id=patient_id,
-        scenario_type=req.scenario_type,
-        hypothetical_adjustments=req.adjustments
-    )
+    try:
+        from app.ml.prediction_engine import simulate_hypothetical_scenario
+        return simulate_hypothetical_scenario(
+            db=db,
+            patient_id=patient_id,
+            scenario_type=req.scenario_type,
+            hypothetical_adjustments=req.adjustments
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Simulation execution error for patient {patient_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Simulation error: {str(e)}"
+        )
 

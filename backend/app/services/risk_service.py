@@ -51,8 +51,25 @@ def evaluate_patient_risk(
             return latest_override
 
     now = dt.datetime.utcnow()
+    today_date = dt.date.today()
     window_start = now - dt.timedelta(days=window_days)
     grace_cutoff = now - dt.timedelta(minutes=30)
+
+    # Protocol monitoring begins strictly when medications are assigned (first_med_date)
+    # Do NOT start counting days from hospital registration date!
+    first_med = db.scalar(
+        select(Medication)
+        .where(Medication.patient_id == patient_id)
+        .order_by(Medication.start_date.asc(), Medication.created_at.asc())
+        .limit(1)
+    )
+    first_med_date = (first_med.start_date or (first_med.created_at.date() if first_med.created_at else None)) if first_med else None
+    has_started_protocol = first_med_date is not None
+    protocol_start_date = first_med_date
+
+    if protocol_start_date:
+        # Clamp window_start so we never query or penalize occurrences before medications were assigned
+        window_start = max(window_start, dt.datetime.combine(protocol_start_date, dt.time.min))
 
     # 1. Medication Occurrences in Window (excluding cancelled/voided doses and unrecorded doses of discontinued medications)
     active_meds_subquery = select(Medication.id).where(
@@ -186,13 +203,11 @@ def evaluate_patient_risk(
     today_date = dt.date.today()
 
     # Determine when patient monitoring actually began to avoid falsely flagging new patients
-    # Protocol monitoring begins when medications are assigned (first_med_date)
-    first_med_date = db.scalar(select(func.min(Medication.start_date)).where(Medication.patient_id == patient_id))
-    created_date = patient.created_at.date() if patient.created_at else today_date
-    protocol_start_date = first_med_date or created_date
-    days_active = max(0, (today_date - protocol_start_date).days)
+    # Protocol monitoring begins strictly when medications are assigned (first_med_date)
+    # NEVER fall back to patient.created_at (hospital registration date)
+    days_active = max(0, (today_date - protocol_start_date).days) if has_started_protocol else 0
 
-    if is_active_monitoring and days_active > 1:
+    if is_active_monitoring and has_started_protocol and days_active > 1:
         max_lookback = min(window_days, days_active)
         for day_i in range(1, max_lookback + 1):
             d = today_date - dt.timedelta(days=day_i)
@@ -527,21 +542,77 @@ def get_patient_analytics_trends(
     patient_id: str,
     days: int = 14
 ) -> Dict[str, Any]:
-    """Generates daily time-series data for medication adherence and pain/symptom trajectory."""
+    """
+    Generates daily time-series data for medication adherence and pain/symptom trajectory.
+    Anchored to the patient's medication assignment date (first_med_date), so the 14-day
+    recovery pathway begins strictly when medications are assigned rather than hospital registration.
+    """
     now = dt.datetime.utcnow()
-    start_date = (now - dt.timedelta(days=days - 1)).date()
+    today_d = now.date()
 
-    # 1. Fetch occurrences in past `days`
+    # 1. Look up first medication assignment start date
+    first_med = db.scalar(
+        select(Medication)
+        .where(Medication.patient_id == patient_id)
+        .order_by(Medication.start_date.asc(), Medication.created_at.asc())
+        .limit(1)
+    )
+    med_start_date = (first_med.start_date or (first_med.created_at.date() if first_med.created_at else None)) if first_med else None
+    has_started = first_med is not None and med_start_date is not None
+
+    if not has_started:
+        # Pre-treatment: Medications not yet assigned to patient
+        return {
+            "patient_id": patient_id,
+            "window_days": days,
+            "has_started": False,
+            "current_day": 0,
+            "medication_start_date": None,
+            "adherence_trend": [],
+            "adherence_trajectory": [],
+            "pain_trend": [],
+            "symptom_trajectory": [],
+            "summary": {
+                "has_started": False,
+                "awaiting_medications": True,
+                "current_day": 0,
+                "total_days": 14,
+                "overall_adherence_pct": 100.0,
+                "adherence_percentage_14d": 100.0,
+                "total_doses_scheduled": 0,
+                "total_scheduled_doses_14d": 0,
+                "total_doses_taken": 0,
+                "taken_doses_14d": 0,
+                "checkin_count": 0,
+                "checkins_count_14d": 0,
+                "average_pain_level": 0.0,
+                "average_pain_14d": 0.0,
+                "max_pain_level": 0,
+            }
+        }
+
+    # Recovery pathway starts strictly at med_start_date
+    start_date = med_start_date
+    diff_days = (today_d - med_start_date).days
+    current_day = max(1, min(14, diff_days + 1)) if diff_days >= 0 else 0
+
+    # Build the 14 recovery pathway milestone dates
+    protocol_dates = [med_start_date + dt.timedelta(days=i) for i in range(14)]
+    end_date = protocol_dates[-1]
+
+    # Active medications subquery
     active_meds_sub = select(Medication.id).where(
         Medication.patient_id == patient_id,
         Medication.status == "active"
     )
+
+    # Fetch occurrences within protocol window up to today
     occurrences = db.scalars(
         select(MedicationOccurrence)
         .where(
             MedicationOccurrence.patient_id == patient_id,
             MedicationOccurrence.scheduled_at >= dt.datetime.combine(start_date, dt.time.min),
-            MedicationOccurrence.scheduled_at <= now,
+            MedicationOccurrence.scheduled_at <= dt.datetime.combine(today_d, dt.time.max),
             MedicationOccurrence.state != OccurrenceState.CANCELLED.value,
             or_(
                 MedicationOccurrence.state == OccurrenceState.TAKEN.value,
@@ -550,11 +621,10 @@ def get_patient_analytics_trends(
         )
     ).all()
 
-    # Group occurrences by date
-    occ_by_date: Dict[str, Dict[str, int]] = {}
-    for i in range(days):
-        d_str = (start_date + dt.timedelta(days=i)).isoformat()
-        occ_by_date[d_str] = {"scheduled": 0, "taken": 0, "missed": 0}
+    # Group occurrences by date for all 14 protocol dates
+    occ_by_date: Dict[str, Dict[str, int]] = {
+        d.isoformat(): {"scheduled": 0, "taken": 0, "missed": 0} for d in protocol_dates
+    }
 
     for o in occurrences:
         d_str = o.scheduled_at.date().isoformat()
@@ -562,107 +632,119 @@ def get_patient_analytics_trends(
             occ_by_date[d_str]["scheduled"] += 1
             if o.state == OccurrenceState.TAKEN.value:
                 occ_by_date[d_str]["taken"] += 1
-            elif o.state in (OccurrenceState.MISSED.value, OccurrenceState.NOT_TAKEN.value) or (o.state == OccurrenceState.PENDING.value and o.scheduled_at <= (now - dt.timedelta(minutes=30))):
+            elif o.state in (OccurrenceState.MISSED.value, OccurrenceState.NOT_TAKEN.value) or (
+                o.state == OccurrenceState.PENDING.value and o.scheduled_at <= (now - dt.timedelta(minutes=30))
+            ):
                 occ_by_date[d_str]["missed"] += 1
 
-    adherence_trend = []
-    total_sched = 0
-    total_taken = 0
-    for d_str, counts in occ_by_date.items():
-        s = counts["scheduled"]
-        t = counts["taken"]
-        total_sched += s
-        total_taken += t
-        # Only compute percentage if doses were actually scheduled on this day
-        rate = round((t / s) * 100, 1) if s > 0 else None
-        adherence_trend.append({
-            "date": d_str,
-            "scheduled": s,
-            "taken": t,
-            "missed": counts["missed"],
-            "rate": rate if rate is not None else 0.0,
-            "has_schedule": s > 0
-        })
-
-    # 2. Fetch daily check-ins in past `days`
+    # Fetch check-ins for the 14-day protocol window
     checkins = db.scalars(
         select(DailyCheckIn)
         .where(
             DailyCheckIn.patient_id == patient_id,
             DailyCheckIn.checkin_date >= start_date,
+            DailyCheckIn.checkin_date <= end_date,
         )
         .order_by(DailyCheckIn.checkin_date.asc())
     ).all()
 
     checkin_by_date = {c.checkin_date.isoformat(): c for c in checkins}
+
+    adherence_trend = []
+    adherence_trajectory = []
     pain_trend = []
+    symptom_trajectory = []
+
+    total_sched = 0
+    total_taken = 0
     pain_values = []
-    for i in range(days):
-        d_str = (start_date + dt.timedelta(days=i)).isoformat()
+
+    for i, p_date in enumerate(protocol_dates):
+        d_str = p_date.isoformat()
+        counts = occ_by_date[d_str]
+        s = counts["scheduled"]
+        t = counts["taken"]
+        m = counts["missed"]
+
+        is_today = (p_date == today_d)
+        is_upcoming = (p_date > today_d)
+        is_elapsed = (p_date <= today_d)
+
+        if is_elapsed:
+            total_sched += s
+            total_taken += t
+
+        # Calculate rate if doses scheduled
+        rate = round((t / s) * 100, 1) if s > 0 else None
+
+        item = {
+            "day_number": i + 1,
+            "date": d_str,
+            "is_today": is_today,
+            "is_upcoming": is_upcoming,
+            "scheduled": s,
+            "taken": t,
+            "missed": m,
+            "rate": rate if rate is not None else 0.0,
+            "percentage": rate,
+            "has_schedule": s > 0
+        }
+        adherence_trend.append(item)
+        adherence_trajectory.append(item)
+
         c = checkin_by_date.get(d_str)
         if c:
             pain_values.append(c.pain_level)
-            pain_trend.append({
+            s_item = {
+                "day_number": i + 1,
                 "date": d_str,
+                "is_today": is_today,
+                "is_upcoming": False,
                 "pain_level": c.pain_level,
                 "pain_location": c.pain_location or "General",
+                "has_fever": c.fever,
                 "fever": c.fever,
                 "cough": c.cough,
                 "sleep_hours": c.sleep_hours,
                 "activity_level": c.activity_level,
                 "submitted": True
-            })
+            }
         else:
-            pain_trend.append({
+            s_item = {
+                "day_number": i + 1,
                 "date": d_str,
+                "is_today": is_today,
+                "is_upcoming": is_upcoming,
                 "pain_level": None,
                 "pain_location": None,
+                "has_fever": False,
                 "fever": False,
                 "cough": False,
                 "sleep_hours": None,
                 "activity_level": None,
                 "submitted": False
-            })
+            }
+        pain_trend.append(s_item)
+        symptom_trajectory.append(s_item)
 
-    overall_adherence = round((total_taken / total_sched) * 100, 1) if total_sched > 0 else 0.0
+    overall_adherence = round((total_taken / total_sched) * 100, 1) if total_sched > 0 else 100.0
     average_pain = round(sum(pain_values) / len(pain_values), 1) if pain_values else 0.0
-
-    adherence_trajectory = [
-        {
-            "date": item["date"],
-            "percentage": item.get("rate", 0.0) if item.get("has_schedule") else None,
-            "rate": item.get("rate", 0.0) if item.get("has_schedule") else None,
-            "scheduled": item["scheduled"],
-            "taken": item["taken"],
-            "missed": item["missed"],
-            "has_schedule": item.get("has_schedule", False)
-        }
-        for item in adherence_trend
-    ]
-
-    symptom_trajectory = [
-        {
-            "date": item["date"],
-            "pain_level": item["pain_level"],
-            "pain_location": item.get("pain_location"),
-            "has_fever": item.get("fever", False),
-            "fever": item.get("fever", False),
-            "cough": item.get("cough", False),
-            "sleep_hours": item.get("sleep_hours"),
-            "activity_level": item.get("activity_level"),
-            "submitted": item.get("submitted", False)
-        }
-        for item in pain_trend
-    ]
 
     return {
         "patient_id": patient_id,
         "window_days": days,
+        "has_started": True,
+        "current_day": current_day,
+        "medication_start_date": med_start_date.isoformat(),
         "adherence_trend": adherence_trend,
         "adherence_trajectory": adherence_trajectory,
         "pain_trend": pain_trend,
         "symptom_trajectory": symptom_trajectory,
         "summary": {
+            "has_started": True,
+            "current_day": current_day,
+            "total_days": 14,
+            "medication_start_date": med_start_date.isoformat(),
             "overall_adherence_pct": overall_adherence,
             "adherence_percentage_14d": overall_adherence,
             "total_doses_scheduled": total_sched,

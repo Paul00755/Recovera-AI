@@ -149,6 +149,7 @@ def seed_five_patient_experimental_cohort(db: Session, force_reset: bool = False
             created_patients.append(existing_patient)
             continue
 
+        old_user_id = existing_patient.user_id if existing_patient else None
         if existing_patient and force_reset:
             # Clean up prior records for clean reset
             db.query(MedicationOccurrence).filter(MedicationOccurrence.patient_id == existing_patient.id).delete()
@@ -161,19 +162,29 @@ def seed_five_patient_experimental_cohort(db: Session, force_reset: bool = False
             db.query(ClinicalDocument).filter(ClinicalDocument.patient_id == existing_patient.id).delete()
             db.query(PatientDoctorAssignment).filter(PatientDoctorAssignment.patient_id == existing_patient.id).delete()
             db.query(Patient).filter(Patient.id == existing_patient.id).delete()
+            if old_user_id:
+                db.query(User).filter(User.id == old_user_id).delete()
             db.commit()
 
-        # 1. Create User & Patient
-        user = User(
-            id=str(uuid.uuid4()),
-            email=p_def["email"],
-            name=p_def["name"],
-            role=Role.PATIENT.value,
-            password_hash=pwd_ctx.hash("Patient@123"),
-            active=True
-        )
-        db.add(user)
-        db.flush()
+        # 1. Create or reuse User, then create Patient
+        existing_user = db.scalar(select(User).where(User.email == p_def["email"]))
+        if existing_user:
+            user = existing_user
+            user.name = p_def["name"]
+            user.role = Role.PATIENT.value
+            user.active = True
+            user.password_hash = pwd_ctx.hash("Patient@123")
+        else:
+            user = User(
+                id=str(uuid.uuid4()),
+                email=p_def["email"],
+                name=p_def["name"],
+                role=Role.PATIENT.value,
+                password_hash=pwd_ctx.hash("Patient@123"),
+                active=True
+            )
+            db.add(user)
+            db.flush()
 
         # Enrollment date: 7 days ago for mature tracking, today for newly enrolled (P-105)
         days_ago = 0 if code == "P-105" else 6
@@ -197,7 +208,7 @@ def seed_five_patient_experimental_cohort(db: Session, force_reset: bool = False
         db.add(patient)
         db.flush()
 
-        # Doctor assignment
+        # Doctor assignment - primary attending doctor
         assign = PatientDoctorAssignment(
             id=str(uuid.uuid4()),
             patient_id=patient.id,
@@ -207,6 +218,18 @@ def seed_five_patient_experimental_cohort(db: Session, force_reset: bool = False
             assigned_at=patient_created_at
         )
         db.add(assign)
+
+        # Also assign to other registered doctors so all doctors can view the experimental cohort
+        other_docs = db.scalars(select(User).where(User.role == Role.DOCTOR.value, User.id != attending_doc.id)).all()
+        for doc_item in other_docs:
+            db.add(PatientDoctorAssignment(
+                id=str(uuid.uuid4()),
+                patient_id=patient.id,
+                doctor_id=doc_item.id,
+                assigned_by=attending_doc.id,
+                is_active=True,
+                assigned_at=patient_created_at
+            ))
 
         # 2. Upload & Process Document with OCR + NLP Pipeline
         raw_text = p_def["raw_doc_text"]

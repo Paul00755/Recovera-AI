@@ -98,7 +98,7 @@ def get_checkin_eligibility(
         if earliest_created:
             earliest_med_date = earliest_created.date()
 
-    treatment_start_date = earliest_med_date or (patient.created_at.date() if patient.created_at else dt.date.today())
+    treatment_start_date = earliest_med_date
 
     care_status = getattr(patient, "care_status", "active") or "active"
     if care_status == "idle":
@@ -108,7 +108,7 @@ def get_checkin_eligibility(
             "message": "Your recovery care status is currently set to Idle. Routine daily check-ins are paused.",
             "care_status": "idle",
             "earliest_medication_date": earliest_med_date.isoformat() if earliest_med_date else None,
-            "treatment_start_date": treatment_start_date.isoformat()
+            "treatment_start_date": treatment_start_date.isoformat() if treatment_start_date else None
         }
 
     has_meds = db.scalar(select(func.count(Medication.id)).where(Medication.patient_id == patient.id, Medication.status == "active")) or 0
@@ -121,7 +121,7 @@ def get_checkin_eligibility(
             "message": "Daily check-in is paused: No active medications or recovery plan requiring daily monitoring.",
             "care_status": "active",
             "earliest_medication_date": earliest_med_date.isoformat() if earliest_med_date else None,
-            "treatment_start_date": treatment_start_date.isoformat()
+            "treatment_start_date": treatment_start_date.isoformat() if treatment_start_date else None
         }
 
     return {
@@ -130,7 +130,7 @@ def get_checkin_eligibility(
         "has_medications": bool(has_meds),
         "has_recovery_plan": bool(has_plan),
         "earliest_medication_date": earliest_med_date.isoformat() if earliest_med_date else None,
-        "treatment_start_date": treatment_start_date.isoformat(),
+        "treatment_start_date": treatment_start_date.isoformat() if treatment_start_date else None,
         "message": "Patient is actively undergoing care and eligible for daily check-in."
     }
 

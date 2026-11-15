@@ -11188,6 +11188,10 @@ function RiskAnalyticsTab({ patientId, session }) {
     level === 'Yellow' ? 'risk-badge-yellow' :
     level === 'Green' ? 'risk-badge-green' : 'risk-badge-gray';
 
+  const currentRecoveryDay = trends?.summary?.current_day || 1;
+  const hasStartedRecovery = trends?.summary?.has_started !== false && Boolean(trends?.summary?.medication_start_date);
+  const medStartDate = trends?.summary?.medication_start_date;
+
   const adherence14 = trends?.summary?.adherence_percentage_14d ?? trends?.summary?.overall_adherence_pct ?? 0;
   const pain14 = trends?.summary?.average_pain_14d ?? trends?.summary?.average_pain_level ?? 0;
   const dosesTaken = trends?.summary?.taken_doses_14d ?? trends?.summary?.total_doses_taken ?? 0;
@@ -11197,7 +11201,10 @@ function RiskAnalyticsTab({ patientId, session }) {
   const adherenceList = (trends?.adherence_trajectory && trends.adherence_trajectory.length > 0)
     ? trends.adherence_trajectory
     : (trends?.adherence_trend || []).map(d => ({
+        day_number: d.day_number,
         date: d.date,
+        is_today: d.is_today,
+        is_upcoming: d.is_upcoming,
         percentage: d.percentage ?? d.rate ?? 0,
         scheduled: d.scheduled,
         taken: d.taken,
@@ -11207,7 +11214,10 @@ function RiskAnalyticsTab({ patientId, session }) {
   const symptomList = (trends?.symptom_trajectory && trends.symptom_trajectory.length > 0)
     ? trends.symptom_trajectory
     : (trends?.pain_trend || []).map(s => ({
+        day_number: s.day_number,
         date: s.date,
+        is_today: s.is_today,
+        is_upcoming: s.is_upcoming,
         pain_level: s.pain_level,
         has_fever: s.has_fever ?? s.fever ?? false,
         fever: s.fever,
@@ -11432,9 +11442,24 @@ function RiskAnalyticsTab({ patientId, session }) {
       <div className="card">
         <div className="section-head">
           <div>
-            <span className="eyebrow">LONGITUDINAL TELEMETRY</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+              <span className="eyebrow" style={{ margin: 0 }}>LONGITUDINAL TELEMETRY</span>
+              {hasStartedRecovery && medStartDate ? (
+                <span className="badge badge-teal" style={{ fontSize: 10 }}>
+                  Day {currentRecoveryDay} of 14 · Started {medStartDate}
+                </span>
+              ) : (
+                <span className="badge badge-amber" style={{ fontSize: 10 }}>
+                  Awaiting Medication Assignment
+                </span>
+              )}
+            </div>
             <h2>14-Day Adherence & Symptom Trajectories</h2>
-            <p>Longitudinal daily tracking comparing scheduled medication doses and patient symptom progression.</p>
+            <p>
+              {hasStartedRecovery && medStartDate
+                ? `14-day post-discharge recovery pathway anchored to medication assignment date (${medStartDate}).`
+                : 'Longitudinal daily tracking begins once prescribed medications are assigned to this patient.'}
+            </p>
           </div>
         </div>
 
@@ -11444,30 +11469,36 @@ function RiskAnalyticsTab({ patientId, session }) {
             <div className="stat-icon-wrap teal"><Pill size={18} /></div>
             <div>
               <div className="stat-value">{adherence14}%</div>
-              <div className="stat-label">14-Day Adherence ({dosesTaken}/{dosesSched} doses)</div>
+              <div className="stat-label">
+                {hasStartedRecovery ? `Day ${currentRecoveryDay} Adherence (${dosesTaken}/${dosesSched} doses)` : 'Adherence (Awaiting Meds)'}
+              </div>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon-wrap amber"><Activity size={18} /></div>
             <div>
               <div className="stat-value">{pain14} / 10</div>
-              <div className="stat-label">14-Day Avg Pain Score</div>
+              <div className="stat-label">
+                {hasStartedRecovery ? `Avg Pain (Days 1–${currentRecoveryDay})` : '14-Day Avg Pain Score'}
+              </div>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon-wrap green"><ClipboardList size={18} /></div>
             <div>
               <div className="stat-value">{checkins14}</div>
-              <div className="stat-label">Check-ins Completed</div>
+              <div className="stat-label">
+                {hasStartedRecovery ? `Check-ins Completed (${checkins14}/${currentRecoveryDay} days)` : 'Check-ins Completed'}
+              </div>
             </div>
           </div>
         </div>
 
         {/* 14-Day Medication Adherence SVG Chart */}
         <div style={{ marginTop: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-              14-Day Medication Adherence Trajectory
+              14-Day Medication Adherence Trajectory (Days 1–14)
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               Target: <span style={{ color: 'var(--p)', fontWeight: 700 }}>≥ 75% adherence</span>
@@ -11475,27 +11506,39 @@ function RiskAnalyticsTab({ patientId, session }) {
           </div>
 
           <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '16px 20px', border: '1px solid var(--border)' }}>
-            <svg viewBox="0 0 600 130" style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
+            <svg viewBox="0 0 600 135" style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
               {/* 75% threshold guide line */}
               <line x1="30" y1="35" x2="580" y2="35" stroke="rgba(0, 212, 184, 0.4)" strokeDasharray="4 4" strokeWidth="1.5" />
               <text x="585" y="38" fill="var(--p)" fontSize="9" fontWeight="700">75% Target</text>
 
               {/* Day bars */}
               {adherenceList.map((d, i) => {
-                const x = 40 + i * 38;
+                const x = 36 + i * 39;
                 const hasDoses = (d.scheduled || 0) > 0;
                 const pct = hasDoses ? (d.percentage ?? d.rate ?? 0) : null;
-                const barHeight = hasDoses ? Math.max(6, (pct / 100) * 80) : 3;
-                const y = 100 - barHeight;
-                const color = !hasDoses ? 'rgba(148, 163, 184, 0.25)' : pct >= 75 ? '#10b981' : pct > 0 ? '#f59e0b' : '#ef4444';
+                const barHeight = hasDoses ? Math.max(6, (pct / 100) * 75) : 3;
+                const y = 95 - barHeight;
+                const isToday = d.is_today;
+                const isUpcoming = d.is_upcoming;
+                const color = isUpcoming
+                  ? 'rgba(148, 163, 184, 0.15)'
+                  : !hasDoses
+                    ? 'rgba(148, 163, 184, 0.25)'
+                    : pct >= 75 ? '#10b981' : pct > 0 ? '#f59e0b' : '#ef4444';
                 return (
-                  <g key={d.date}>
-                    <rect x={x} y={y} width="22" height={barHeight} rx="4" fill={color} opacity={hasDoses ? 0.9 : 0.35} />
-                    <text x={x + 11} y="118" fill="var(--text-muted)" fontSize="9" textAnchor="middle">
-                      {d.date.slice(5)}
+                  <g key={d.date || i}>
+                    {isToday && (
+                      <rect x={x - 2} y="15" width="28" height="85" rx="6" fill="none" stroke="var(--p)" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.85" />
+                    )}
+                    <rect x={x + 1} y={y} width="22" height={barHeight} rx="4" fill={color} opacity={isUpcoming ? 0.35 : hasDoses ? 0.95 : 0.35} />
+                    <text x={x + 12} y="112" fill={isToday ? "var(--p)" : "var(--text)"} fontSize="9" fontWeight={isToday ? "800" : "600"} textAnchor="middle">
+                      {d.day_number ? `D${d.day_number}` : `D${i + 1}`}
                     </text>
-                    <text x={x + 11} y={y - 4} fill={hasDoses ? "var(--text)" : "var(--text-muted)"} fontSize="8" fontWeight={hasDoses ? "700" : "500"} textAnchor="middle">
-                      {hasDoses ? `${Math.round(pct)}%` : '—'}
+                    <text x={x + 12} y="124" fill={isToday ? "var(--p)" : "var(--text-muted)"} fontSize="8" textAnchor="middle">
+                      {d.date ? d.date.slice(5) : ''}
+                    </text>
+                    <text x={x + 12} y={y - 4} fill={isToday ? "var(--p)" : hasDoses ? "var(--text)" : "var(--text-muted)"} fontSize="8" fontWeight={hasDoses || isToday ? "700" : "500"} textAnchor="middle">
+                      {isUpcoming ? 'Plan' : hasDoses ? `${Math.round(pct)}%` : '—'}
                     </text>
                   </g>
                 );
@@ -11506,7 +11549,7 @@ function RiskAnalyticsTab({ patientId, session }) {
 
         {/* 14-Day Pain Trajectory SVG Chart */}
         <div style={{ marginTop: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
               14-Day Pain Trajectory (Visual 0-10 Scale)
             </span>
@@ -11516,37 +11559,44 @@ function RiskAnalyticsTab({ patientId, session }) {
           </div>
 
           <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '16px 20px', border: '1px solid var(--border)' }}>
-            <svg viewBox="0 0 600 130" style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
+            <svg viewBox="0 0 600 135" style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
               {/* Reference Grid lines */}
               <line x1="30" y1="20" x2="580" y2="20" stroke="rgba(239, 68, 68, 0.25)" strokeDasharray="3 3" />
               <text x="15" y="23" fill="var(--danger)" fontSize="9">10</text>
-              <line x1="30" y1="60" x2="580" y2="60" stroke="var(--border)" strokeDasharray="3 3" />
-              <text x="15" y="63" fill="var(--text-muted)" fontSize="9">5</text>
-              <line x1="30" y1="100" x2="580" y2="100" stroke="var(--border)" />
-              <text x="15" y="103" fill="var(--text-muted)" fontSize="9">0</text>
+              <line x1="30" y1="58" x2="580" y2="58" stroke="var(--border)" strokeDasharray="3 3" />
+              <text x="15" y="61" fill="var(--text-muted)" fontSize="9">5</text>
+              <line x1="30" y1="95" x2="580" y2="95" stroke="var(--border)" />
+              <text x="15" y="98" fill="var(--text-muted)" fontSize="9">0</text>
 
               {/* Pain trend polyline */}
               {(() => {
                 const list = symptomList;
-                const points = list.map((s, i) => {
-                  const x = 40 + i * 38;
+                const points = list.filter(s => !s.is_upcoming && s.pain_level != null).map((s) => {
+                  const idx = list.indexOf(s);
+                  const x = 36 + idx * 39 + 12;
                   const pain = s.pain_level != null ? s.pain_level : 0;
-                  const y = 100 - (pain / 10) * 80;
+                  const y = 95 - (pain / 10) * 75;
                   return `${x},${y}`;
                 }).join(' ');
 
                 return (
                   <>
-                    <polyline fill="none" stroke="var(--warn)" strokeWidth="2.5" points={points} />
+                    {points && <polyline fill="none" stroke="var(--warn)" strokeWidth="2.5" points={points} />}
                     {list.map((s, i) => {
-                      const x = 40 + i * 38;
+                      const x = 36 + i * 39 + 12;
                       const pain = s.pain_level != null ? s.pain_level : 0;
-                      const y = 100 - (pain / 10) * 80;
+                      const y = 95 - (pain / 10) * 75;
+                      const isToday = s.is_today;
                       return (
-                        <g key={s.date}>
-                          <circle cx={x} cy={y} r="4" fill={s.has_fever ? '#ef4444' : 'var(--warn)'} stroke="#041017" strokeWidth="1.5" />
-                          <text x={x} y="118" fill="var(--text-muted)" fontSize="9" textAnchor="middle">
-                            {s.date.slice(5)}
+                        <g key={s.date || i}>
+                          {!s.is_upcoming && (
+                            <circle cx={x} cy={y} r="4" fill={s.has_fever ? '#ef4444' : s.submitted ? 'var(--warn)' : 'rgba(148, 163, 184, 0.3)'} stroke="#041017" strokeWidth="1.5" />
+                          )}
+                          <text x={x} y="112" fill={isToday ? "var(--p)" : "var(--text)"} fontSize="9" fontWeight={isToday ? "800" : "600"} textAnchor="middle">
+                            {s.day_number ? `D${s.day_number}` : `D${i + 1}`}
+                          </text>
+                          <text x={x} y="124" fill={isToday ? "var(--p)" : "var(--text-muted)"} fontSize="8" textAnchor="middle">
+                            {s.date ? s.date.slice(5) : ''}
                           </text>
                           {s.pain_level != null && (
                             <text x={x} y={y - 6} fill="var(--text)" fontSize="8" fontWeight="700" textAnchor="middle">
