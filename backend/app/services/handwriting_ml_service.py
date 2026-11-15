@@ -189,16 +189,17 @@ class MedicalPrescriptionParser:
         "0-1-1": {"frequency": "twice_daily", "schedules": [{"label": "Afternoon", "time_hhmm": "13:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 2},
         "1-1-1-1": {"frequency": "four_times_daily", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Afternoon", "time_hhmm": "12:00"}, {"label": "Evening", "time_hhmm": "17:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 4},
         
-        # Clinical Latin & English acronyms
-        "bid": {"frequency": "twice_daily", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 2},
-        "bd": {"frequency": "twice_daily", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 2},
-        "tid": {"frequency": "thrice_daily", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Afternoon", "time_hhmm": "13:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 3},
-        "tds": {"frequency": "thrice_daily", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Afternoon", "time_hhmm": "13:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 3},
-        "od": {"frequency": "once_daily", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}], "daily_times": 1},
-        "qid": {"frequency": "four_times_daily", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Afternoon", "time_hhmm": "12:00"}, {"label": "Evening", "time_hhmm": "17:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 4},
-        "qhs": {"frequency": "once_daily", "schedules": [{"label": "Night", "time_hhmm": "21:00"}], "daily_times": 1},
-        "sos": {"frequency": "as_needed", "schedules": [{"label": "As Needed", "time_hhmm": "08:00"}], "daily_times": 1},
-        "prn": {"frequency": "as_needed", "schedules": [{"label": "As Needed", "time_hhmm": "08:00"}], "daily_times": 1},
+        # Clinical Latin & English acronyms mapped to standard 1s and 0s
+        "bid": {"frequency": "twice_daily", "notation": "1-0-1", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 2},
+        "bd": {"frequency": "twice_daily", "notation": "1-0-1", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 2},
+        "tid": {"frequency": "thrice_daily", "notation": "1-1-1", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Afternoon", "time_hhmm": "13:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 3},
+        "tds": {"frequency": "thrice_daily", "notation": "1-1-1", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Afternoon", "time_hhmm": "13:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 3},
+        "od": {"frequency": "once_daily", "notation": "1-0-0", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}], "daily_times": 1},
+        "qid": {"frequency": "four_times_daily", "notation": "1-1-1-1", "schedules": [{"label": "Morning", "time_hhmm": "08:00"}, {"label": "Afternoon", "time_hhmm": "12:00"}, {"label": "Evening", "time_hhmm": "17:00"}, {"label": "Night", "time_hhmm": "21:00"}], "daily_times": 4},
+        "qhs": {"frequency": "once_daily", "notation": "0-0-1", "schedules": [{"label": "Night", "time_hhmm": "21:00"}], "daily_times": 1},
+        "hs": {"frequency": "once_daily", "notation": "0-0-1", "schedules": [{"label": "Night", "time_hhmm": "21:00"}], "daily_times": 1},
+        "sos": {"frequency": "as_needed", "notation": "SOS", "schedules": [{"label": "As Needed", "time_hhmm": "08:00"}], "daily_times": 1},
+        "prn": {"frequency": "as_needed", "notation": "PRN", "schedules": [{"label": "As Needed", "time_hhmm": "08:00"}], "daily_times": 1},
     }
 
     @classmethod
@@ -251,10 +252,15 @@ class MedicalPrescriptionParser:
         """
         lower = text.lower()
 
-        # 1. Look for digital patterns like 1-0-1, 1-1-1
-        m_code = re.search(r"\b([01]-[01]-[01](?:-[01])?)\b", text)
+        # 1. Flexible 1s and 0s pattern detection (e.g. 1-0-0, 1 0 0, 1.0.0, 1/0/0, 1-O-0, 0-0-1, 0 0 1, 1-1-1, 1 1 1)
+        m_code = re.search(r"\b([01oOqQdDlI|!])[\s\.\-\/_]+([01oOqQdDlI|!])[\s\.\-\/_]+([01oOqQdDlI|!])(?:[\s\.\-\/_]+([01oOqQdDlI|!]))?\b", text)
         if m_code:
-            code = m_code.group(1)
+            def norm_c(c):
+                return "0" if c in "0oOqQdD" else "1"
+            parts = [norm_c(m_code.group(1)), norm_c(m_code.group(2)), norm_c(m_code.group(3))]
+            if m_code.group(4):
+                parts.append(norm_c(m_code.group(4)))
+            code = "-".join(parts)
             mapped = cls.PERIOD_MAP.get(code)
             if mapped:
                 return {
@@ -265,13 +271,13 @@ class MedicalPrescriptionParser:
                     "daily_times": mapped["daily_times"]
                 }
 
-        # 2. Look for acronyms
-        for key in ["qid", "tid", "tds", "bid", "bd", "qhs", "od", "sos", "prn"]:
-            if re.search(rf"\b{key}\b", lower):
+        # 2. Look for acronyms (with optional leading 1 e.g. '1 OD', '1-OD', '1 BD')
+        for key in ["qid", "tid", "tds", "bid", "bd", "qhs", "hs", "od", "sos", "prn"]:
+            if re.search(rf"\b(1\s*[-/\.]?\s*)?{key}\b", lower):
                 mapped = cls.PERIOD_MAP[key]
                 return {
-                    "period_label": f"Period: {key.upper()}",
-                    "notation": key.upper(),
+                    "period_label": f"Period: {mapped.get('notation', key.upper())}",
+                    "notation": mapped.get("notation", key.upper()),
                     "frequency": mapped["frequency"],
                     "schedules": mapped["schedules"],
                     "daily_times": mapped["daily_times"]
@@ -453,25 +459,26 @@ class HandwrittenMLService:
             prompt = (
                 "You are an expert clinical pharmacist and prescription handwriting recognition specialist.\n"
                 "Extract all prescribed medications from this medical prescription document or photographed handwritten note.\n"
+                "CRITICAL: Doctors frequently write dosing periods as 1s and 0s (such as '1-0-0' for morning only, '0-1-0' for noon only, '0-0-1' for bedtime only, '1-0-1' for morning and night, '1-1-1' for three times daily, or with spaces '1 0 0', '1 0 1', '0 0 1', or '1 OD'). "
+                "You MUST accurately distinguish between 0s and 1s! NEVER default to '1-0-1' when the doctor wrote '1-0-0', '1 0 0', '1 OD', '0-0-1', or '1-1-1'.\n"
                 "Return ONLY a valid JSON array of objects with the following keys for each medication:\n"
                 "- name: Medication name (e.g., 'Pan 40', 'Acedo MR', 'Deflazacort', 'Tolperisone')\n"
                 "- generic_name: Standard generic name or chemical composition if known\n"
                 "- dosage: Strength/dosage (e.g. '40mg', '6mg', '150mg'). If NO strength or dose is specified in the prescription, return null.\n"
-                "- period: e.g. '1-0-1', '1-0-0', '0-0-1', '1-1-1', 'BD', 'TDS', 'OD', 'SOS'\n"
+                "- period: Format strictly in 1s and 0s: '1-0-0' (once morning / OD), '1-0-1' (twice daily / BD), '1-1-1' (thrice daily / TDS), '0-0-1' (night only / HS), '0-1-0' (afternoon only), or '1-1-1-1'\n"
                 "- frequency: 'once_daily' | 'twice_daily' | 'thrice_daily' | 'four_times_daily' | 'as_needed'\n"
                 "- days: Integer duration in days (e.g. 2 for 'x 2 days', or 5 by default if unspecified)\n"
-                "- instructions: Clinical instruction for the patient (e.g. '1 tablet twice daily after meals')\n"
+                "- instructions: Clinical instruction for the patient (e.g. '1 tablet once daily in morning before food')\n"
                 "- food_relation: 'after_food' | 'before_food' | 'with_food'\n"
                 "- raw_line: The exact transcribed handwritten line from the prescription\n"
                 "Return ONLY the JSON array without any markdown wrappers or commentary."
             )
 
             candidate_models = [
-                getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite"),
-                "gemini-3.5-flash-lite",
+                getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash"),
                 "gemini-3.8-flash",
-                "gemini-3.5-flash",
                 "gemini-flash-latest",
+                "gemini-2.5-flash-lite",
             ]
 
             raw_response = None
@@ -520,16 +527,15 @@ class HandwrittenMLService:
                 dosage_missing = (dosage is None)
 
                 days = int(item.get("days", 5)) if str(item.get("days", "")).isdigit() else 5
-                period = (item.get("period") or "1-0-1").strip()
-                period_info = MedicalPrescriptionParser.PERIOD_MAP.get(period.lower()) or MedicalPrescriptionParser.PERIOD_MAP.get(period)
-                if not period_info:
-                    p_parsed = MedicalPrescriptionParser.parse_period_and_frequency(period)
-                    period_info = {
-                        "frequency": p_parsed["frequency"],
-                        "schedules": p_parsed["schedules"],
-                        "daily_times": p_parsed["daily_times"],
-                        "period_label": p_parsed["period_label"]
-                    }
+                raw_period = (item.get("period") or "1-0-1").strip()
+                p_parsed = MedicalPrescriptionParser.parse_period_and_frequency(raw_period)
+                period = p_parsed.get("notation") or raw_period
+                period_info = {
+                    "frequency": p_parsed["frequency"],
+                    "schedules": p_parsed["schedules"],
+                    "daily_times": p_parsed["daily_times"],
+                    "period_label": p_parsed["period_label"]
+                }
 
                 frequency = item.get("frequency") or period_info.get("frequency", "twice_daily")
                 food_relation = item.get("food_relation") or "after_food"

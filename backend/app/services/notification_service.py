@@ -829,27 +829,40 @@ def notify_patient_recovery_plan_updated(
     db: Session,
     patient: Patient,
     doctor: User,
-    plan_title: str = "Recovery Plan"
+    plan_title: str = "Recovery Plan",
+    version: Optional[int] = 1
 ) -> None:
     """
     Suggestion 4: Recovery Plan or Guideline Published / Updated.
     Dispatched when a physician publishes or updates recovery plan guidelines.
     """
+    v_tag = f"v{version}" if version else "v1"
+    pref_lang = (getattr(patient, "preferred_language", "en") or "en").lower()[:2]
+    if pref_lang == "ta":
+        notif_title = "மீட்புத் திட்டம் அங்கீகரிக்கப்பட்டது"
+        msg = f"உங்கள் மீட்புத் திட்டம் [{v_tag}] உருவாக்கப்பட்டு அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் விருப்பமான மொழியில் உங்கள் மீட்புத் திட்டத்தைக் காணலாம்."
+    elif pref_lang == "hi":
+        notif_title = "रिकवरी योजना स्वीकृत"
+        msg = f"आपकी रिकवरी योजना [{v_tag}] तैयार और स्वीकृत कर दी गई है। आप अपनी पसंदीदा भाषा में अपनी रिकवरी योजना देख सकते हैं।"
+    else:
+        notif_title = "Recovery Plan Approved"
+        msg = f"Your recovery plan [{v_tag}] is generated and approved. You can view your recovery plan in your preferred language."
+
     if patient.user_id:
         create_in_app_notification(
             db=db,
             user_id=patient.user_id,
-            title="Recovery Plan Published",
-            message=f"Dr. {doctor.name} has published your updated {plan_title} and care instructions.",
+            title=notif_title,
+            message=msg,
             category="recovery_plan",
-            link="#/patient/recovery-plan"
+            link="#/patient/recovery"
         )
 
     if patient.phone and patient.sms_opt_in:
         send_sms_job(
             db=db,
             phone=patient.phone,
-            message_text=f"RecoveraAI: Dr. {doctor.name} published your updated {plan_title}. Please review your schedule and recovery guidelines at: {_get_portal_url()}",
+            message_text=f"RecoveraAI: {msg} - {_get_portal_url()}",
             category=SMSCategory.REGISTRATION.value,
             patient_id=patient.id
         )

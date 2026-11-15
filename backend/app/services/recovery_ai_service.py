@@ -1833,7 +1833,7 @@ def translate_clinical_texts(
                 f"Input Data:\n{json.dumps(pending_to_translate, ensure_ascii=False)}"
             )
 
-            candidate_models = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-lite-latest"]
+            candidate_models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
             for model_name in candidate_models:
                 try:
                     resp = client.models.generate_content(

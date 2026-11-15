@@ -74,6 +74,7 @@ class UpdateProfileRequest(BaseModel):
     avatar_url: Optional[str] = None
     about: Optional[str] = None
     availability_status: Optional[str] = None  # online, away, busy, offline
+    away_until: Optional[str] = None
     mute_notifications: Optional[bool] = None
 
 class InitiateCallRequest(BaseModel):
@@ -804,6 +805,18 @@ async def update_my_staff_profile(
     if req.about is not None:
         current_user.about = req.about.strip()[:500]
     if req.availability_status is not None:
+        if current_user.role == "doctor" and req.availability_status in ("away", "offline"):
+            if not req.away_until:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A return date/time is mandatory when switching doctor availability to Away or Offline."
+                )
+            try:
+                current_user.away_until = dt.datetime.fromisoformat(req.away_until.replace("Z", "+00:00"))
+            except Exception:
+                current_user.away_until = dt.datetime.utcnow()
+        elif req.availability_status == "online":
+            current_user.away_until = None
         current_user.availability_status = req.availability_status
     if req.mute_notifications is not None:
         current_user.mute_notifications = req.mute_notifications

@@ -994,20 +994,20 @@ def update_own_availability(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(Role.DOCTOR.value)),
 ):
-    allowed = {"online", "away"}
+    allowed = {"online", "away", "offline"}
     if req.status not in allowed:
         raise HTTPException(
             status_code=422,
             detail=f"Invalid status. Must be one of: {', '.join(allowed)}.",
         )
-    if req.status == "away" and not req.away_until:
+    if req.status in ("away", "offline") and not req.away_until:
         raise HTTPException(
             status_code=422,
-            detail="away_until is required when setting status to 'away'.",
+            detail="A return date (away_until) is required when setting status to 'away' or 'offline'.",
         )
 
     current_user.availability_status = req.status
-    current_user.away_until = req.away_until if req.status == "away" else None
+    current_user.away_until = req.away_until if req.status in ("away", "offline") else None
 
     record_audit(
         db=db,

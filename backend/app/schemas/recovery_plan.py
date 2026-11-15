@@ -16,10 +16,12 @@ class RecoveryPlanOut(BaseModel):
     id: str
     patient_id: str
     version: int
+    version_number: Optional[int] = None
     status: str
     source_versions: Optional[Dict[str, Any]] = Field(default_factory=dict)
     instructions: Optional[Union[Dict[str, Any], List[Any], str]] = None
     warning_signs: List[Any] = Field(default_factory=list)
+    content: Optional[Dict[str, Any]] = None
     approved_by: Optional[str] = None
     approved_at: Optional[dt.datetime] = None
     created_at: dt.datetime

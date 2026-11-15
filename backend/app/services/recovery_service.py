@@ -17,7 +17,18 @@ from app.core.audit import record_audit
 
 logger = logging.getLogger("recovera.recovery_service")
 
-def generate_plan_from_approved_documents(patient_id: str, db: Session, user_id: str) -> RecoveryPlan:
+def compute_care_context_hash(patient: Patient, active_meds: List[Medication]) -> str:
+    """Computes a SHA256 fingerprint of the patient's active medications and clinical condition."""
+    import hashlib
+    med_items = sorted([
+        f"{(m.name or '').strip().lower()}:{(m.dose or '').strip().lower()}:{(m.instructions or '').strip().lower()}:{m.status}"
+        for m in active_meds
+    ])
+    cond = f"{(patient.active_condition or '').strip().lower()}:{(patient.condition_stage or '').strip().lower()}:{(patient.condition_notes or '').strip().lower()}"
+    raw = "|".join(med_items) + "||" + cond
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+def generate_plan_from_approved_documents(patient_id: str, db: Session, user_id: str, force: bool = False) -> RecoveryPlan:
     """
     Aggregates discharge summaries, prescriptions, active medications, past 7 days of daily check-ins,
     and clinical history, then uses Google Gemini (or enhanced clinical synthesis) to generate
@@ -120,6 +131,17 @@ def generate_plan_from_approved_documents(patient_id: str, db: Session, user_id:
             detail="Cannot generate recovery plan: No approved documents, active medications, or check-in history found for this patient."
         )
 
+    current_care_hash = compute_care_context_hash(patient, active_meds)
+    existing_plan = db.scalar(
+        select(RecoveryPlan).where(RecoveryPlan.patient_id == patient_id).order_by(RecoveryPlan.created_at.desc())
+    )
+    # Only auto-generate when the medicines or patient condition changes (unless explicitly forced)
+    if not force and existing_plan and existing_plan.content and existing_plan.status == DocStatus.PUBLISHED.value:
+        prev_hash = existing_plan.content.get("care_context_hash")
+        if prev_hash and prev_hash == current_care_hash:
+            logger.info("Care context unchanged for patient %s. Skipping auto-generation.", patient_id)
+            return existing_plan
+
     # Call Gemini to synthesize an optimized plan
     generated_plan = None
     model_used = "Recovera Clinical Synthesis Engine"
@@ -201,7 +223,7 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
   }}
 }}
 """
-            for model_name in ["gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-2.5-flash"]:
+            for model_name in ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash", "gemini-flash-lite-latest"]:
                 try:
                     response = client.models.generate_content(
                         model=model_name,
@@ -331,7 +353,9 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
     if existing_plan:
         plan = existing_plan
         plan.version = (plan.version or 1) + 1
-        plan.status = DocStatus.DRAFT.value
+        plan.status = DocStatus.PUBLISHED.value
+        plan.approved_by = user_id
+        plan.approved_at = dt.datetime.utcnow()
         plan.source_versions = source_versions
         plan.instructions = instructions
         plan.warning_signs = warning_signs
@@ -339,6 +363,7 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
             "instructions": instructions,
             "warning_signs": warning_signs,
             "translations": translations,
+            "care_context_hash": current_care_hash,
             "generated_with": model_used,
             "version": plan.version,
             "patient_context": {
@@ -352,7 +377,9 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
         plan = RecoveryPlan(
             patient_id=patient_id,
             version=1,
-            status=DocStatus.DRAFT.value,
+            status=DocStatus.PUBLISHED.value,
+            approved_by=user_id,
+            approved_at=dt.datetime.utcnow(),
             source_versions=source_versions,
             instructions=instructions,
             warning_signs=warning_signs,
@@ -360,6 +387,7 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
                 "instructions": instructions,
                 "warning_signs": warning_signs,
                 "translations": translations,
+                "care_context_hash": current_care_hash,
                 "generated_with": model_used,
                 "version": 1,
                 "patient_context": {
@@ -384,17 +412,39 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
         new_values={"version": plan.version, "status": plan.status, "model_used": model_used}
     )
 
-    # Suggestion 4: Alert patient of updated recovery plan
+    # Alert patient of approved recovery plan in their preferred language
     try:
-        from app.services.notification_service import create_in_app_notification
+        from app.services.notification_service import create_in_app_notification, send_sms_job, _get_portal_url
+        from app.models.sms_job import SMSCategory
+
+        lang = (patient.preferred_language or "en").lower()[:2]
+        if lang == "ta":
+            notif_title = "மீட்புத் திட்டம் அங்கீகரிக்கப்பட்டது"
+            notif_msg = f"உங்கள் மீட்புத் திட்டம் [v{plan.version}] உருவாக்கப்பட்டு அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் விருப்பமான மொழியில் உங்கள் மீட்புத் திட்டத்தைக் காணலாம்."
+        elif lang == "hi":
+            notif_title = "रिकवरी योजना स्वीकृत"
+            notif_msg = f"आपकी रिकवरी योजना [v{plan.version}] तैयार और स्वीकृत कर दी गई है। आप अपनी पसंदीदा भाषा में अपनी रिकवरी योजना देख सकते हैं।"
+        else:
+            notif_title = "Recovery Plan Approved"
+            notif_msg = f"Your recovery plan [v{plan.version}] is generated and approved. You can view your recovery plan in your preferred language."
+
         if patient.user_id:
             create_in_app_notification(
                 db=db,
                 user_id=patient.user_id,
-                title="Recovery Plan Ready",
-                message=f"Your personalized clinical recovery plan (v{plan.version}) has been generated and updated by your clinical care team.",
+                title=notif_title,
+                message=notif_msg,
                 category="recovery_plan",
                 link="#/patient/recovery"
+            )
+
+        if patient.phone and getattr(patient, "sms_opt_in", True):
+            send_sms_job(
+                db=db,
+                phone=patient.phone,
+                message_text=f"RecoveraAI: {notif_msg} Link: {_get_portal_url()}/#/patient/recovery",
+                category=SMSCategory.CARE_UPDATE.value if hasattr(SMSCategory, "CARE_UPDATE") else "care_update",
+                patient_id=patient.id
             )
     except Exception as e:
         logger.warning("Failed to dispatch recovery plan notification: %s", e)
@@ -415,9 +465,9 @@ def invalidate_plan_on_source_change(patient_id: str, db: Session, document_id: 
     if not plan:
         return None
 
-    # Check if document was part of source or plan was published
+    # Only invalidate if this document was specifically part of this plan's source
     source_vers = plan.source_versions or {}
-    if document_id in source_vers or plan.status == DocStatus.PUBLISHED.value:
+    if document_id in source_vers:
         old_status = plan.status
         plan.status = DocStatus.NEEDS_REVIEW.value
         plan.updated_at = dt.datetime.utcnow()
@@ -468,10 +518,14 @@ def publish_recovery_plan(
     plan.approved_by = user.id
     plan.approved_at = dt.datetime.utcnow()
     plan.updated_at = dt.datetime.utcnow()
+    existing_content = plan.content if isinstance(plan.content, dict) else {}
+    translations = existing_content.get("translations", {})
     plan.content = {
         "instructions": plan.instructions,
         "warning_signs": plan.warning_signs,
-        "version": plan.version
+        "version": plan.version,
+        "translations": translations,
+        "care_context_hash": existing_content.get("care_context_hash")
     }
 
     record_audit(
@@ -489,7 +543,7 @@ def publish_recovery_plan(
         from app.services.notification_service import notify_patient_recovery_plan_updated
         patient_rec = db.get(Patient, patient_id)
         if patient_rec:
-            notify_patient_recovery_plan_updated(db=db, patient=patient_rec, doctor=user)
+            notify_patient_recovery_plan_updated(db=db, patient=patient_rec, doctor=user, version=plan.version)
     except Exception as e:
         import logging
         logging.getLogger("recovera.recovery_plan").warning("Failed to notify patient of published plan: %s", e)

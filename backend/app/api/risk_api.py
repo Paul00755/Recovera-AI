@@ -207,3 +207,178 @@ def get_analytics_trends(
     days_clamped = max(3, min(60, days))
     trends = get_patient_analytics_trends(db, patient_id=patient_id, days=days_clamped)
     return trends
+
+
+@router.get("/api/patients/high-risk-overview")
+def get_high_risk_overview(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(Role.ADMIN.value, Role.DOCTOR.value, Role.NURSE.value)),
+):
+    """
+    Dedicated clinical risk triage overview for Doctor and Nurse command dashboards.
+    Aggregates population risk counters and ranks patients requiring attention.
+    """
+    import datetime as dt
+    from app.models.checkin import DailyCheckIn
+    from app.models.appointment import Appointment
+    from app.models.digital_twin import DigitalTwinDeviationAlert
+    from app.core.constants import AppointmentStatus
+
+    # Query active patients
+    query = select(Patient).where(Patient.active == True)
+    if current_user.role == Role.DOCTOR.value:
+        # If doctor, filter by assigned patients (or all if caseload is open)
+        assigned_pids = db.scalars(
+            select(PatientDoctorAssignment.patient_id).where(
+                PatientDoctorAssignment.doctor_id == current_user.id
+            )
+        ).all()
+        # Also include patients where assigned_doctor_id is current_user.id
+        query = query.where(
+            (Patient.assigned_doctor_id == current_user.id) | (Patient.id.in_(assigned_pids))
+        )
+    
+    patients = db.scalars(query).all()
+
+    summary_counters = {
+        "total_active_patients": len(patients),
+        "green_count": 0,
+        "yellow_count": 0,
+        "red_count": 0,
+        "insufficient_data_count": 0,
+        "needing_review_count": 0,
+        "repeated_missed_meds_count": 0,
+        "worsening_symptoms_count": 0,
+        "upcoming_missed_followups_count": 0,
+    }
+
+    now = dt.datetime.utcnow()
+    two_days_ahead = now + dt.timedelta(days=2)
+    seven_days_ago = now - dt.timedelta(days=7)
+
+    patient_rows = []
+
+    for p in patients:
+        # Latest risk record
+        r = db.scalar(
+            select(RiskClassificationHistory)
+            .where(RiskClassificationHistory.patient_id == p.id)
+            .order_by(RiskClassificationHistory.evaluated_at.desc())
+        )
+        if not r:
+            try:
+                r = evaluate_patient_risk(db, patient_id=p.id, window_days=7, force=False)
+            except Exception:
+                r = None
+
+        lvl = (r.level if r else "insufficient_data").lower()
+        if lvl == "green":
+            summary_counters["green_count"] += 1
+        elif lvl == "yellow":
+            summary_counters["yellow_count"] += 1
+            summary_counters["needing_review_count"] += 1
+        elif lvl == "red":
+            summary_counters["red_count"] += 1
+            summary_counters["needing_review_count"] += 1
+        else:
+            summary_counters["insufficient_data_count"] += 1
+
+        reasons = r.explainability_reasons if r else ["Telemetry data pending initial ingestion"]
+
+        # Check for repeated missed meds
+        has_repeated_missed = any("missed" in reason.lower() and ("consecutive" in reason.lower() or "doses" in reason.lower()) for reason in reasons)
+        if has_repeated_missed:
+            summary_counters["repeated_missed_meds_count"] += 1
+
+        # Check for worsening symptoms or fever
+        has_worsening = any("pain" in reason.lower() or "fever" in reason.lower() or "escalat" in reason.lower() for reason in reasons)
+        if has_worsening:
+            summary_counters["worsening_symptoms_count"] += 1
+
+        # Check appointments
+        appt = db.scalar(
+            select(Appointment).where(
+                Appointment.patient_id == p.id,
+                Appointment.start_time >= seven_days_ago,
+                Appointment.start_time <= two_days_ahead
+            ).order_by(Appointment.start_time.desc()).limit(1)
+        )
+        has_appt_alert = False
+        if appt:
+            if appt.status == AppointmentStatus.MISSED.value:
+                has_appt_alert = True
+                summary_counters["upcoming_missed_followups_count"] += 1
+            elif appt.status in (AppointmentStatus.SCHEDULED.value, AppointmentStatus.CONFIRMED.value) and appt.start_time <= two_days_ahead:
+                has_appt_alert = True
+                summary_counters["upcoming_missed_followups_count"] += 1
+
+        # Check latest check-in
+        latest_ci = db.scalar(
+            select(DailyCheckIn)
+            .where(DailyCheckIn.patient_id == p.id)
+            .order_by(DailyCheckIn.checkin_date.desc())
+            .limit(1)
+        )
+        last_checkin_date = latest_ci.checkin_date.isoformat() if latest_ci else None
+
+        # Determine trend
+        trend = "stable"
+        if has_worsening or (r and r.level == "red"):
+            trend = "deteriorating"
+        elif r and r.level == "green":
+            trend = "improving"
+
+        # Recommended clinical action
+        if lvl == "red":
+            rec_action = "Urgent specialist review required. Check vitals, evaluate surgical site / infection markers, and initiate clinical outreach."
+        elif lvl == "yellow":
+            rec_action = "Nurse telemetry check-in recommended. Review medication adherence and verify symptom stability within 24 hours."
+        elif lvl == "green":
+            rec_action = "Routine post-discharge recovery pathway on track. Continue standard daily check-in monitoring."
+        else:
+            rec_action = "Insufficient telemetry. Send patient check-in prompt and verify app engagement."
+
+        # Doctor name
+        doc_name = "Unassigned"
+        if p.assigned_doctor_id:
+            d_user = db.get(User, p.assigned_doctor_id)
+            if d_user:
+                doc_name = d_user.name
+
+        p_name = p.user.name if p.user else p.patient_code
+        age = None
+        if p.dob:
+            today_d = dt.date.today()
+            age = today_d.year - p.dob.year - ((today_d.month, today_d.day) < (p.dob.month, p.dob.day))
+
+        patient_rows.append({
+            "patient_id": p.id,
+            "patient_code": p.patient_code or f"P-{p.id[:8]}",
+            "name": p_name,
+            "age": age,
+            "gender": p.gender,
+            "assigned_doctor": doc_name,
+            "risk_level": lvl,
+            "risk_score": r.risk_score if (r and hasattr(r, 'risk_score')) else (85 if lvl == "red" else (50 if lvl == "yellow" else 15)),
+            "key_contributing_factors": reasons,
+            "last_checkin_date": last_checkin_date,
+            "trend_indicator": trend,
+            "recommended_action": rec_action,
+            "is_override": bool(r.is_override if r else False),
+            "override_reason": r.override_reason if r else None,
+            "has_repeated_missed_meds": has_repeated_missed,
+            "has_worsening_symptoms": has_worsening,
+            "has_followup_alert": has_appt_alert,
+            "evaluated_at": r.evaluated_at.isoformat() if (r and r.evaluated_at) else None
+        })
+
+    # Sort: RED first, then YELLOW, then INSUFFICIENT_DATA, then GREEN
+    priority_order = {"red": 0, "yellow": 1, "insufficient_data": 2, "green": 3}
+    patient_rows.sort(key=lambda x: (priority_order.get(x["risk_level"], 4), -x["risk_score"]))
+
+    return {
+        "summary": summary_counters,
+        "patients": patient_rows,
+        "generated_at": dt.datetime.utcnow().isoformat()
+    }
+

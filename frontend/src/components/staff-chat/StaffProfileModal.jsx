@@ -17,12 +17,17 @@ export function StaffProfileModal({ profile, token, onClose, onUpdated }) {
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url || '');
   const [about, setAbout] = useState(profile.about || '');
   const [availability, setAvailability] = useState(profile.availability_status || 'online');
+  const [awayUntil, setAwayUntil] = useState(profile.away_until ? profile.away_until.slice(0, 16) : '');
   const [muteNotifications, setMuteNotifications] = useState(profile.mute_notifications || false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (profile.role === 'doctor' && (availability === 'away' || availability === 'offline') && !awayUntil) {
+      setError('A scheduled return date/time is required before setting availability to Away or Offline.');
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -37,6 +42,7 @@ export function StaffProfileModal({ profile, token, onClose, onUpdated }) {
           avatar_url: avatarUrl,
           about: about,
           availability_status: availability,
+          away_until: (availability === 'away' || availability === 'offline') ? awayUntil : null,
           mute_notifications: muteNotifications,
         }),
       });
@@ -194,6 +200,26 @@ export function StaffProfileModal({ profile, token, onClose, onUpdated }) {
               <option value="offline">⚪ Offline</option>
             </select>
           </div>
+
+          {/* Doctor Scheduled Return Date/Time (Mandatory for Away/Offline) */}
+          {profile.role === 'doctor' && (availability === 'away' || availability === 'offline') && (
+            <div className="form-field">
+              <label className="form-label" style={{ color: 'var(--amber)', fontWeight: 700 }}>
+                Available Again From (Return Date & Time) *
+              </label>
+              <input
+                type="datetime-local"
+                className="form-input"
+                required
+                min={new Date().toISOString().slice(0, 16)}
+                value={awayUntil}
+                onChange={(e) => setAwayUntil(e.target.value)}
+              />
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                Clinical protocol requires a scheduled return date/time before switching doctor availability to Away or Offline.
+              </div>
+            </div>
+          )}
 
           {/* Notification Mute Toggle */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid var(--border)' }}>

@@ -56,8 +56,8 @@ def parse_prescription_fields(cleaned_text: str) -> List[Dict[str, Any]]:
 
     # Common drug forms and routes
     drug_patterns = [
-        r"(?i)\b(tab(?:let)?|cap(?:sule)?|syr(?:up)?|inj(?:ection)?|ointment|drops)\b\s+([a-zA-Z0-9\-\s]+)",
-        r"(?i)\b([a-zA-Z]{4,20})\s+(\d+\s*(?:mg|ml|mcg|g))\b"
+        r"(?i)\b(t\.|tab(?:let)?|cap(?:sule)?|syr(?:up)?|inj(?:ection)?|ointment|drops)\s+([a-zA-Z0-9\-\s]+)",
+        r"(?i)\b([a-zA-Z]{4,20})\s+(\d+\s*(?:mg|ml|mcg|g)?)\b"
     ]
 
     for line in lines:
@@ -68,7 +68,9 @@ def parse_prescription_fields(cleaned_text: str) -> List[Dict[str, Any]]:
                 groups = match.groups()
                 med_name = groups[1].strip() if len(groups) > 1 else groups[0].strip()
                 # Clean prefix words
-                med_name = re.sub(r"(?i)^(tab|tablet|cap|capsule|syr|syrup|inj|take)\s+", "", med_name).strip()
+                med_name = re.sub(r"(?i)^(t\.|tab|tablet|cap|capsule|syr|syrup|inj|take)\s*", "", med_name).strip()
+                # Clean trailing dosage / period
+                med_name = re.sub(r"(?i)\s+(?:1\s*[-/\.]?\s*)?(?:od|bd|bid|tds|tid|qhs|hs|sos|prn|[01][\s\.\-_]+[01][\s\.\-_]+[01]).*$", "", med_name).strip()
 
                 # Extract dosage if present
                 dose_match = re.search(r"(\d+\s*(?:mg|ml|mcg|g))", line, re.IGNORECASE)
@@ -79,17 +81,51 @@ def parse_prescription_fields(cleaned_text: str) -> List[Dict[str, Any]]:
                     "before_food" if re.search(r"(?i)before\s+food|pre\s+meal", line) else "with_food"
                 )
 
-                # Frequency / timing
-                frequency = "twice_daily" if re.search(r"(?i)bd|bid|twice", line) else (
-                    "thrice_daily" if re.search(r"(?i)tds|tid|thrice", line) else (
-                        "once_daily" if re.search(r"(?i)od|once", line) else "twice_daily"
-                    )
-                )
+                # Period & Timing with robust 1s and 0s extraction
+                # Matches 1-0-1, 1-0-0, 0-0-1, 1-1-1, 1 0 0, 1.0.0, 1-O-0, etc.
+                period_val = "1-0-1"
+                frequency = "twice_daily"
+
+                m_code = re.search(r"\b([01oOqQdDlI|!])[\s\.\-\/_]+([01oOqQdDlI|!])[\s\.\-\/_]+([01oOqQdDlI|!])(?:[\s\.\-\/_]+([01oOqQdDlI|!]))?\b", line)
+                if m_code:
+                    def norm_digit(c):
+                        return "0" if c in "0oOqQdD" else "1"
+                    digits = [norm_digit(m_code.group(1)), norm_digit(m_code.group(2)), norm_digit(m_code.group(3))]
+                    if m_code.group(4):
+                        digits.append(norm_digit(m_code.group(4)))
+                    period_val = "-".join(digits)
+                    if period_val in ("1-0-0", "0-0-1", "0-1-0"):
+                        frequency = "once_daily"
+                    elif period_val == "1-1-1":
+                        frequency = "thrice_daily"
+                    elif period_val == "1-1-1-1":
+                        frequency = "four_times_daily"
+                    else:
+                        frequency = "twice_daily"
+                elif re.search(r"(?i)\bod\b|once", line):
+                    period_val = "1-0-0"
+                    frequency = "once_daily"
+                elif re.search(r"(?i)\btds\b|\btid\b|thrice", line):
+                    period_val = "1-1-1"
+                    frequency = "thrice_daily"
+                elif re.search(r"(?i)\bqhs\b|\bhs\b|night|bedtime", line):
+                    period_val = "0-0-1"
+                    frequency = "once_daily"
+                elif re.search(r"(?i)\bbd\b|\bbid\b|twice", line):
+                    period_val = "1-0-1"
+                    frequency = "twice_daily"
+
+                # Duration in days
+                days_match = re.search(r"(?i)(?:for|x)?\s*(\d+)\s*(?:days?|d\b)", line)
+                days_val = int(days_match.group(1)) if days_match and 1 <= int(days_match.group(1)) <= 365 else 5
 
                 if med_name and len(med_name) >= 3 and not any(m["name"].lower() == med_name.lower() for m in medications):
                     medications.append({
                         "name": med_name.title(),
                         "dose": dose_val,
+                        "dosage": dose_val,
+                        "days": days_val,
+                        "period": period_val,
                         "route": "oral",
                         "frequency": frequency,
                         "food_relation": food_rel,

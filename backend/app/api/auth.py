@@ -44,6 +44,11 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid email or password."
         )
 
+    # Ensure doctor availability is automatically reset to online on login
+    if user.role in (Role.DOCTOR.value, "doctor", "physician"):
+        user.availability_status = "online"
+        user.away_until = None
+
     token = create_access_token({"sub": user.id, "role": user.role, "email": user.email})
     record_audit(
         db=db,

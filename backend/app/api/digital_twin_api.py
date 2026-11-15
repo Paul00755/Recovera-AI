@@ -17,6 +17,7 @@ from app.core.database import get_db
 from app.core.constants import Role
 from app.models.patient import Patient
 from app.models.user import User
+from app.models.medication import Medication
 from app.models.digital_twin import (
     DigitalTwinState,
     DigitalTwinStateHistory,
@@ -133,8 +134,18 @@ def get_patient_trajectory_corridor(
     """
     patient = _verify_patient_access(patient_id, current_user, db)
     
-    # 1. Fetch or create milestones
-    milestones = get_or_create_trajectory_milestones(db, str(patient_id))
+    # 0. Check medication assignment to anchor Day 1 strictly to medication start date
+    first_med = db.scalar(
+        select(Medication)
+        .where(Medication.patient_id == str(patient_id))
+        .order_by(Medication.start_date.asc(), Medication.created_at.asc())
+        .limit(1)
+    )
+    has_medications = first_med is not None
+    med_start_date = (first_med.start_date or (first_med.created_at.date() if first_med.created_at else None)) if first_med else None
+
+    # 1. Fetch or create milestones anchored to medication start date
+    milestones = get_or_create_trajectory_milestones(db, str(patient_id), start_date=med_start_date)
     
     # 2. Fetch current state & observations
     state = db.scalar(
@@ -147,12 +158,18 @@ def get_patient_trajectory_corridor(
 
     # 3. Compute 24h/48h calibrated forecast with 95% confidence bounds
     today_d = dt.date.today()
-    base_date = (
-        milestones[0].target_date
-        if (milestones and milestones[0].target_date)
-        else today_d
-    )
-    current_day = max(1, min(14, (today_d - base_date).days + 1))
+    if has_medications and med_start_date:
+        diff_days = (today_d - med_start_date).days
+        if diff_days >= 0:
+            current_day = max(1, min(14, diff_days + 1))
+            has_started = True
+        else:
+            current_day = 1
+            has_started = False
+    else:
+        has_started = False
+        current_day = 1
+
     last_val = state.current_recovery_score
 
     forecasts = []
@@ -201,6 +218,8 @@ def get_patient_trajectory_corridor(
         "observed_points": history_points,
         "forecasts": forecasts,
         "current_day": current_day,
+        "has_started": has_started,
+        "medication_start_date": med_start_date.isoformat() if med_start_date else None,
         "deviation_tier": state.deviation_tier
     }
 
@@ -398,3 +417,42 @@ def get_hospital_digital_twin_cohort_summary(
         "tier_distribution": tier_counts,
         "patients": cohort
     }
+
+
+class SimulationRequest(BaseModel):
+    scenario_type: str = Field(..., description="adherence_drop, perfect_adherence, pain_escalation, fever_spike")
+    adjustments: Optional[Dict[str, Any]] = None
+
+
+@router.get("/patients/{patient_id}/predictions")
+def get_patient_predictions(
+    patient_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieve live predictions across all trained clinical ML models for this patient."""
+    _verify_patient_access(patient_id, current_user, db)
+    from app.ml.prediction_engine import predict_patient_multi_model
+    return predict_patient_multi_model(db, patient_id)
+
+
+@router.post("/patients/{patient_id}/simulate")
+def run_patient_simulation(
+    patient_id: str,
+    req: SimulationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Simulate what-if clinical scenario on a cloned feature vector.
+    Always clearly marked with simulation_mode: 'hypothetical'.
+    """
+    _verify_patient_access(patient_id, current_user, db)
+    from app.ml.prediction_engine import simulate_hypothetical_scenario
+    return simulate_hypothetical_scenario(
+        db=db,
+        patient_id=patient_id,
+        scenario_type=req.scenario_type,
+        hypothetical_adjustments=req.adjustments
+    )
+

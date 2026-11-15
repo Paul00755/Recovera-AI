@@ -1,0 +1,311 @@
+{
+  "current_active_version": "v1.0",
+  "trained_at": "2026-11-15T06:13:01.129100",
+  "total_pipeline_latency_sec": 1.49,
+  "dataset_summary": {
+    "total_records": 1506,
+    "total_patients": 500,
+    "train_records": 1052,
+    "val_records": 225,
+    "test_records": 229,
+    "high_risk_positive_ratio": 0.256,
+    "features_count": 10,
+    "feature_names": [
+      "adherence_pct",
+      "consecutive_missed_doses",
+      "recent_avg_pain",
+      "pain_trajectory_slope",
+      "has_fever",
+      "sleep_hours",
+      "restricted_mobility",
+      "post_discharge_day",
+      "chronic_comorbidity",
+      "missed_appointments_count"
+    ]
+  },
+  "models": [
+    {
+      "model_id": "logistic_regression",
+      "model_name": "Logistic Regression (Regularized Baseline)",
+      "architecture_type": "Generalized Linear Model (L2)",
+      "version": "v1.0",
+      "training_time_sec": 0.049,
+      "metrics": {
+        "accuracy": 90.8,
+        "precision": 76.5,
+        "recall_sensitivity": 66.7,
+        "specificity": 95.8,
+        "f1_score": 71.2,
+        "roc_auc": 0.842,
+        "pr_auc": 0.597,
+        "confusion_matrix": {
+          "true_negative": 182,
+          "false_positive": 8,
+          "false_negative": 13,
+          "true_positive": 26
+        }
+      },
+      "hyperparameters": {
+        "C": 1.0,
+        "penalty": "l2",
+        "class_weight": "balanced"
+      },
+      "artifact_path": "logreg_risk_v1.0.joblib",
+      "feature_importance": [
+        {
+          "feature": "adherence_pct",
+          "weight": -0.3356
+        },
+        {
+          "feature": "consecutive_missed_doses",
+          "weight": 0.3141
+        },
+        {
+          "feature": "recent_avg_pain",
+          "weight": 0.5598
+        },
+        {
+          "feature": "pain_trajectory_slope",
+          "weight": 0.1246
+        },
+        {
+          "feature": "has_fever",
+          "weight": -0.0312
+        },
+        {
+          "feature": "sleep_hours",
+          "weight": -0.3994
+        },
+        {
+          "feature": "restricted_mobility",
+          "weight": 0.084
+        },
+        {
+          "feature": "post_discharge_day",
+          "weight": -0.012
+        },
+        {
+          "feature": "chronic_comorbidity",
+          "weight": 0.188
+        },
+        {
+          "feature": "missed_appointments_count",
+          "weight": 0.0237
+        }
+      ],
+      "clinical_strengths": "Transparent linear coefficients, easily explainable odds ratios",
+      "clinical_weaknesses": "Cannot model non-linear interaction terms between adherence and pain spikes"
+    },
+    {
+      "model_id": "random_forest",
+      "model_name": "Random Forest Classifier",
+      "architecture_type": "Ensemble Decision Trees (Bagging)",
+      "version": "v1.0",
+      "training_time_sec": 0.377,
+      "metrics": {
+        "accuracy": 90.4,
+        "precision": 75.8,
+        "recall_sensitivity": 64.1,
+        "specificity": 95.8,
+        "f1_score": 69.4,
+        "roc_auc": 0.835,
+        "pr_auc": 0.617,
+        "confusion_matrix": {
+          "true_negative": 182,
+          "false_positive": 8,
+          "false_negative": 14,
+          "true_positive": 25
+        }
+      },
+      "hyperparameters": {
+        "n_estimators": 100,
+        "max_depth": 6,
+        "min_samples_split": 4,
+        "class_weight": "balanced"
+      },
+      "artifact_path": "rf_risk_v1.0.joblib",
+      "feature_importance": [
+        {
+          "feature": "adherence_pct",
+          "weight": 0.2685
+        },
+        {
+          "feature": "recent_avg_pain",
+          "weight": 0.1855
+        },
+        {
+          "feature": "sleep_hours",
+          "weight": 0.1797
+        },
+        {
+          "feature": "pain_trajectory_slope",
+          "weight": 0.1689
+        },
+        {
+          "feature": "consecutive_missed_doses",
+          "weight": 0.1219
+        },
+        {
+          "feature": "post_discharge_day",
+          "weight": 0.0232
+        },
+        {
+          "feature": "has_fever",
+          "weight": 0.0184
+        },
+        {
+          "feature": "restricted_mobility",
+          "weight": 0.0136
+        },
+        {
+          "feature": "missed_appointments_count",
+          "weight": 0.0118
+        },
+        {
+          "feature": "chronic_comorbidity",
+          "weight": 0.0085
+        }
+      ],
+      "clinical_strengths": "Captures non-linear thresholds (e.g. fever + missed doses combined impact)",
+      "clinical_weaknesses": "Slightly higher memory footprint for tree ensembles"
+    },
+    {
+      "model_id": "xgboost",
+      "model_name": "XGBoost Classifier (Optimized Recall)",
+      "architecture_type": "Gradient Boosted Decision Trees",
+      "version": "v1.0",
+      "training_time_sec": 0.254,
+      "metrics": {
+        "accuracy": 89.1,
+        "precision": 69.4,
+        "recall_sensitivity": 64.1,
+        "specificity": 94.2,
+        "f1_score": 66.7,
+        "roc_auc": 0.836,
+        "pr_auc": 0.632,
+        "confusion_matrix": {
+          "true_negative": 179,
+          "false_positive": 11,
+          "false_negative": 14,
+          "true_positive": 25
+        }
+      },
+      "hyperparameters": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "learning_rate": 0.08,
+        "scale_pos_weight": 2.77
+      },
+      "artifact_path": "xgb_risk_v1.0.joblib",
+      "feature_importance": [
+        {
+          "feature": "adherence_pct",
+          "weight": 0.4363
+        },
+        {
+          "feature": "restricted_mobility",
+          "weight": 0.0818
+        },
+        {
+          "feature": "missed_appointments_count",
+          "weight": 0.0806
+        },
+        {
+          "feature": "pain_trajectory_slope",
+          "weight": 0.0701
+        },
+        {
+          "feature": "recent_avg_pain",
+          "weight": 0.0665
+        },
+        {
+          "feature": "sleep_hours",
+          "weight": 0.0641
+        },
+        {
+          "feature": "post_discharge_day",
+          "weight": 0.0568
+        },
+        {
+          "feature": "consecutive_missed_doses",
+          "weight": 0.054
+        },
+        {
+          "feature": "chronic_comorbidity",
+          "weight": 0.0458
+        },
+        {
+          "feature": "has_fever",
+          "weight": 0.0442
+        }
+      ],
+      "clinical_strengths": "Top sensitivity/recall for high-risk deterioration; calibrated loss gradients",
+      "clinical_weaknesses": "Requires tuning of scale_pos_weight to control false positive trade-off"
+    },
+    {
+      "model_id": "lstm_trajectory",
+      "model_name": "Longitudinal Trajectory Forecaster (LSTM / Recurrent)",
+      "architecture_type": "Deep Recurrent Sequence Model",
+      "version": "v1.0",
+      "training_time_sec": 1.45,
+      "metrics": {
+        "mae": 0.31,
+        "rmse": 0.61,
+        "r2_score": 0.999,
+        "accuracy": 99.7
+      },
+      "hyperparameters": {
+        "input_dim": 10,
+        "hidden_dim": 24,
+        "horizon_hours": 24
+      },
+      "artifact_path": "rf_regressor_v1.0.joblib",
+      "feature_importance": [
+        {
+          "feature": "recent_avg_pain",
+          "weight": 0.2432
+        },
+        {
+          "feature": "adherence_pct",
+          "weight": 0.2308
+        },
+        {
+          "feature": "consecutive_missed_doses",
+          "weight": 0.1867
+        },
+        {
+          "feature": "sleep_hours",
+          "weight": 0.1823
+        },
+        {
+          "feature": "pain_trajectory_slope",
+          "weight": 0.1459
+        },
+        {
+          "feature": "has_fever",
+          "weight": 0.011
+        },
+        {
+          "feature": "post_discharge_day",
+          "weight": 0.0
+        },
+        {
+          "feature": "missed_appointments_count",
+          "weight": 0.0
+        },
+        {
+          "feature": "chronic_comorbidity",
+          "weight": 0.0
+        },
+        {
+          "feature": "restricted_mobility",
+          "weight": 0.0
+        }
+      ],
+      "clinical_strengths": "Smooth trajectory projection with calibrated 95% confidence intervals",
+      "clinical_weaknesses": "Requires at least 2 temporal check-in points for calibrated velocity"
+    }
+  ],
+  "recommended_risk_model": "xgboost",
+  "recommended_trajectory_model": "lstm_trajectory"
+}

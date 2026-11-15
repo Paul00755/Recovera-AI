@@ -84,6 +84,8 @@ def evaluate_patient_risk(
     total_occurrences = len(occurrences)
     taken_count = sum(1 for o in occurrences if o.state == OccurrenceState.TAKEN.value)
     missed_count = sum(1 for o in occurrences if is_missed_or_unlogged(o))
+    missed_occurrences = [o for o in occurrences if is_missed_or_unlogged(o)]
+    distinct_missed_days = len({o.scheduled_at.date() for o in missed_occurrences})
 
     # Consecutive missed doses from most recent
     consecutive_missed = 0
@@ -131,12 +133,18 @@ def evaluate_patient_risk(
     med_red: List[str] = []
     med_yellow: List[str] = []
     if total_occurrences > 0:
-        if adherence_pct is not None and adherence_pct < 50.0:
-            med_red.append(f"Critical medication adherence: {adherence_pct}% (below 50% safety threshold)")
-        if consecutive_missed >= 3:
-            med_red.append(f"High risk: {consecutive_missed} consecutive unlogged or missed medication doses detected")
+        # Critical RED risk requires persistent multi-day non-adherence (>= 2 distinct days)
+        # Missing medication intake for only 1 day must NEVER categorize a patient as RED.
+        if distinct_missed_days >= 2 and total_occurrences >= 4 and adherence_pct is not None and adherence_pct < 50.0:
+            med_red.append(f"Critical medication adherence: {adherence_pct}% (below 50% safety threshold across {distinct_missed_days} days)")
+        if distinct_missed_days >= 2 and consecutive_missed >= 4:
+            med_red.append(f"High risk: {consecutive_missed} consecutive unlogged or missed medication doses detected across {distinct_missed_days} days")
+        
+        # Yellow risk: single-day lapse or moderate multi-day lapse
         if not med_red:
-            if adherence_pct is not None and adherence_pct < 75.0:
+            if distinct_missed_days == 1:
+                med_yellow.append(f"Medication intake verification pending: {missed_count} dose(s) unlogged for 1 day")
+            elif adherence_pct is not None and adherence_pct < 75.0:
                 med_yellow.append(f"Sub-optimal medication adherence: {adherence_pct}% (expected: >= 75%)")
             elif missed_count >= 1:
                 med_yellow.append(f"{missed_count} unlogged or missed medication dose(s) in the past week")
@@ -155,6 +163,7 @@ def evaluate_patient_risk(
     # PILLAR 3: Daily Check-in Compliance (Frequency & Missing Telemetry)
     checkin_comp_red: List[str] = []
     checkin_comp_yellow: List[str] = []
+    consecutive_missing_checkins = 0
     has_active_meds = db.scalar(
         select(func.count(Medication.id)).where(Medication.patient_id == patient_id, Medication.status == "active")
     ) or 0
@@ -167,13 +176,13 @@ def evaluate_patient_risk(
     today_date = dt.date.today()
 
     # Determine when patient monitoring actually began to avoid falsely flagging new patients
+    # Protocol monitoring begins when medications are assigned (first_med_date)
     first_med_date = db.scalar(select(func.min(Medication.start_date)).where(Medication.patient_id == patient_id))
     created_date = patient.created_at.date() if patient.created_at else today_date
-    protocol_start_date = min(first_med_date, created_date) if first_med_date else created_date
+    protocol_start_date = first_med_date or created_date
     days_active = max(0, (today_date - protocol_start_date).days)
 
     if is_active_monitoring and days_active > 1:
-        consecutive_missing_checkins = 0
         max_lookback = min(window_days, days_active)
         for day_i in range(1, max_lookback + 1):
             d = today_date - dt.timedelta(days=day_i)
@@ -194,6 +203,10 @@ def evaluate_patient_risk(
             elif consecutive_missing_checkins >= 2:
                 checkin_comp_yellow.append(
                     f"Inconsistent daily monitoring: {consecutive_missing_checkins} day(s) missing daily telemetry check-ins"
+                )
+            elif consecutive_missing_checkins == 1:
+                checkin_comp_yellow.append(
+                    "Daily symptom check-in pending for yesterday"
                 )
 
     # PILLAR 4: Daily Check-in Reports (Symptoms, Pain, Vitals & Notes)
@@ -263,14 +276,15 @@ def evaluate_patient_risk(
         elif found_mod_kws:
             symptom_yellow.append(f"Clinical symptom observation in notes: '{', '.join(sorted(found_mod_kws))}' reported")
 
-    # Factor in Active Clinical Disease / Condition
+    # Factor in Active Clinical Disease / Condition (Diagnostic context, NOT an active symptom hazard)
+    condition_context: List[str] = []
     if getattr(patient, "active_condition", None):
         cond = patient.active_condition
         stage = getattr(patient, "condition_stage", "active") or "active"
         if stage in ("acute", "prior_state"):
-            symptom_yellow.append(f"Diagnosed clinical condition: {cond} (Acute Phase)")
+            condition_context.append(f"Diagnosed clinical condition: {cond} (Acute Phase)")
         elif stage == "recovering":
-            symptom_yellow.append(f"Clinical recovery in progress: {cond}")
+            condition_context.append(f"Clinical recovery in progress: {cond}")
 
     # ----------------------------------------------------
     # SYNTHESIS & RISK CLASSIFICATION
@@ -278,16 +292,29 @@ def evaluate_patient_risk(
     all_red_triggers = med_red + appt_red + checkin_comp_red + symptom_red
     all_yellow_triggers = med_yellow + appt_yellow + checkin_comp_yellow + symptom_yellow
 
+    # Strict clinical safety check: Missing intake or daily check-in for ONLY 1 day
+    # must NEVER escalate a patient to RED.
+    is_single_day_lapse = (distinct_missed_days <= 1) and (consecutive_missing_checkins <= 1)
+    has_acute_clinical_red = bool(symptom_red or appt_red)
+
     if total_occurrences == 0 and checkin_count == 0 and not is_active_monitoring:
         level = RiskLevel.INSUFFICIENT_DATA.value
         insufficient_data = True
         reasons.append("Insufficient clinical data: No medication occurrences or symptom check-ins recorded in the 7-day window.")
-    elif all_red_triggers:
+    elif all_red_triggers and not (is_single_day_lapse and not has_acute_clinical_red):
         level = RiskLevel.RED.value
         reasons.extend(all_red_triggers)
         if all_yellow_triggers:
             reasons.extend(all_yellow_triggers[:2])
-    elif len(all_yellow_triggers) >= 4 and len({
+        if condition_context:
+            reasons.extend(condition_context)
+    elif is_single_day_lapse and not has_acute_clinical_red and (all_yellow_triggers or all_red_triggers):
+        # Explicit guardrail: Missing medications or daily check-in for only 1 day is capped at YELLOW
+        level = RiskLevel.YELLOW.value
+        reasons.extend(all_yellow_triggers)
+        if condition_context:
+            reasons.extend(condition_context)
+    elif not is_single_day_lapse and len(all_yellow_triggers) >= 4 and len({
         ('med' if med_yellow else None),
         ('appt' if appt_yellow else None),
         ('comp' if checkin_comp_yellow else None),
@@ -296,9 +323,13 @@ def evaluate_patient_risk(
         level = RiskLevel.RED.value
         reasons.append("Multi-pillar risk escalation: Concurrently experiencing unlogged medication, missing check-ins, and elevated symptom alerts")
         reasons.extend(all_yellow_triggers)
+        if condition_context:
+            reasons.extend(condition_context)
     elif all_yellow_triggers:
         level = RiskLevel.YELLOW.value
         reasons.extend(all_yellow_triggers)
+        if condition_context:
+            reasons.extend(condition_context)
     else:
         level = RiskLevel.GREEN.value
         if total_occurrences > 0:
@@ -314,6 +345,8 @@ def evaluate_patient_risk(
         else:
             reasons.append("Clinical condition stable")
         reasons.append("Follow-up appointment attendance compliant")
+        if condition_context:
+            reasons.extend(condition_context)
 
     # 5. Persist Evaluation in RiskClassificationHistory
     record = RiskClassificationHistory(

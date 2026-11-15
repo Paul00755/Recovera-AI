@@ -218,7 +218,11 @@ def list_patient_documents(
             "uploader_role": user_map.get(d.uploaded_by).role if user_map.get(d.uploaded_by) else "staff",
             "assigned_doctor_id": d.assigned_doctor_id,
             "assigned_doctor_name": user_map.get(d.assigned_doctor_id).name if user_map.get(d.assigned_doctor_id) else None,
-            "can_approve": (current_user.role in (Role.ADMIN.value, Role.NURSE.value)) or (current_user.role == Role.DOCTOR.value and (d.uploaded_by == current_user.id or d.assigned_doctor_id == current_user.id or is_assigned_to_patient)),
+            "can_approve": (current_user.role == Role.ADMIN.value) or (
+                current_user.role == Role.DOCTOR.value and (
+                    (d.assigned_doctor_id == current_user.id) if d.assigned_doctor_id else (d.uploaded_by == current_user.id or is_assigned_to_patient)
+                )
+            ),
             "reviewed_by": d.reviewed_by,
             "created_at": d.created_at.isoformat(),
             "updated_at": d.updated_at.isoformat()
@@ -277,7 +281,11 @@ def get_document(
         "uploader_name": uploader.name if uploader else "Staff",
         "assigned_doctor_id": doc.assigned_doctor_id,
         "assigned_doctor_name": assigned_doc.name if assigned_doc else None,
-        "can_approve": (current_user.role in (Role.ADMIN.value, Role.NURSE.value)) or is_assigned,
+        "can_approve": (current_user.role == Role.ADMIN.value) or (
+            current_user.role == Role.DOCTOR.value and (
+                (doc.assigned_doctor_id == current_user.id) if doc.assigned_doctor_id else (doc.uploaded_by == current_user.id or is_assigned)
+            )
+        ),
         "reviewed_by": doc.reviewed_by,
         "created_at": doc.created_at.isoformat(),
         "updated_at": doc.updated_at.isoformat()
@@ -295,16 +303,19 @@ def review_and_edit_document(
         raise HTTPException(status_code=404, detail="Document not found.")
 
     # Doctor check: only uploader or assigned doctor
-    if current_user.role == Role.DOCTOR.value and (doc.uploaded_by != current_user.id and doc.assigned_doctor_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Access denied: You are not authorized to modify this document.")
+    if current_user.role == Role.DOCTOR.value:
+        if doc.assigned_doctor_id and doc.assigned_doctor_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied: You are not authorized to modify this document.")
+        # If doctor reviews, ensure assigned_doctor_id is set to themselves
+        doc.assigned_doctor_id = current_user.id
+    elif current_user.role == Role.NURSE.value and req.assigned_doctor_id:
+        doc.assigned_doctor_id = req.assigned_doctor_id
 
     old_status = doc.status
     if req.extracted_text is not None:
         doc.extracted_text = req.extracted_text
     if req.structured_data is not None:
         doc.structured_data = req.structured_data
-    if req.assigned_doctor_id:
-        doc.assigned_doctor_id = req.assigned_doctor_id
     if req.status:
         doc.status = req.status
     else:
@@ -344,34 +355,40 @@ def review_and_edit_document(
 def approve_document(
     doc_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN.value, Role.DOCTOR.value, Role.NURSE.value))
+    current_user: User = Depends(require_role(Role.ADMIN.value, Role.DOCTOR.value))
 ):
     doc = db.get(ClinicalDocument, doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found.")
 
     # Doctor-specific approval restriction:
-    # Only the doctor who uploaded the document, was designated for its approval, or is assigned to the patient can approve it
+    # Strict isolation: If an assigned doctor was chosen, ONLY that doctor can approve
     if current_user.role == Role.DOCTOR.value:
-        from app.models.patient import PatientDoctorAssignment
-        is_assigned_care = (doc.assigned_doctor_id == current_user.id) or bool(
-            db.scalar(
-                select(PatientDoctorAssignment.id).where(
-                    PatientDoctorAssignment.patient_id == doc.patient_id,
-                    PatientDoctorAssignment.doctor_id == current_user.id,
-                    PatientDoctorAssignment.is_active == True
-                )
-            )
-        )
-        patient_rec = db.get(Patient, doc.patient_id)
-        if patient_rec and patient_rec.assigned_doctor_id == current_user.id:
-            is_assigned_care = True
-
-        if doc.uploaded_by != current_user.id and not is_assigned_care:
+        if doc.assigned_doctor_id and doc.assigned_doctor_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: Only the clinician who uploaded, was designated for this document, or is assigned to the patient can approve it."
+                detail="Access denied: Only the designated specialist doctor chosen for this document can approve it."
             )
+        if not doc.assigned_doctor_id and doc.uploaded_by != current_user.id:
+            from app.models.patient import PatientDoctorAssignment
+            is_assigned_care = bool(
+                db.scalar(
+                    select(PatientDoctorAssignment.id).where(
+                        PatientDoctorAssignment.patient_id == doc.patient_id,
+                        PatientDoctorAssignment.doctor_id == current_user.id,
+                        PatientDoctorAssignment.is_active == True
+                    )
+                )
+            )
+            patient_rec = db.get(Patient, doc.patient_id)
+            if patient_rec and patient_rec.assigned_doctor_id == current_user.id:
+                is_assigned_care = True
+
+            if not is_assigned_care:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: Only the clinician who uploaded, was designated for this document, or is assigned to the patient can approve it."
+                )
 
     doc.status = DocStatus.APPROVED.value
     doc.reviewed_by = current_user.id

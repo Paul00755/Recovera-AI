@@ -26,6 +26,9 @@ import { StaffCallModal } from './components/staff-chat/StaffCallModal';
 import { DigitalTwinTab } from './components/digital-twin/DigitalTwinTab';
 import { DigitalTwinBenchmarkStudio } from './components/digital-twin/DigitalTwinBenchmarkStudio';
 import { PatientRecoveryJourneyCard } from './components/digital-twin/PatientRecoveryJourneyCard';
+import { ResearchEvaluationStudio } from './components/research/ResearchEvaluationStudio';
+import { ExperimentalTrackingDashboard } from './components/research/ExperimentalTrackingDashboard';
+import { HighRiskCommandCenter } from './components/risk/HighRiskCommandCenter';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -707,31 +710,61 @@ function translateClinicalSpeech(text, targetLang = 'en') {
     translated = translated.replace(regex, replacement);
   }
 
-  // Common section headings fallback
+  // Comprehensive clinical phrases & headings translation fallback
   if (lang === 'ta') {
     translated = translated
       .replace(/^Diet & Nutrition:\s*/i, 'உணவு மற்றும் ஊட்டச்சத்து: ')
       .replace(/^Activity & Rest:\s*/i, 'உடற்பயிற்சி மற்றும் ஓய்வு: ')
-      .replace(/^Hygiene & Wound Care:\s*/i, 'சுகாதாரம் மற்றும் பராமரிப்பு: ')
+      .replace(/^Hygiene & Wound Care:\s*/i, 'சுகாதாரம் மற்றும் காயப் பராமரிப்பு: ')
       .replace(/^Medication Routine:\s*/i, 'மருந்து வழக்கம்: ')
+      .replace(/^Warning Signs?:\s*/i, 'எச்சரிக்கை அறிகுறிகள்: ')
       .replace(/Drink warm or boiled water regularly throughout the day/gi, 'நாள் முழுவதும் சீரான இடைவெளியில் வெதுவெதுப்பான அல்லது காய்ச்சிய நீரைக் குடிக்கவும்')
-      .replace(/Strictly avoid heavy, hard-to-digest meats/gi, 'கனமான இறைச்சிகளை கண்டிப்பாகத் தவிர்க்கவும்')
+      .replace(/Strictly avoid heavy, hard-to-digest meats/gi, 'கனமான, ஜீரணிக்க கடினமான இறைச்சிகளை கண்டிப்பாகத் தவிர்க்கவும்')
       .replace(/Prioritize plenty of restorative sleep/gi, 'ஆழ்ந்த தூக்கத்திற்கு முன்னுரிமை அளியுங்கள்')
-      .replace(/Take all your prescribed medications/gi, 'பரிந்துரைக்கப்பட்ட அனைத்து மருந்துகளையும் எடுத்துக் கொள்ளுங்கள்')
-      .replace(/Record every dose in your medication intake tracker/gi, 'ஒவ்வொரு மருந்தையும் டிராக்கரில் பதிவு செய்யவும்')
-      .replace(/complete your daily check-in/gi, 'தினசரி செக்-இன் முடிக்கவும்');
+      .replace(/Take all your prescribed medications/gi, 'பரிந்துரைக்கப்பட்ட அனைத்து மருந்துகளையும் தவறாமல் எடுத்துக் கொள்ளுங்கள்')
+      .replace(/Record every dose in your medication intake tracker/gi, 'ஒவ்வொரு மருந்தையும் உட்கொள்ளல் டிராக்கரில் பதிவு செய்யவும்')
+      .replace(/complete your daily check-in/gi, 'உங்கள் தினசரி செக்-இன் முடிக்கவும்')
+      .replace(/Seek immediate medical attention if you experience:/gi, 'பின்வரும் அறிகுறிகளை உணர்ந்தால் உடனடியாக மருத்துவ உதவியை நாடுங்கள்:')
+      .replace(/Seek immediate medical attention or contact/gi, 'உடனடியாக மருத்துவ உதவியை நாடுங்கள் அல்லது தொடர்பு கொள்ளுங்கள்')
+      .replace(/Fever remaining above/gi, 'காய்ச்சல் தொடர்ந்து அதிகமாக இருப்பது')
+      .replace(/despite taking medication/gi, 'மருந்து உட்கொண்ட பின்னரும்')
+      .replace(/Severe sharp pain or sudden difficulty breathing/gi, 'கடுமையான வலி அல்லது திடீர் மூச்சுத்திணறல்')
+      .replace(/Increased dizziness or extreme exhaustion/gi, 'அதிகரித்த தலைச்சுற்றல் அல்லது அதீத சோர்வு')
+      .replace(/Persistent vomiting or inability to keep fluids down/gi, 'தொடர் வாந்தி அல்லது திரவங்களை உட்கொள்ள இயலாமை')
+      .replace(/Take with warm water/gi, 'வெதுவெதுப்பான நீருடன் எடுத்துக் கொள்ளவும்')
+      .replace(/Take after meals/gi, 'உணவுக்குப் பின் எடுத்துக் கொள்ளவும்')
+      .replace(/Take before meals/gi, 'உணவுக்கு முன் எடுத்துக் கொள்ளவும்')
+      .replace(/Take at bedtime/gi, 'இரவு தூங்கும் முன் எடுத்துக் கொள்ளவும்')
+      .replace(/once daily/gi, 'தினமும் ஒரு வேளை')
+      .replace(/twice daily/gi, 'தினமும் இரண்டு வேளை')
+      .replace(/thrice daily/gi, 'தினமும் மூன்று வேளை');
   } else if (lang === 'hi') {
     translated = translated
       .replace(/^Diet & Nutrition:\s*/i, 'आहार और पोषण: ')
       .replace(/^Activity & Rest:\s*/i, 'गतिविधि और आराम: ')
-      .replace(/^Hygiene & Wound Care:\s*/i, 'स्वच्छता और देखभाल: ')
+      .replace(/^Hygiene & Wound Care:\s*/i, 'स्वच्छता और घाव की देखभाल: ')
       .replace(/^Medication Routine:\s*/i, 'दवा की दिनचर्या: ')
+      .replace(/^Warning Signs?:\s*/i, 'चेतावनी संकेत: ')
       .replace(/Drink warm or boiled water regularly throughout the day/gi, 'दिन भर नियमित रूप से गुनगुना या उबला हुआ पानी पिएं')
-      .replace(/Strictly avoid heavy, hard-to-digest meats/gi, 'भारी मांसाहार से पूरी तरह परहेज करें')
-      .replace(/Prioritize plenty of restorative sleep/gi, 'अच्छी नींद को प्राथमिकता दें')
-      .replace(/Take all your prescribed medications/gi, 'अपनी सभी निर्धारित दवाएं लें')
+      .replace(/Strictly avoid heavy, hard-to-digest meats/gi, 'पचाने में भारी मांसाहार से पूरी तरह परहेज करें')
+      .replace(/Prioritize plenty of restorative sleep/gi, 'अच्छी और गहरी नींद को प्राथमिकता दें')
+      .replace(/Take all your prescribed medications/gi, 'अपनी सभी निर्धारित दवाएं समय पर लें')
       .replace(/Record every dose in your medication intake tracker/gi, 'प्रत्येक खुराक को इनटेक ट्रैकर में दर्ज करें')
-      .replace(/complete your daily check-in/gi, 'अपना दैनिक चेक-इन पूरा करें');
+      .replace(/complete your daily check-in/gi, 'अपना दैनिक चेक-इन पूरा करें')
+      .replace(/Seek immediate medical attention if you experience:/gi, 'यदि आप निम्नलिखित लक्षण अनुभव करते हैं तो तुरंत चिकित्सा सहायता लें:')
+      .replace(/Seek immediate medical attention or contact/gi, 'तुरंत चिकित्सा सहायता लें या संपर्क करें')
+      .replace(/Fever remaining above/gi, 'दवा के बाद भी बुखार अधिक बना रहना')
+      .replace(/despite taking medication/gi, 'दवा लेने के बावजूद')
+      .replace(/Severe sharp pain or sudden difficulty breathing/gi, 'गंभीर तेज दर्द या अचानक सांस लेने में कठिनाई')
+      .replace(/Increased dizziness or extreme exhaustion/gi, 'अधिक चक्कर आना या अत्यधिक कमजोरी')
+      .replace(/Persistent vomiting or inability to keep fluids down/gi, 'लगातार उल्टी होना या तरल पदार्थ न पच पाना')
+      .replace(/Take with warm water/gi, 'गुनगुने पानी के साथ लें')
+      .replace(/Take after meals/gi, 'भोजन के बाद लें')
+      .replace(/Take before meals/gi, 'भोजन से पहले लें')
+      .replace(/Take at bedtime/gi, 'सोते समय लें')
+      .replace(/once daily/gi, 'दिन में एक बार')
+      .replace(/twice daily/gi, 'दिन में दो बार')
+      .replace(/thrice daily/gi, 'दिन में तीन बार');
   }
 
   return translated;
@@ -2236,6 +2269,12 @@ function WorkflowAnalyticsHub({ session, patientId = null, title = "Clinical Wor
 }
 
 function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
+  const isDoctor = session?.user?.role === 'doctor' || session?.user?.role === 'physician';
+  const isNurse = session?.user?.role === 'nurse';
+  const isAdmin = session?.user?.role === 'admin';
+  const isTargetDoctor = isDoctor && (doc?.assigned_doctor_id === session?.user?.id || (!doc?.assigned_doctor_id && (patient?.assigned_doctor_id === session?.user?.id || patient?.assigned_doctors?.some(d => d.id === session?.user?.id) || doc?.uploaded_by === session?.user?.id)));
+  const canApprove = isAdmin || isTargetDoctor;
+
   const [extractedText, setExtractedText] = useState(doc?.extracted_text || '');
   const [structuredData, setStructuredData] = useState(() => {
     try {
@@ -2257,7 +2296,10 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
   });
 
   const [showJsonRaw, setShowJsonRaw] = useState(false);
-  const [targetDoctorId, setTargetDoctorId] = useState(doc?.assigned_doctor_id || patient?.assigned_doctor_id || (patient?.assigned_doctors?.[0]?.id) || '');
+  const [targetDoctorId, setTargetDoctorId] = useState(() => {
+    if (isDoctor) return session?.user?.id || '';
+    return doc?.assigned_doctor_id || patient?.assigned_doctor_id || (patient?.assigned_doctors?.[0]?.id) || '';
+  });
   const [busy, setBusy] = useState(false);
   const [reExtracting, setReExtracting] = useState(false);
   const [err, setErr] = useState('');
@@ -2416,10 +2458,6 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
     }
   };
 
-  const isNurse = session?.user?.role === 'nurse';
-  const isAdmin = session?.user?.role === 'admin';
-  const canApprove = doc?.can_approve || isAdmin || isNurse;
-
   const hasMissingDosage = medicationsList.some(m => !m.dosage || m.dosage === 'null' || m.dosage.trim() === '' || m.dosage_missing || m.dosage.toLowerCase().includes('manual entry') || !m.days || m.days < 1 || !m.food_relation);
 
   const targetDocName = doctorOptions.find(d => d.id === targetDoctorId)?.name || doc?.assigned_doctor_name || 'Designated Doctor';
@@ -2479,21 +2517,37 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
             <Stethoscope size={14} color="var(--p)" />
             Reviewing Medical Specialist (Strict Approval Isolation)
           </div>
-          <select
-            className="form-input"
-            value={targetDoctorId}
-            onChange={e => setTargetDoctorId(e.target.value)}
-            disabled={!isNurse && !isAdmin && !canApprove}
-          >
-            <option value="">-- Select Specialist Doctor --</option>
-            {doctorOptions.map(d => (
-              <option key={d.id} value={d.id}>
-                Dr. {d.name} ({specLabel(d.specialization)})
-              </option>
-            ))}
-          </select>
+          {isDoctor ? (
+            <div style={{ position: 'relative' }}>
+              <input
+                className="form-input"
+                disabled
+                value={`Dr. ${session?.user?.name || 'You'} (${specLabel(session?.user?.specialization || 'Attending Physician')})`}
+                style={{ opacity: 0.9, cursor: 'not-allowed', fontWeight: 700, background: 'var(--surface)' }}
+              />
+              <span className="badge badge-teal" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 10 }}>
+                Logged-in Specialist
+              </span>
+            </div>
+          ) : (
+            <select
+              className="form-input"
+              value={targetDoctorId}
+              onChange={e => setTargetDoctorId(e.target.value)}
+              disabled={!isNurse && !isAdmin}
+            >
+              <option value="">-- Select Specialist Doctor --</option>
+              {doctorOptions.map(d => (
+                <option key={d.id} value={d.id}>
+                  Dr. {d.name} ({specLabel(d.specialization)})
+                </option>
+              ))}
+            </select>
+          )}
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-            Only this assigned specialist doctor can approve and ingest this document into the patient's recovery trajectory.
+            {isDoctor
+              ? "You are automatically designated as the reviewing medical specialist. Only you can verify and approve this prescription."
+              : "As a nurse, select which assigned doctor should review this prescription. The approval request will be sent strictly to this doctor."}
           </div>
         </div>
 
@@ -2598,8 +2652,16 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
                           <input
                             className="form-input"
                             style={{ padding: '4px 8px', fontSize: 12 }}
-                            placeholder="1-0-1, 1-1-1, BD..."
-                            value={m.period || '1-0-1'}
+                            placeholder="1-0-1, 1-0-0, 1-1-1..."
+                            value={(() => {
+                              const p = m.period || '1-0-1';
+                              const c = String(p).trim().toLowerCase();
+                              if (c === 'od' || c === '1 od' || c === '1-od') return '1-0-0';
+                              if (c === 'bd' || c === 'bid' || c === '1 bd') return '1-0-1';
+                              if (c === 'tds' || c === 'tid' || c === '1 tds') return '1-1-1';
+                              if (c === 'hs' || c === 'qhs') return '0-0-1';
+                              return p;
+                            })()}
                             onChange={e => {
                               const next = [...medicationsList];
                               next[idx] = { ...next[idx], period: e.target.value };
@@ -2731,20 +2793,19 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={() => handleSaveAndSubmit('under_review')}
+                  onClick={() => handleSaveAndSubmit('draft')}
                   disabled={busy || reExtracting}
-                  title="Forward to assigned doctor for clinical review"
                 >
-                  <Send size={13} /> Submit to Dr. {targetDocName} for Approval
+                  Save Draft Changes
                 </button>
                 <button
                   type="button"
-                  className="btn btn-success btn-sm"
-                  onClick={() => setApproveConfirmOpen(true)}
-                  disabled={busy || reExtracting}
-                  title="Approve directly and ingest into patient medications"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleSaveAndSubmit('under_review')}
+                  disabled={busy || reExtracting || !targetDoctorId}
+                  title="Forward prescription to chosen doctor for verification and approval"
                 >
-                  {busy ? <Spinner size={14} /> : <><CheckCircle2 size={14} /> Approve & Ingest Medications</>}
+                  <Send size={13} /> Send Approval Request to Dr. {targetDocName}
                 </button>
               </>
             ) : canApprove ? (
@@ -2776,7 +2837,7 @@ function ReviewDocumentModal({ doc, patient, onClose, onSuccess, session }) {
               </>
             ) : (
               <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Lock size={13} /> Only Dr. {doc.assigned_doctor_name || 'Designated Specialist'}, Nurse, or Admin can approve this document.
+                <Lock size={13} /> Strict Approval Isolation: Only Dr. {doc.assigned_doctor_name || targetDocName || 'Designated Specialist'} or Hospital Admin can approve this document.
               </div>
             )}
           </div>
@@ -5729,7 +5790,29 @@ function AppShell({ session, logout, theme, setTheme }) {
   useEffect(() => {
     setCurrentSession(prev => ({ ...prev, user: { ...prev.user, ...session.user } }));
   }, [session.user]);
-  const [doctorStatus, setDoctorStatus] = useState(session.user.availability_status || 'online');
+  const [doctorStatus, setDoctorStatus] = useState(() => {
+    if (session?.user?.role === 'doctor') {
+      const hasFutureAway = session.user.away_until && new Date(session.user.away_until) > new Date();
+      if (hasFutureAway) return session.user.availability_status || 'away';
+      return 'online';
+    }
+    return session.user.availability_status || 'online';
+  });
+
+  // Ensure doctor availability is online on login/mount unless explicit future away schedule exists
+  useEffect(() => {
+    if (session?.user?.role === 'doctor') {
+      const hasFutureAway = session.user.away_until && new Date(session.user.away_until) > new Date();
+      if (!hasFutureAway && doctorStatus !== 'online') {
+        setDoctorStatus('online');
+        api('/api/doctors/availability', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'online' }),
+        }).catch(() => {});
+      }
+    }
+  }, [session?.user?.id]);
   const [awayModalOpen, setAwayModalOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -6089,10 +6172,11 @@ function AppShell({ session, logout, theme, setTheme }) {
                   <StatusDot status="online" />Online
                 </button>
                 <button
-                  className={`avail-btn ${doctorStatus === 'away' ? 'active-away' : ''}`}
-                  onClick={() => { if (doctorStatus !== 'away') setAwayModalOpen(true); }}
+                  className={`avail-btn ${(doctorStatus === 'away' || doctorStatus === 'offline') ? 'active-away' : ''}`}
+                  onClick={() => { if (doctorStatus !== 'away' && doctorStatus !== 'offline') setAwayModalOpen(true); }}
+                  title="Switch to away or offline schedule (requires return date)"
                 >
-                  <StatusDot status="away" />Away
+                  <StatusDot status="away" />Away / Offline
                 </button>
               </div>
               {doctorStatus === 'busy' && (
@@ -6140,6 +6224,8 @@ function AppShell({ session, logout, theme, setTheme }) {
                 <div className="nav-label" style={{ marginTop: 8 }}>Clinical AI & Account</div>
                 {navItem('#/staff/chat', <Bot size={15} />, 'AI Assistant')}
                 {navItem('#/staff/digital-twin-benchmarks', <Layers size={15} />, 'AI Digital Twin Studio')}
+                {navItem('#/staff/research-studio', <BarChart3 size={15} />, 'AI Research & Benchmarks')}
+                {navItem('#/staff/experimental-tracking', <Activity size={15} />, '5-Patient Experimental Cohort')}
                 {navItem('#/staff/profile', <User size={15} />, 'My Profile')}
                 {navItem('#/home', <Home size={15} />, 'Platform Showcase')}
               </>
@@ -6162,6 +6248,8 @@ function AppShell({ session, logout, theme, setTheme }) {
                 <div className="nav-label" style={{ marginTop: 8 }}>Clinical AI & Account</div>
                 {navItem('#/staff/chat', <Bot size={15} />, 'AI Assistant')}
                 {navItem('#/staff/digital-twin-benchmarks', <Layers size={15} />, 'AI Digital Twin Studio')}
+                {navItem('#/staff/research-studio', <BarChart3 size={15} />, 'AI Research & Benchmarks')}
+                {navItem('#/staff/experimental-tracking', <Activity size={15} />, '5-Patient Experimental Cohort')}
                 {navItem('#/staff/profile', <User size={15} />, 'My Profile')}
                 {navItem('#/home', <Home size={15} />, 'Platform Showcase')}
               </>
@@ -6216,7 +6304,7 @@ function AppShell({ session, logout, theme, setTheme }) {
               <div className="topbar-breadcrumb">
               <span className="breadcrumb-root">{isPatient ? 'Patient Portal' : isAdmin ? 'Hospital Admin' : 'Hospital Clinical OS'}</span>
               <span className="breadcrumb-sep">/</span>
-              <span className="breadcrumb-current">{page === 'admin' ? 'Admin Dashboard' : page === 'digital-twin-benchmarks' ? 'AI Digital Twin Studio' : (page || 'overview').replace(/-/g, ' ')}</span>
+              <span className="breadcrumb-current">{page === 'admin' ? 'Admin Dashboard' : page === 'digital-twin-benchmarks' ? 'AI Digital Twin Studio' : page === 'research-studio' ? 'AI Research & Benchmarks' : page === 'experimental-tracking' ? '5-Patient Experimental Cohort' : (page || 'overview').replace(/-/g, ' ')}</span>
             </div>
               <div className="topbar-title">{currentSession.user.name}</div>
             </div>
@@ -6690,6 +6778,8 @@ function StaffPortal({ session, route, navigate, doctorStatus, unreadCount, setN
       {page === 'staff-chat'       && <StaffChatPage key="staff-chat" session={session} navigate={navigate} />}
       {page === 'announcements'   && <StaffAnnouncementsPage key="staff-announcements" session={session} navigate={navigate} />}
       {page === 'digital-twin-benchmarks' && <DigitalTwinBenchmarkStudio key="staff-dt-benchmarks" session={session} />}
+      {page === 'research-studio'         && <ResearchEvaluationStudio key="staff-research-studio" session={session} navigate={navigate} />}
+      {page === 'experimental-tracking'   && <ExperimentalTrackingDashboard key="staff-exp-tracking" session={session} navigate={navigate} />}
     </div>
   );
 }
@@ -6749,6 +6839,9 @@ function StaffOverview({ session, patients, navigate, reload, unreadCount = 0, s
         title="Doctor Caseload & Clinical Workflow Analytics"
         subtitle="Real database records across assigned appointments, telehealth consultations, medication adherence, and document reviews."
       />
+
+      {/* High-Risk Patient Identification & Early Warning System */}
+      <HighRiskCommandCenter session={session} navigate={navigate} />
 
       {/* Row 3: Active Patient Roster */}
       <div className="card">
@@ -7037,6 +7130,9 @@ function NurseDashboard({ navigate, session }) {
           </div>
         </div>
       </div>
+
+      {/* High-Risk Patient Identification & Early Warning System */}
+      <HighRiskCommandCenter session={session} navigate={navigate} />
 
       {/* Pending Patient Appointment Triage Station */}
       {triageRequests.length > 0 && (
@@ -8132,53 +8228,87 @@ function createSyntheticStream(label = 'Recovera Telehealth') {
 /* ===========================================================
    VOICE CALIBRATION & ACOUSTIC ROLE PROFILING ENGINE
    =========================================================== */
-const CALIBRATION_PROMPTS = {
-  'en-IN': [
-    "I am joining my clinical consultation today and my audio is functioning clearly.",
-    "My recovery trajectory is on track and I am ready to review my vitals with the care team.",
-    "Please verify my acoustic voice signature for real-time transcription and role separation."
-  ],
-  'en': [
-    "I am joining my clinical consultation today and my audio is functioning clearly.",
-    "My recovery trajectory is on track and I am ready to review my vitals with the care team.",
-    "Please verify my acoustic voice signature for real-time transcription and role separation."
-  ],
-  'ta-IN': [
-    "நான் இன்று எனது மருத்துவ ஆலோசனையில் இணைந்துள்ளேன், எனது குரல் தெளிவாக கேட்கிறது.",
-    "எனது உடல் நலம் சீராக தேறி வருகிறது, மருத்துவ குழுவுடன் ஆலோசிக்க நான் தயாராக இருக்கிறேன்.",
-    "நிகழ்நேர உரைபெயர்ப்பிற்காக மற்றும் துல்லியமான குரல் வேறுபாட்டிற்காக எனது குரலை பதிவு செய்யவும்."
-  ],
-  'ta': [
-    "நான் இன்று எனது மருத்துவ ஆலோசனையில் இணைந்துள்ளேன், எனது குரல் தெளிவாக கேட்கிறது.",
-    "எனது உடல் நலம் சீராக தேறி வருகிறது, மருத்துவ குழுவுடன் ஆலோசிக்க நான் தயாராக இருக்கிறேன்.",
-    "நிகழ்நேர உரைபெயர்ப்பிற்காக மற்றும் துல்லியமான குரல் வேறுபாட்டிற்காக எனது குரலை பதிவு செய்யவும்."
-  ],
-  'hi-IN': [
-    "मैं आज अपने चिकित्सीय परामर्श के लिए तैयार हूँ और मेरी आवाज़ स्पष्ट आ रही है।",
-    "मेरी रिकवरी अच्छी चल रही है और मैं डॉक्टर से बात करने के लिए तैयार हूँ।",
-    "सटीक लाइव कैप्शन और पहचान के लिए मेरी आवाज़ रिकॉर्ड और कैलिब्रेट करें।"
-  ],
-  'hi': [
-    "मैं आज अपने चिकित्सीय परामर्श के लिए तैयार हूँ और मेरी आवाज़ स्पष्ट आ रही है।",
-    "मेरी रिकवरी अच्छी चल रही है और मैं डॉक्टर से बात करने के लिए तैयार हूँ।",
-    "सटीक लाइव कैप्शन और पहचान के लिए मेरी आवाज़ रिकॉर्ड और कैलिब्रेट करें।"
-  ],
-  'tanglish': [
-    "Doctor, enakku audio clear-ah kekkudhu, consult join panna ready.",
-    "Medicines regular-ah eduthukren, recovery trajectory nalla progress aagudhu.",
-    "Live captions and speech recognition tanglish words test panna pesuren."
-  ],
-  'auto': [
-    "Doctor, enakku audio clear-ah kekkudhu, consult join panna ready.",
-    "I am joining my clinical consultation today and my audio is functioning clearly.",
-    "நிகழ்நேர உரைபெயர்ப்பிற்காக மற்றும் துல்லியமான குரல் வேறுபாட்டிற்காக எனது குரலை பதிவு செய்யவும்."
-  ]
-};
+function getRoleCalibrationPrompts(langCode, isDoctor, userName) {
+  const name = userName || (isDoctor ? 'Doctor' : 'Patient');
+  const l = (langCode || 'en-IN').toLowerCase();
+
+  if (isDoctor) {
+    if (l === 'ta-in' || l === 'ta') {
+      return [
+        `நான் மருத்துவர் ${name}, இன்றைய மருத்துவ ஆலோசனையை நடத்துகிறேன். எனது குரல் தெளிவாக கேட்கிறது.`,
+        `நோயாளியின் உடல் நலம் மற்றும் மருந்து அட்டவணையை மதிப்பாய்வு செய்ய நான் தயாராக இருக்கிறேன்.`,
+        `நிகழ்நேர உரைபெயர்ப்பிற்காக எனது குரல் பதிவை உறுதி செய்யவும்.`
+      ];
+    }
+    if (l === 'hi-in' || l === 'hi') {
+      return [
+        `मैं डॉ. ${name}, आज के चिकित्सकीय परामर्श का संचालन कर रहा हूँ। मेरी आवाज़ स्पष्ट आ रही है।`,
+        `मरीज़ के स्वास्थ्य सुधार और दवाओं की समीक्षा के लिए मेरा माइक्रोफ़ोन तैयार है।`,
+        `सटीक लाइव कैप्शन और पहचान के लिए मेरी आवाज़ रिकॉर्ड करें।`
+      ];
+    }
+    if (l === 'tanglish') {
+      return [
+        `Naan Dr. ${name}, innaiku consultation conduct pandren. Enoda audio clear-ah irukku.`,
+        `Patient recovery trajectory and medications innaiku review panna ready-ah irukken.`,
+        `Speech recognition and live captions test panna pesuren.`
+      ];
+    }
+    if (l === 'auto') {
+      return [
+        `I am Dr. ${name}, conducting today's consultation and testing my microphone audio.`,
+        `நான் மருத்துவர் ${name}, இன்றைய மருத்துவ ஆலோசனையை தொடங்குகிறேன்.`,
+        `मैं डॉ. ${name}, आज के चिकित्सकीय परामर्श के लिए उपस्थित हूँ।`
+      ];
+    }
+    return [
+      `I am Dr. ${name}, conducting today's clinical consultation and verifying audio clarity.`,
+      `My microphone is connected properly and I am ready to review the patient's recovery trajectory and vitals.`,
+      `Please confirm my acoustic voice signature for real-time speech transcription and clinical speaker separation.`
+    ];
+  }
+
+  // Patient role prompts
+  if (l === 'ta-in' || l === 'ta') {
+    return [
+      `நான் ${name}, இன்று எனது மருத்துவ ஆலோசனையில் இணைந்துள்ளேன், எனது குரல் தெளிவாக கேட்கிறது.`,
+      `எனது உடல் நலம் சீராக தேறி வருகிறது, மருத்துவ குழுவுடன் ஆலோசிக்க நான் தயாராக இருக்கிறேன்.`,
+      `நிகழ்நேர உரைபெயர்ப்பிற்காக மற்றும் துல்லியமான குரல் வேறுபாட்டிற்காக எனது குரலை பதிவு செய்யவும்.`
+    ];
+  }
+  if (l === 'hi-in' || l === 'hi') {
+    return [
+      `मैं ${name}, आज अपने चिकित्सकीय परामर्श में शामिल हुआ हूँ और मेरी आवाज़ स्पष्ट आ रही है।`,
+      `मेरी सेहत में सुधार हो रहा है और मैं डॉक्टर से बात करने के लिए तैयार हूँ।`,
+      `सटीक लाइव कैप्शन के लिए मेरी आवाज़ की जांच और कैलिब्रेशन करें।`
+    ];
+  }
+  if (l === 'tanglish') {
+    return [
+      `Doctor, naan ${name}, consult-la join panniten, audio clear-ah kekkudhu.`,
+      `Medicines regular-ah eduthukren, recovery trajectory nalla progress aagudhu.`,
+      `Audio test panna pesuren, en voice clear-ah irukka nu check pannunga.`
+    ];
+  }
+  if (l === 'auto') {
+    return [
+      `I am ${name}, joining today's teleconsultation and my audio is functioning clearly.`,
+      `நான் ${name}, இன்றைய ஆலோசனையில் இணைந்துள்ளேன், குரல் தெளிவாக கேட்கிறது.`,
+      `मैं ${name}, आज के परामर्श में शामिल हुआ हूँ, मेरी आवाज़ स्पष्ट है।`
+    ];
+  }
+  return [
+    `I am ${name}, joining my clinical consultation today and my audio is functioning clearly.`,
+    `My recovery trajectory is on track and I am ready to review my vitals with the care team.`,
+    `Please verify my acoustic voice signature for real-time transcription and role separation.`
+  ];
+}
 
 function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, session }) {
-  const isDoctor = role === 'doctor';
+  const isDoctor = role === 'doctor' || role === 'physician';
   const userId = session?.user?.id || (isDoctor ? 'doctor' : 'patient');
-  const [lang, setLang] = useState('en-IN');
+  const [lang, setLang] = useState('auto');
+  const [detectedLang, setDetectedLang] = useState(null);
   const [currentTheme, setCurrentTheme] = useState(() => (typeof document !== 'undefined' && document.documentElement.dataset.theme) || localStorage.getItem('theme') || 'dark');
   const [promptIdx, setPromptIdx] = useState(0);
   const [recording, setRecording] = useState(false);
@@ -8203,7 +8333,7 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
   const animRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  const sentences = CALIBRATION_PROMPTS[lang] || CALIBRATION_PROMPTS[lang?.slice(0, 2)] || CALIBRATION_PROMPTS['en-IN'];
+  const sentences = getRoleCalibrationPrompts(lang, isDoctor, userName || session?.user?.name);
   const currentSentence = (sentences && sentences[promptIdx % sentences.length]) || "I am joining my clinical consultation today and my audio is functioning clearly.";
 
   const startCalibration = async () => {
@@ -8211,6 +8341,7 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
       setRecording(true);
       setAnalyzed(false);
       setTranscribed('');
+      setDetectedLang(null);
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
       if (stream) {
@@ -8237,12 +8368,12 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
         animRef.current = requestAnimationFrame(updateVisualizer);
       }
 
-      // Live speech recognition test
+      // Live speech recognition test with automatic multilingual detection
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
         try {
           const rec = new SpeechRecognition();
-          rec.lang = lang;
+          rec.lang = lang === 'ta-IN' ? 'ta-IN' : lang === 'hi-IN' ? 'hi-IN' : 'en-IN';
           rec.interimResults = true;
           rec.continuous = true;
           rec.onresult = (e) => {
@@ -8250,7 +8381,18 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
             for (let i = e.resultIndex; i < e.results.length; i++) {
               text += e.results[i][0].transcript;
             }
-            if (text) setTranscribed(text);
+            if (text) {
+              setTranscribed(text);
+              if (/[\u0B80-\u0BFF]/.test(text)) {
+                setDetectedLang({ code: 'ta-IN', label: 'தமிழ் (Tamil)' });
+              } else if (/[\u0900-\u097F]/.test(text)) {
+                setDetectedLang({ code: 'hi-IN', label: 'हिन्दी (Hindi)' });
+              } else if (/(vanakkam|nalla|romba|aagudhu|pandren|kekkudhu|theriyala|illai|enakku|sollunga|irukku|aachu|pannalam|panna|podhum|eduthukren|pesuren)/i.test(text)) {
+                setDetectedLang({ code: 'tanglish', label: 'Tanglish' });
+              } else if (/[a-zA-Z]/.test(text)) {
+                setDetectedLang({ code: 'en-IN', label: 'English' });
+              }
+            }
           };
           rec.start();
           recognitionRef.current = rec;
@@ -8259,7 +8401,7 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
 
       setTimeout(() => {
         stopCalibration();
-      }, 4200);
+      }, 4500);
 
     } catch {
       stopCalibration();
@@ -8296,14 +8438,16 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
   }, []);
 
   const handleFinish = () => {
+    const finalLang = (lang === 'auto' && detectedLang?.code) ? detectedLang.code : (lang || 'en-IN');
     onComplete({
-      lang,
+      lang: finalLang,
       pitchHz,
       rmsDb,
       stability,
       verified: true,
       role: isDoctor ? 'Doctor' : 'Patient',
       sampleText: transcribed || currentSentence,
+      detectedLang: detectedLang?.label || null,
     });
   };
 
@@ -8317,7 +8461,7 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
       }
     } catch {}
     onComplete({
-      lang,
+      lang: detectedLang?.code || (lang === 'auto' ? 'en-IN' : lang),
       pitchHz: isDoctor ? 140 : 160,
       rmsDb: 35,
       stability: 95,
@@ -8367,17 +8511,18 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
             {[
-              { id: 'auto', label: '🌐 Auto / Tanglish' },
+              { id: 'auto', label: '🌐 Auto (Detect Language)' },
               { id: 'en-IN', label: 'English (India)' },
               { id: 'ta-IN', label: 'தமிழ் (Tamil)' },
               { id: 'hi-IN', label: 'हिन्दी (Hindi)' },
+              { id: 'tanglish', label: 'Tanglish' },
             ].map(l => (
               <button
                 key={l.id}
                 type="button"
                 className={`btn btn-sm ${lang === l.id ? 'btn-primary' : 'btn-ghost'}`}
                 style={{ fontSize: 12, padding: '8px 10px', fontWeight: lang === l.id ? 700 : 500 }}
-                onClick={() => { setLang(l.id); setAnalyzed(false); }}
+                onClick={() => { setLang(l.id); setAnalyzed(false); setDetectedLang(null); }}
               >
                 {l.label}
               </button>
@@ -8432,6 +8577,12 @@ function VoiceCalibrationModal({ open, role, userName, onComplete, onCancel, ses
               <p style={{ fontSize: 12, color: 'var(--text-dim)', fontStyle: 'italic', margin: '6px 0 0' }}>
                 Heard: "{transcribed}"
               </p>
+            )}
+            {detectedLang && (
+              <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 12px', borderRadius: 16, background: 'rgba(0, 229, 192, 0.15)', border: '1px solid var(--p)', color: 'var(--p)', fontSize: 11, fontWeight: 700 }}>
+                <Sparkles size={11} />
+                <span>Detected Spoken Language: <b>{detectedLang.label}</b></span>
+              </div>
             )}
           </div>
         )}
@@ -8807,33 +8958,20 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
   const isVideoMode = !isChatMode && !isAudioMode;
 
   // Voice Calibration State
-  // Chat consultations do NOT require voice testing
+  // Audio test is required for BOTH video and audio consultations
+  // Only chat mode bypasses voice testing
   const roomIdent = initialConsult?.room_id || initialConsult?.id || 'room';
   const calibRoomKey = `recovera_voice_calibrated_${roomIdent}_${session.user.id}`;
-  const calibUserKey = `recovera_voice_calibrated_${session.user.id}`;
-  const calibSkipKey = `recovera_voice_skip_always_${session.user.id}`;
-  const calibRoleSkipKey = `recovera_voice_skip_always_${session.user.role}`;
   const getStoredProfile = () => {
     try {
-      if (
-        localStorage.getItem(calibSkipKey) === 'true' ||
-        sessionStorage.getItem(calibSkipKey) === 'true' ||
-        localStorage.getItem(calibRoleSkipKey) === 'true' ||
-        sessionStorage.getItem(calibRoleSkipKey) === 'true'
-      ) {
-        return { verified: false, lang: 'auto', skipped: true };
-      }
-      const saved =
-        localStorage.getItem(calibRoomKey) ||
-        localStorage.getItem(calibUserKey) ||
-        sessionStorage.getItem(calibRoomKey) ||
-        sessionStorage.getItem(calibUserKey);
+      const saved = sessionStorage.getItem(calibRoomKey);
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   };
   const [calibrated, setCalibrated] = useState(() => isChatMode || Boolean(getStoredProfile()));
   const [voiceProfile, setVoiceProfile] = useState(() => getStoredProfile());
   const [selectedLang, setSelectedLang] = useState(() => getStoredProfile()?.lang || 'auto');
+  const [audioPanelTab, setAudioPanelTab] = useState('dialogue'); // 'dialogue' | 'hardware'
 
   // Consultation Timing
   const [expiresAt, setExpiresAt] = useState(initialConsult.expires_at ? parseUtc(initialConsult.expires_at) : null);
@@ -9127,12 +9265,14 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
         rec.continuous = true;
         rec.interimResults = true;
 
-        // Tanglish / Tamil / English / Hindi
-        if (selectedLang === 'auto' || selectedLang === 'tanglish' || selectedLang === 'ta-IN') {
-          rec.lang = 'ta-IN'; // Multi-lingual Indian speech recognizer (Tamil, English loanwords, Tanglish)
-        } else if (selectedLang === 'hi-IN') {
+        // Multilingual speech recognizer configuration
+        if (selectedLang === 'ta-IN' || selectedLang === 'ta') {
+          rec.lang = 'ta-IN';
+        } else if (selectedLang === 'hi-IN' || selectedLang === 'hi') {
           rec.lang = 'hi-IN';
         } else {
+          // 'en-IN' is the standard multilingual recognizer that understands English,
+          // Indian accents, medical vocabulary, and phonetic Tanglish
           rec.lang = 'en-IN';
         }
 
@@ -9156,6 +9296,12 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
               role: isDoctor ? 'Doctor' : 'Patient'
             });
             setIsInterim(!finalStr);
+
+            // Auto-detect language if in auto mode
+            if (selectedLang === 'auto') {
+              if (/[\u0B80-\u0BFF]/.test(currentText)) setSelectedLang('ta-IN');
+              else if (/[\u0900-\u097F]/.test(currentText)) setSelectedLang('hi-IN');
+            }
 
             // Broadcast live caption signal to remote peer in real time
             api(`/api/consultations/${consult.id}/signals`, {
@@ -9554,20 +9700,50 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
   const handleChatFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Only image files (PNG, JPG, JPEG, WEBP) are allowed.');
+      e.target.value = '';
+      return;
+    }
     try {
       const reader = new FileReader();
-      reader.onload = async () => {
-        await api(`/api/consultations/${consult.id}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: `📎 [Document Attached]: ${file.name}` })
-        });
-        const msgs = await api(`/api/consultations/${consult.id}/messages`);
-        setMessages(msgs);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1000;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+          await api(`/api/consultations/${consult.id}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `📸 [Image Attached: ${file.name}]: ${dataUrl}` })
+          });
+          const msgs = await api(`/api/consultations/${consult.id}/messages`);
+          setMessages(msgs);
+        };
+        img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     } catch (err) {
       console.warn('File attach error:', err);
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -9769,9 +9945,42 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
-                      {cleanText}
-                    </div>
+                    {cleanText.includes('data:image/') || cleanText.startsWith('📸 [Image Attached') ? (
+                      (() => {
+                        const imgUrlMatch = cleanText.match(/(data:image\/[a-zA-Z0-9+]+;base64,[^\s]+)/);
+                        const imgNameMatch = cleanText.match(/\[Image Attached:\s*([^\]]+)\]/);
+                        const imgSrc = imgUrlMatch ? imgUrlMatch[1] : null;
+                        return (
+                          <div style={{ marginTop: 4 }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Camera size={13} color="var(--p)" />
+                              <span>{imgNameMatch ? imgNameMatch[1] : 'Attached Clinical Photo'}</span>
+                            </div>
+                            {imgSrc && (
+                              <img
+                                src={imgSrc}
+                                alt="Consultation Attachment"
+                                style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, cursor: 'pointer', objectFit: 'contain', border: '1px solid var(--border)', background: '#000' }}
+                                onClick={() => window.open(imgSrc, '_blank')}
+                                title="Click to view full image in new tab"
+                              />
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : cleanText.startsWith('📎 [Document Attached]') ? (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.06)', borderRadius: 8, border: '1px solid var(--border)', marginTop: 4 }}>
+                        <Camera size={16} color="var(--p)" />
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600 }}>{cleanText.replace('📎 [Document Attached]:', '').trim()}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Image Photo Attachment</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
+                        {cleanText}
+                      </div>
+                    )}
                     <div className="chat-time-tag">
                       <span>{timeStr}</span>
                       {isMe && <span style={{ color: '#38bdf8', fontWeight: 800 }}>✓✓</span>}
@@ -9810,7 +10019,7 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                 type="file"
                 ref={chatFileRef}
                 style={{ display: 'none' }}
-                accept="image/*,.pdf"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
                 onChange={handleChatFileUpload}
               />
               <button
@@ -9931,12 +10140,21 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                   {activeSubtitle ? (
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <span className={`badge ${activeSpeaker.role?.toLowerCase() === 'doctor' ? 'badge-blue' : 'badge-green'}`} style={{ fontSize: 10, padding: '2px 6px', flexShrink: 0 }}>
-                        {activeSpeaker.role === 'Doctor' ? '🩺 Physician' : '👤 Patient'} ({activeSpeaker.name})
+                        {activeSpeaker.role === 'Doctor' ? '🩺 Physician' : '👤 Patient'} ({activeSpeaker.name || (activeSpeaker.role === 'Doctor' ? 'Doctor' : 'Patient')})
                       </span>
                       <span style={{ fontWeight: 600, color: 'var(--text)' }}>
                         "{activeSubtitle}"
                       </span>
                       {isInterim && <span className="caption-interim-pulse" />}
+                    </div>
+                  ) : messages.length > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <span className="badge badge-teal" style={{ fontSize: 10, padding: '2px 6px', flexShrink: 0 }}>
+                        Recent Dialogue
+                      </span>
+                      <span style={{ fontWeight: 500, color: 'var(--text-dim)', fontSize: 12 }}>
+                        "{messages[messages.length - 1].message?.replace(/^🎙️\s*\[[^\]]+\]:\s*/, '')}"
+                      </span>
                     </div>
                   ) : (
                     <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 12 }}>
@@ -9947,113 +10165,237 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
               </div>
             </div>
 
-            {/* Right: Audio Output & Hardware Selector Panel */}
-            <div className="audio-device-panel">
-              <div>
-                <h4 className="audio-device-panel-title">
-                  <Headphones size={16} color="var(--p)" /> Audio Output & Hardware Router
-                </h4>
-                <p className="audio-device-subtext">
-                  Safely switch audio output to speaker, Bluetooth, or earpiece
-                </p>
+            {/* Right: Audio Tabs (Live Dialogue & Transcript Stream vs Audio Hardware Router) */}
+            <div className="audio-device-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 460 }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+                <button
+                  type="button"
+                  className={`btn btn-xs ${audioPanelTab === 'dialogue' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setAudioPanelTab('dialogue')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: audioPanelTab === 'dialogue' ? 700 : 500 }}
+                >
+                  <MessageSquare size={13} /> Live Transcript ({messages.length})
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-xs ${audioPanelTab === 'hardware' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setAudioPanelTab('hardware')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: audioPanelTab === 'hardware' ? 700 : 500 }}
+                >
+                  <Headphones size={13} /> Audio Hardware
+                </button>
               </div>
 
-              <div className="audio-output-options-list">
-                {/* 1. Loudspeaker */}
-                <div
-                  className={`audio-output-item ${selectedOutput === 'speaker' ? 'selected' : ''}`}
-                  onClick={() => handleOutputSwitch('speaker')}
-                >
-                  <div className="audio-output-item-left">
-                    <div className="audio-output-icon">
-                      <Volume2 size={16} />
+              {audioPanelTab === 'dialogue' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                  <div className="whatsapp-body" style={{ flex: 1, maxHeight: 310, overflowY: 'auto', padding: '10px 12px', background: 'var(--surface)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {messages.map(m => {
+                      const match = m.message?.match(/^🎙️\s*\[(Doctor|Patient)\s*-\s*([^\]]+)\]:\s*([\s\S]*)$/);
+                      const parsedRole = match ? match[1].toLowerCase() : (m.sender_role === 'doctor' || m.sender_name?.toLowerCase().includes('dr.') ? 'doctor' : 'patient');
+                      const parsedName = match ? match[2] : (m.sender_name || (parsedRole === 'doctor' ? 'Doctor' : 'Patient'));
+                      const cleanText = match ? match[3] : (m.message?.replace(/^🎙️\s*/, '') || '');
+                      const isVoice = Boolean(match) || m.message?.startsWith('🎙️') || m.is_voice;
+                      const isDoc = parsedRole === 'doctor';
+                      const isSys = m.sender_role === 'system';
+                      const isMe = m.sender_id === session.user.id;
+                      const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                      if (isSys) {
+                        return <div key={m.id} className="chat-bubble system">{cleanText}</div>;
+                      }
+
+                      return (
+                        <div
+                          key={m.id}
+                          className={`chat-bubble ${isDoc ? 'doctor' : 'patient'} ${isMe ? 'sent' : 'received'}`}
+                          style={{ borderLeft: isDoc ? '3.5px solid var(--p)' : '3.5px solid #10b981' }}
+                        >
+                          <div className={`chat-bubble-header ${isDoc ? 'doctor-header' : 'patient-header'}`}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700 }}>
+                              {isDoc ? <Stethoscope size={12} color="var(--p)" /> : <User size={12} color="#10b981" />}
+                              <span style={{ color: isDoc ? 'var(--p)' : '#10b981' }}>{parsedName}</span>
+                            </span>
+                            {isVoice && (
+                              <span className="chat-voice-pill" style={{ background: isDoc ? 'rgba(0,229,192,0.2)' : 'rgba(16,185,129,0.2)', color: isDoc ? 'var(--p)' : '#10b981' }}>
+                                <Mic size={9} /> Voice
+                              </span>
+                            )}
+                          </div>
+                          {cleanText.includes('data:image/') || cleanText.startsWith('📸 [Image Attached') ? (
+                            (() => {
+                              const imgUrlMatch = cleanText.match(/(data:image\/[a-zA-Z0-9+]+;base64,[^\s]+)/);
+                              const imgNameMatch = cleanText.match(/\[Image Attached:\s*([^\]]+)\]/);
+                              const imgSrc = imgUrlMatch ? imgUrlMatch[1] : null;
+                              return (
+                                <div style={{ marginTop: 4 }}>
+                                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Camera size={12} color="var(--p)" />
+                                    <span>{imgNameMatch ? imgNameMatch[1] : 'Attached Photo'}</span>
+                                  </div>
+                                  {imgSrc && (
+                                    <img
+                                      src={imgSrc}
+                                      alt="Attachment"
+                                      style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, cursor: 'pointer', objectFit: 'contain' }}
+                                      onClick={() => window.open(imgSrc, '_blank')}
+                                      title="Click to view full image"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <div style={{ fontSize: 12.5, color: '#ffffff', lineHeight: 1.4, marginTop: 4 }}>
+                              {cleanText}
+                            </div>
+                          )}
+                          <div className="chat-time-tag"><span>{timeStr}</span></div>
+                        </div>
+                      );
+                    })}
+                    {messages.length === 0 && (
+                      <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, margin: 'auto', padding: 20 }}>
+                        Speech turns and dialogue will appear here live.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="whatsapp-footer" style={{ padding: '8px 0 0', display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto' }}>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Attach Image"
+                      onClick={() => chatFileRef.current?.click()}
+                      style={{ width: 32, height: 32, color: 'var(--text-muted)' }}
+                    >
+                      <Paperclip size={15} />
+                    </button>
+                    <input
+                      className="form-input"
+                      style={{ flex: 1, fontSize: 12, padding: '6px 12px', background: 'var(--surface2)', borderRadius: 16 }}
+                      placeholder="Type message or reply..."
+                      value={msgInput}
+                      onChange={e => setMsgInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') sendMsg(); }}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => sendMsg()}
+                      style={{ width: 32, height: 32, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Send size={13} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h4 className="audio-device-panel-title">
+                      <Headphones size={16} color="var(--p)" /> Audio Output & Hardware Router
+                    </h4>
+                    <p className="audio-device-subtext">
+                      Safely switch audio output to speaker, Bluetooth, or earpiece
+                    </p>
+                  </div>
+
+                  <div className="audio-output-options-list">
+                    {/* 1. Loudspeaker */}
+                    <div
+                      className={`audio-output-item ${selectedOutput === 'speaker' ? 'selected' : ''}`}
+                      onClick={() => handleOutputSwitch('speaker')}
+                    >
+                      <div className="audio-output-item-left">
+                        <div className="audio-output-icon">
+                          <Volume2 size={16} />
+                        </div>
+                        <div>
+                          <div className="audio-output-name">Speaker / Loudspeaker</div>
+                          <div className="audio-output-desc">Default device audio output</div>
+                        </div>
+                      </div>
+                      {selectedOutput === 'speaker' && (
+                        <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
+                      )}
                     </div>
-                    <div>
-                      <div className="audio-output-name">Speaker / Loudspeaker</div>
-                      <div className="audio-output-desc">Default device audio output</div>
+
+                    {/* 2. Bluetooth Headset / Wireless Speaker */}
+                    <div
+                      className={`audio-output-item ${selectedOutput === 'bluetooth' ? 'selected' : ''}`}
+                      onClick={() => handleOutputSwitch('bluetooth')}
+                    >
+                      <div className="audio-output-item-left">
+                        <div className="audio-output-icon">
+                          <Headphones size={16} />
+                        </div>
+                        <div>
+                          <div className="audio-output-name">Bluetooth Audio / Headset</div>
+                          <div className="audio-output-desc">Wireless headset or external speaker</div>
+                        </div>
+                      </div>
+                      {selectedOutput === 'bluetooth' && (
+                        <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
+                      )}
+                    </div>
+
+                    {/* 3. Handset Earpiece */}
+                    <div
+                      className={`audio-output-item ${selectedOutput === 'earpiece' ? 'selected' : ''}`}
+                      onClick={() => handleOutputSwitch('earpiece')}
+                    >
+                      <div className="audio-output-item-left">
+                        <div className="audio-output-icon">
+                          <Smartphone size={16} />
+                        </div>
+                        <div>
+                          <div className="audio-output-name">Phone Earpiece / Receiver</div>
+                          <div className="audio-output-desc">Private receiver for mobile phones</div>
+                        </div>
+                      </div>
+                      {selectedOutput === 'earpiece' && (
+                        <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
+                      )}
                     </div>
                   </div>
-                  {selectedOutput === 'speaker' && (
-                    <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
-                  )}
-                </div>
 
-                {/* 2. Bluetooth Headset / Wireless Speaker */}
-                <div
-                  className={`audio-output-item ${selectedOutput === 'bluetooth' ? 'selected' : ''}`}
-                  onClick={() => handleOutputSwitch('bluetooth')}
-                >
-                  <div className="audio-output-item-left">
-                    <div className="audio-output-icon">
-                      <Headphones size={16} />
+                  {/* Hardware Input Selector */}
+                  {audioInputs.length > 0 && (
+                    <div style={{ marginTop: 4 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
+                        Microphone Input Hardware:
+                      </label>
+                      <select
+                        className="form-input"
+                        style={{ fontSize: 12, padding: '6px 10px', height: 34, background: 'var(--surface2)' }}
+                        value={selectedInput}
+                        onChange={e => setSelectedInput(e.target.value)}
+                      >
+                        <option value="default">Default System Microphone</option>
+                        {audioInputs.map(dev => (
+                          <option key={dev.deviceId} value={dev.deviceId}>
+                            {dev.label || `Microphone ${dev.deviceId.slice(0, 6)}`}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <div>
-                      <div className="audio-output-name">Bluetooth Audio / Headset</div>
-                      <div className="audio-output-desc">Wireless headset or external speaker</div>
+                  )}
+
+                  {/* Telemetry Stats */}
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Codec:</span>
+                      <span style={{ color: 'var(--text)', fontWeight: 600 }}>OPUS 48kHz Stereo</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Latency:</span>
+                      <span style={{ color: '#10b981', fontWeight: 600 }}>&lt; 26ms (Peer-to-Peer)</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Captions Attributed:</span>
+                      <span style={{ color: 'var(--p)', fontWeight: 600 }}>Dual-Speaker Real-Time</span>
                     </div>
                   </div>
-                  {selectedOutput === 'bluetooth' && (
-                    <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
-                  )}
-                </div>
-
-                {/* 3. Handset Earpiece */}
-                <div
-                  className={`audio-output-item ${selectedOutput === 'earpiece' ? 'selected' : ''}`}
-                  onClick={() => handleOutputSwitch('earpiece')}
-                >
-                  <div className="audio-output-item-left">
-                    <div className="audio-output-icon">
-                      <Smartphone size={16} />
-                    </div>
-                    <div>
-                      <div className="audio-output-name">Phone Earpiece / Receiver</div>
-                      <div className="audio-output-desc">Private receiver for mobile phones</div>
-                    </div>
-                  </div>
-                  {selectedOutput === 'earpiece' && (
-                    <span className="badge badge-teal" style={{ fontSize: 10 }}>Active</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Hardware Input Selector */}
-              {audioInputs.length > 0 && (
-                <div style={{ marginTop: 4 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
-                    Microphone Input Hardware:
-                  </label>
-                  <select
-                    className="form-input"
-                    style={{ fontSize: 12, padding: '6px 10px', height: 34, background: 'var(--surface2)' }}
-                    value={selectedInput}
-                    onChange={e => setSelectedInput(e.target.value)}
-                  >
-                    <option value="default">Default System Microphone</option>
-                    {audioInputs.map(dev => (
-                      <option key={dev.deviceId} value={dev.deviceId}>
-                        {dev.label || `Microphone ${dev.deviceId.slice(0, 6)}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                </>
               )}
-
-              {/* Telemetry Stats */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Codec:</span>
-                  <span style={{ color: 'var(--text)', fontWeight: 600 }}>OPUS 48kHz Stereo</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Latency:</span>
-                  <span style={{ color: '#10b981', fontWeight: 600 }}>&lt; 26ms (Peer-to-Peer)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Captions Attributed:</span>
-                  <span style={{ color: 'var(--p)', fontWeight: 600 }}>Dual-Speaker Real-Time</span>
-                </div>
-              </div>
             </div>
           </div>
         ) : (
@@ -10195,9 +10537,43 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
-                          {cleanText}
-                        </div>
+                        {cleanText.includes('data:image/') || cleanText.startsWith('📸 [Image Attached') ? (
+                          (() => {
+                            const imgMatch = cleanText.match(/^📸\s*\[Image Attached:\s*([^\]]+)\]:\s*(data:image\/[^;]+;base64,[^\s]+)/) ||
+                              cleanText.match(/(data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+)/);
+                            const imgSrc = imgMatch ? (imgMatch[2] || imgMatch[1]) : null;
+                            const imgNameMatch = cleanText.match(/\[(?:Image|Document) Attached:\s*([^\]]+)\]/i);
+                            return (
+                              <div style={{ marginTop: 6 }}>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <Camera size={13} color="var(--p)" />
+                                  <span>{imgNameMatch ? imgNameMatch[1] : 'Attached Clinical Photo'}</span>
+                                </div>
+                                {imgSrc && (
+                                  <img
+                                    src={imgSrc}
+                                    alt="Consultation Attachment"
+                                    style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 8, cursor: 'pointer', objectFit: 'contain', border: '1px solid var(--border)', background: '#000' }}
+                                    onClick={() => window.open(imgSrc, '_blank')}
+                                    title="Click to view full image in new tab"
+                                  />
+                                )}
+                              </div>
+                            );
+                          })()
+                        ) : cleanText.startsWith('📎 [Document Attached]') ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.06)', borderRadius: 8, border: '1px solid var(--border)', marginTop: 4 }}>
+                            <Camera size={16} color="var(--p)" />
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 600 }}>{cleanText.replace('📎 [Document Attached]:', '').trim()}</div>
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Image Photo Attachment</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 13, color: '#ffffff', lineHeight: 1.45, marginTop: 4 }}>
+                            {cleanText}
+                          </div>
+                        )}
                         <div className="chat-time-tag">
                           <span>{timeStr}</span>
                           {isMe && <span style={{ color: '#38bdf8', fontWeight: 800 }}>✓✓</span>}
@@ -10213,7 +10589,16 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
                 </div>
 
                 {/* Input Footer */}
-                <div className="whatsapp-footer">
+                <div className="whatsapp-footer" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Attach Clinical Photo"
+                    onClick={() => chatFileRef.current?.click()}
+                    style={{ width: 34, height: 34, color: 'var(--text-muted)' }}
+                  >
+                    <Paperclip size={16} />
+                  </button>
                   <input
                     className="form-input"
                     style={{ flex: 1, fontSize: 12, padding: '7px 12px', background: '#202c33', border: 'none', color: '#ffffff', borderRadius: 8 }}
@@ -11669,8 +12054,14 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
       const fd = new FormData();
       fd.append('doc_type', uploadDocType);
       fd.append('file', uploadFile);
-      if (targetDoctorUploadId) {
+      if (session?.user?.role === 'doctor' || session?.user?.role === 'physician') {
+        fd.append('target_doctor_id', session.user.id);
+      } else if (targetDoctorUploadId) {
         fd.append('target_doctor_id', targetDoctorUploadId);
+      } else if (patient?.assigned_doctor_id) {
+        fd.append('target_doctor_id', patient.assigned_doctor_id);
+      } else if (patient?.assigned_doctors?.[0]?.id) {
+        fd.append('target_doctor_id', patient.assigned_doctors[0].id);
       }
       const newDoc = await api(`/api/patients/${patientId}/documents`, { method: 'POST', body: fd });
       setUploadFile(null);
@@ -12056,18 +12447,35 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
               </select>
             </div>
 
+            {(session?.user?.role === 'doctor' || session?.user?.role === 'physician') && (
+              <div className="form-field" style={{ flex: '0 0 250px', marginBottom: 0 }}>
+                <div className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Stethoscope size={13} color="var(--p)" />
+                  Reviewing Specialist (You)
+                </div>
+                <input
+                  className="form-input"
+                  disabled
+                  readOnly
+                  value={`Dr. ${session.user.name} (${specLabel(session.user.specialization || 'General')})`}
+                  style={{ opacity: 0.85, cursor: 'not-allowed', background: 'rgba(255,255,255,0.05)', fontWeight: 600 }}
+                />
+              </div>
+            )}
+
             {(session?.user?.role === 'nurse' || session?.user?.role === 'admin') && (
-              <div className="form-field" style={{ flex: '0 0 240px', marginBottom: 0 }}>
+              <div className="form-field" style={{ flex: '0 0 250px', marginBottom: 0 }}>
                 <div className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Stethoscope size={13} color="var(--p)" />
                   Designate Reviewing Doctor
                 </div>
                 <select
                   className="form-input"
-                  value={targetDoctorUploadId || patient?.assigned_doctor_id || ''}
+                  value={targetDoctorUploadId || patient?.assigned_doctor_id || (patient?.assigned_doctors?.[0]?.id) || ''}
                   onChange={e => setTargetDoctorUploadId(e.target.value)}
+                  required={session?.user?.role === 'nurse'}
                 >
-                  <option value="">-- Patient's Primary Doctor --</option>
+                  <option value="">-- Choose Assigned Doctor --</option>
                   {(patient?.assigned_doctors?.length ? patient.assigned_doctors : doctorsList).map(d => (
                     <option key={d.id} value={d.id}>
                       Dr. {d.name} ({specLabel(d.specialization)})
@@ -13992,9 +14400,13 @@ function PatientRecoveryStatusCard({ patientId, lang = 'en', onNavigate }) {
   const rawLevel = (risk?.level || 'green').toLowerCase();
   const level = rawLevel === 'red' ? 'red' : rawLevel === 'yellow' ? 'yellow' : 'green';
   const reasons = risk?.explainability_reasons || [];
-  const hasMedReason = reasons.some(r => /unlogged|pending verification|missed medication|adherence <|unrecorded doses/i.test(r));
-  const hasCheckinReason = !risk?.has_today_checkin && reasons.some(r => /missing daily telemetry|telemetry blackout|no daily symptom check-ins|day\(s\) missing/i.test(r));
-  const hasSymptomReason = reasons.some(r => /pain|fever|cough|warning|symptom|bleeding|infection/i.test(r));
+  const hasMedReason = reasons.some(r => /unlogged|pending verification|missed medication|adherence <|unrecorded doses|intake verification/i.test(r));
+  const hasCheckinReason = !risk?.has_today_checkin && reasons.some(r => /missing daily telemetry|telemetry blackout|no daily symptom check-ins|day\(s\) missing|pending for yesterday/i.test(r));
+  const hasSymptomReason = reasons.some(r =>
+    !r.toLowerCase().includes('recovery in progress') &&
+    !r.toLowerCase().includes('diagnosed clinical condition') &&
+    /severe pain|elevated pain|fever reported|fever \/|temperature|cough symptom|bleeding|infection|acute discomfort|critical warning/i.test(r)
+  );
 
   let statusTitle = 'Your Recovery Trajectory is Stable & Compliant';
   let statusDesc = 'All prescribed doses and daily check-ins are verified and on track. Maintain your daily schedule to support healing.';
@@ -14004,7 +14416,11 @@ function PatientRecoveryStatusCard({ patientId, lang = 'en', onNavigate }) {
     statusTitle = 'Your Recovery Trajectory is Stable & Compliant';
     statusDesc = 'All prescribed doses and daily check-ins are verified and on track. Maintain your daily schedule to support healing.';
   } else if (level === 'yellow') {
-    if (hasMedReason) {
+    if (hasMedReason && hasCheckinReason) {
+      statusTitle = 'Medication Intake & Daily Check-in Verification Pending';
+      statusDesc = 'Your daily check-in and medication doses for yesterday are awaiting verification. Submitting them keeps your recovery on track.';
+      primaryAction = { label: 'Verify Intake & Check-in →', link: '#/patient/check-in' };
+    } else if (hasMedReason) {
       statusTitle = 'Medication Telemetry: Past Doses Pending Verification';
       statusDesc = 'Unlogged medication doses reduce your calculated recovery score. Verify whether you took your doses in the medication log.';
       primaryAction = { label: 'Verify Past Doses →', link: '#/patient/medications' };
@@ -14020,7 +14436,11 @@ function PatientRecoveryStatusCard({ patientId, lang = 'en', onNavigate }) {
   } else if (level === 'red') {
     if (hasSymptomReason) {
       statusTitle = 'Elevated Clinical Risk: Elevated Symptoms or Fever';
-      statusDesc = reasons.find(r => /pain|fever|warning|bleeding|infection/i.test(r)) || 'Elevated pain or fever reported. Please rest, take prescribed medications, and contact your doctor if symptoms persist.';
+      statusDesc = reasons.find(r =>
+        !r.toLowerCase().includes('recovery in progress') &&
+        !r.toLowerCase().includes('diagnosed clinical condition') &&
+        /severe pain|elevated pain|fever reported|temperature|cough symptom|bleeding|infection|acute discomfort|critical warning/i.test(r)
+      ) || 'Elevated pain or fever reported. Please rest, take prescribed medications, and contact your doctor if symptoms persist.';
       primaryAction = { label: 'Consult Clinical Team →', link: '#/patient/appointments' };
     } else if (hasMedReason) {
       statusTitle = 'Elevated Recovery Risk: Multiple Unrecorded Doses';
@@ -14507,6 +14927,7 @@ function PatientOverview({ session, patientId, navigate, lang = 'en' }) {
   const [patient, setPatient] = useState(null);
   const [history, setHistory] = useState(null);
   const [checkins, setCheckins] = useState([]);
+  const [activePlan, setActivePlan] = useState(null);
   const [reactivationModalOpen, setReactivationModalOpen] = useState(false);
   const [reactivationReason, setReactivationReason] = useState('');
   const [reactivationSubmitting, setReactivationSubmitting] = useState(false);
@@ -14517,6 +14938,7 @@ function PatientOverview({ session, patientId, navigate, lang = 'en' }) {
     if (patientId) {
       api(`/api/patients/${patientId}`).then(setPatient).catch(() => {});
       api(`/api/patients/${patientId}/medical-history`).then(setHistory).catch(() => {});
+      api(`/api/patients/${patientId}/recovery-plan`).then(setActivePlan).catch(() => setActivePlan(null));
       api(`/api/patients/${patientId}/checkins`).then(res => {
         const list = Array.isArray(res) ? res : (res?.check_ins || res?.items || []);
         setCheckins(list);
@@ -14624,6 +15046,44 @@ function PatientOverview({ session, patientId, navigate, lang = 'en' }) {
         <div className="extend-banner" style={{ background: 'rgba(16, 185, 129, 0.1)', borderColor: 'var(--success)' }}>
           <CheckCircle2 size={18} color="var(--success)" />
           <span style={{ fontWeight: 600, color: 'var(--success)' }}>{reactivationMsg}</span>
+        </div>
+      )}
+
+      {/* Patient Recovery Plan Approval Alert Banner */}
+      {activePlan && (activePlan.status === 'published' || activePlan.status === 'approved') && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: 10,
+            background: 'rgba(0, 229, 192, 0.08)',
+            border: '1.5px solid rgba(0, 229, 192, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            cursor: 'pointer'
+          }}
+          onClick={() => navigate('#/patient/recovery')}
+          title="Click to view full recovery plan"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <CheckCircle2 size={18} color="var(--p)" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+              {lang === 'ta'
+                ? `உங்கள் மீட்புத் திட்டம் [v${activePlan.version_number || activePlan.version || 1}] உருவாக்கப்பட்டு அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் விருப்பமான மொழியில் உங்கள் மீட்புத் திட்டத்தைக் காணலாம்.`
+                : lang === 'hi'
+                ? `आपकी रिकवरी योजना [v${activePlan.version_number || activePlan.version || 1}] तैयार और स्वीकृत कर दी गई है। आप अपनी पसंदीदा भाषा में अपनी रिकवरी योजना देख सकते हैं।`
+                : `Your recovery plan [v${activePlan.version_number || activePlan.version || 1}] is generated and approved. You can view your recovery plan in your preferred language.`}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline btn-xs"
+            style={{ borderColor: 'var(--p)', color: 'var(--p)', whiteSpace: 'nowrap', fontWeight: 700 }}
+            onClick={(e) => { e.stopPropagation(); navigate('#/patient/recovery'); }}
+          >
+            {lang === 'ta' ? 'திட்டத்தைப் பார் →' : lang === 'hi' ? 'योजना देखें →' : 'View Recovery Plan →'}
+          </button>
         </div>
       )}
 
@@ -14808,6 +15268,8 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [planLang, setPlanLang] = useState(lang);
+  const [translatedMap, setTranslatedMap] = useState({});
+  const [translating, setTranslating] = useState(false);
 
   useEffect(() => {
     setPlanLang(lang);
@@ -14823,22 +15285,79 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
   const instructions = useMemo(() => getInstructionsList(plan?.instructions), [plan]);
   const warningSigns = useMemo(() => getWarningSignsList(plan?.warning_signs), [plan]);
 
+  // Request complete AI translations when switching to Tamil or Hindi if not pre-embedded
+  useEffect(() => {
+    if (!plan || planLang === 'en') return;
+    const preInst = plan?.content?.translations?.[planLang]?.instructions;
+    const preWarn = plan?.content?.translations?.[planLang]?.warning_signs;
+    if (Array.isArray(preInst) && preInst.length && Array.isArray(preWarn) && preWarn.length) {
+      return;
+    }
+    if (translatedMap[planLang]) return;
+
+    const allTexts = [...instructions, ...warningSigns];
+    if (allTexts.length === 0) return;
+
+    setTranslating(true);
+    api('/api/recovery-assistant/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts: allTexts, target_lang: planLang })
+    }).then(res => {
+      if (res?.translations && res.translations.length === allTexts.length) {
+        setTranslatedMap(prev => ({
+          ...prev,
+          [planLang]: {
+            instructions: res.translations.slice(0, instructions.length),
+            warning_signs: res.translations.slice(instructions.length),
+          }
+        }));
+      }
+    }).catch(e => {
+      console.warn('AI plan translation error:', e);
+    }).finally(() => {
+      setTranslating(false);
+    });
+  }, [plan, planLang, instructions, warningSigns]);
+
+  const activeInstructions = useMemo(() => {
+    if (planLang === 'en') return instructions;
+    const pre = plan?.content?.translations?.[planLang]?.instructions;
+    if (Array.isArray(pre) && pre.length) return pre;
+    const dyn = translatedMap[planLang]?.instructions;
+    if (Array.isArray(dyn) && dyn.length) return dyn;
+    return instructions.map(inst => translateClinicalSpeech(inst, planLang));
+  }, [instructions, planLang, plan, translatedMap]);
+
+  const activeWarningSigns = useMemo(() => {
+    if (planLang === 'en') return warningSigns;
+    const pre = plan?.content?.translations?.[planLang]?.warning_signs;
+    if (Array.isArray(pre) && pre.length) return pre;
+    const dyn = translatedMap[planLang]?.warning_signs;
+    if (Array.isArray(dyn) && dyn.length) return dyn;
+    return warningSigns.map(w => translateClinicalSpeech(w, planLang));
+  }, [warningSigns, planLang, plan, translatedMap]);
+
   const translatedRecoveryChunks = useMemo(() => {
     const en = [];
     const ta = [];
     const hi = [];
     if (instructions.length > 0) {
-      instructions.forEach(inst => {
+      instructions.forEach((inst, idx) => {
+        const taInst = plan?.content?.translations?.ta?.instructions?.[idx] || translatedMap?.ta?.instructions?.[idx] || translateClinicalSpeech(inst, 'ta');
+        const hiInst = plan?.content?.translations?.hi?.instructions?.[idx] || translatedMap?.hi?.instructions?.[idx] || translateClinicalSpeech(inst, 'hi');
         en.push(`Clinical instruction: ${inst}`);
-        ta.push(`மருத்துவ வழிமுறை: ${translateClinicalSpeech(inst, 'ta')}`);
-        hi.push(`नैदानिक निर्देश: ${translateClinicalSpeech(inst, 'hi')}`);
+        ta.push(`மருத்துவ வழிமுறை: ${taInst}`);
+        hi.push(`नैदानिक निर्देश: ${hiInst}`);
       });
     }
     if (warningSigns.length > 0) {
-      warningSigns.forEach(w => {
+      warningSigns.forEach((w, idx) => {
+        const taWarn = plan?.content?.translations?.ta?.warning_signs?.[idx] || translatedMap?.ta?.warning_signs?.[idx] || translateClinicalSpeech(w, 'ta');
+        const hiWarn = plan?.content?.translations?.hi?.warning_signs?.[idx] || translatedMap?.hi?.warning_signs?.[idx] || translateClinicalSpeech(w, 'hi');
         en.push(`Warning sign: ${w}. Seek immediate medical care if you experience this.`);
-        ta.push(`எச்சரிக்கை அறிகுறி: ${translateClinicalSpeech(w, 'ta')}. இதை நீங்கள் உணர்ந்தால் உடனடியாக மருத்துவ உதவியை நாடுங்கள்.`);
-        hi.push(`चेतावनी संकेत: ${translateClinicalSpeech(w, 'hi')}। यदि आप इसे महसूस करते हैं तो तुरंत चिकित्सा सहायता लें।`);
+        ta.push(`எச்சரிக்கை அறிகுறி: ${taWarn}. இதை நீங்கள் உணர்ந்தால் உடனடியாக மருத்துவ உதவியை நாடுங்கள்.`);
+        hi.push(`चेतावनी संकेत: ${hiWarn}। यदि आप इसे महसूस करते हैं तो तुरंत चिकित्सा सहायता लें।`);
       });
     }
     if (en.length === 0) {
@@ -14849,7 +15368,7 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
       };
     }
     return { en, ta, hi };
-  }, [instructions, warningSigns]);
+  }, [instructions, warningSigns, plan, translatedMap]);
 
   const chunks = translatedRecoveryChunks[planLang] || translatedRecoveryChunks.en;
 
@@ -14865,6 +15384,44 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Patient Recovery Plan Approval Alert Banner */}
+      <div style={{
+        padding: '14px 18px',
+        borderRadius: 10,
+        background: 'rgba(0, 229, 192, 0.08)',
+        border: '1.5px solid rgba(0, 229, 192, 0.35)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        boxShadow: '0 2px 10px rgba(0, 229, 192, 0.05)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <CheckCircle2 size={20} color="var(--p)" style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>
+              {planLang === 'ta'
+                ? `உங்கள் மீட்புத் திட்டம் [v${plan.version_number || plan.version || 1}] உருவாக்கப்பட்டு அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் விருப்பமான மொழியில் உங்கள் மீட்புத் திட்டத்தைக் காணலாம்.`
+                : planLang === 'hi'
+                ? `आपकी रिकवरी योजना [v${plan.version_number || plan.version || 1}] तैयार और स्वीकृत कर दी गई है। आप अपनी पसंदीदा भाषा में अपनी रिकवरी योजना देख सकते हैं।`
+                : `Your recovery plan [v${plan.version_number || plan.version || 1}] is generated and approved. You can view your recovery plan in your preferred language.`}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+              {planLang === 'ta'
+                ? 'உங்கள் மருத்துவர் அங்கீகரித்த முழுமையான வழிமுறைகள் கீழே கொடுக்கப்பட்டுள்ளன.'
+                : planLang === 'hi'
+                ? 'आपके चिकित्सक द्वारा अनुमोदित पूर्ण नैदानिक निर्देश नीचे दिए गए हैं।'
+                : 'Complete clinical care instructions approved by your physician presented below.'}
+            </div>
+          </div>
+        </div>
+        {translating && (
+          <span className="badge badge-teal" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Spinner size={12} /> AI Translating...
+          </span>
+        )}
+      </div>
+
       {/* Advanced Multilingual Voice Player */}
       <AudioNarrator
         chunks={chunks}
@@ -14898,22 +15455,22 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
         <div style={{ fontSize: 14, fontWeight: 700, margin: '14px 0 8px', color: 'var(--text)' }}>
           {getTranslation('clinical_instructions', planLang)}
         </div>
-        {instructions.map((inst, i) => (
+        {activeInstructions.map((inst, i) => (
           <div key={i} className="card-inner" style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-dim)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <Check size={14} color="var(--p)" style={{ flexShrink: 0, marginTop: 1 }} />
-            <span>{planLang === 'en' ? inst : translateClinicalSpeech(inst, planLang)}</span>
+            <span>{inst}</span>
           </div>
         ))}
 
-        {warningSigns.length > 0 && (
+        {activeWarningSigns.length > 0 && (
           <div style={{ marginTop: 20 }}>
             <h3 style={{ color: 'var(--danger)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
               <AlertTriangle size={16} /> {getTranslation('warning_signs', planLang)}
             </h3>
-            {warningSigns.map((w, i) => (
+            {activeWarningSigns.map((w, i) => (
               <div key={i} className="card-inner" style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-dim)', borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(239, 68, 68, 0.05)' }}>
                 <AlertTriangle size={14} color="var(--danger)" style={{ display: 'inline', marginRight: 6 }} />
-                <span>{planLang === 'en' ? w : translateClinicalSpeech(w, planLang)}</span>
+                <span>{w}</span>
               </div>
             ))}
           </div>

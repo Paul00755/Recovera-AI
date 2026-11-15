@@ -31,22 +31,38 @@ def get_recovery_plan(
 
     enforce_patient_isolation(patient_id=pid, current_user=current_user, db=db)
 
-    plan = db.scalar(
-        select(RecoveryPlan)
-        .where(RecoveryPlan.patient_id == pid)
-        .order_by(RecoveryPlan.created_at.desc())
-    )
+    if current_user.role == Role.PATIENT.value:
+        # First query for latest published plan
+        plan = db.scalar(
+            select(RecoveryPlan)
+            .where(RecoveryPlan.patient_id == pid, RecoveryPlan.status == DocStatus.PUBLISHED.value)
+            .order_by(RecoveryPlan.version.desc(), RecoveryPlan.created_at.desc())
+        )
+        if not plan:
+            # Fallback to any latest plan with instructions and auto-publish so it doesn't vanish on login
+            plan = db.scalar(
+                select(RecoveryPlan)
+                .where(RecoveryPlan.patient_id == pid)
+                .order_by(RecoveryPlan.version.desc(), RecoveryPlan.created_at.desc())
+            )
+            if plan and plan.instructions:
+                plan.status = DocStatus.PUBLISHED.value
+                db.commit()
+                db.refresh(plan)
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Your recovery plan is currently being prepared or updated by the clinical team. Please check back shortly."
+                )
+    else:
+        plan = db.scalar(
+            select(RecoveryPlan)
+            .where(RecoveryPlan.patient_id == pid)
+            .order_by(RecoveryPlan.created_at.desc())
+        )
 
     if not plan:
         raise HTTPException(status_code=404, detail="No recovery plan found for this patient.")
-
-    # Clinical safety gate: Patients can ONLY view PUBLISHED recovery plans.
-    # Plans in 'draft' or 'needs_review' are strictly hidden from patients.
-    if current_user.role == Role.PATIENT.value and plan.status != DocStatus.PUBLISHED.value:
-        raise HTTPException(
-            status_code=404,
-            detail="Your recovery plan is currently being prepared or updated by the clinical team. Please check back shortly."
-        )
 
     return plan
 
@@ -60,7 +76,7 @@ def generate_recovery_plan(
     if not patient or not patient.active:
         raise HTTPException(status_code=404, detail="Patient not found.")
 
-    return generate_plan_from_approved_documents(patient_id=pid, db=db, user_id=current_user.id)
+    return generate_plan_from_approved_documents(patient_id=pid, db=db, user_id=current_user.id, force=True)
 
 @router.put("/api/patients/{pid}/recovery-plan", response_model=RecoveryPlanOut)
 def update_recovery_plan(

@@ -30,14 +30,18 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
 
   if (loading || !data) return null;
 
-  const currentDay = data.current_day != null ? Math.max(1, Math.min(14, Number(data.current_day))) : 1;
-  const progressPct = Math.min(100, Math.round((currentDay / 14) * 100));
+  const hasStarted = data.has_started !== false && Boolean(data.has_started || data.medication_start_date);
+  const currentDay = hasStarted && data.current_day != null ? Math.max(1, Math.min(14, Number(data.current_day))) : 1;
+  const progressPct = hasStarted ? Math.min(100, Math.round((currentDay / 14) * 100)) : 0;
 
   const tier = (data.deviation_tier || 'normal').toLowerCase();
   let badgeKey = 'on_track';
-  let badgeClass = 'badge-green';
+  let badgeClass = hasStarted ? 'badge-green' : 'badge-blue';
 
-  if (tier.includes('critical')) {
+  if (!hasStarted) {
+    badgeKey = 'awaiting_start';
+    badgeClass = 'badge-blue';
+  } else if (tier.includes('critical')) {
     badgeKey = 'critical';
     badgeClass = 'badge-red';
   } else if (tier.includes('moderate')) {
@@ -53,19 +57,22 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
       on_track: '● Healing Progress: On Track',
       mild: '● Healing Progress: Mild Deviation',
       moderate: '● Healing Trajectory: Moderate Deviation',
-      critical: '● Healing Trajectory: Action Recommended'
+      critical: '● Healing Trajectory: Action Recommended',
+      awaiting_start: '● Recovery Pathway: Awaiting Medication Start'
     },
     ta: {
       on_track: '● குணமடைதல் முன்னேற்றம்: சரியான பாதையில்',
       mild: '● குணமடைதல் முன்னேற்றம்: லேசான விலகல்',
       moderate: '● குணமடைதல் முன்னேற்றம்: மிதமான விலகல்',
-      critical: '● குணமடைதல் முன்னேற்றம்: தீவிர விலகல்'
+      critical: '● குணமடைதல் முன்னேற்றம்: தீவிர விலகல்',
+      awaiting_start: '● மீட்புப் பாதை: மருந்துகள் தொடக்கம் நிலுவையில்'
     },
     hi: {
       on_track: '● रिकवरी प्रगति: सही राह पर',
       mild: '● रिकवरी प्रगति: हल्का विचलन',
       moderate: '● रिकवरी प्रगति: मध्यम विचलन',
-      critical: '● रिकवरी प्रगति: तत्काल ध्यान आवश्यक'
+      critical: '● रिकवरी प्रगति: तत्काल ध्यान आवश्यक',
+      awaiting_start: '● रिकवरी मार्ग: दवा शुरू होने की प्रतीक्षा'
     }
   };
 
@@ -73,11 +80,14 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
     en: {
       badge: (badgeLabels.en[badgeKey] || badgeLabels.en.on_track),
       pathway: '14-Day Post-Discharge Pathway',
-      journeyTitle: `My Recovery Journey — Day ${currentDay} of 14`,
+      journeyTitle: hasStarted
+        ? `My Recovery Journey — Day ${currentDay} of 14`
+        : 'My Recovery Journey — Awaiting Medication Assignment',
       checkinBtn: 'Complete Daily Check-in',
       corridorLabel: 'Healing Corridor Progress',
       completed: 'Completed',
       currentLabel: 'CURRENT',
+      pendingLabel: 'AWAITING START',
       milestones: [
         { day: 'Day 1–3', title: 'Initial Healing & Rest', desc: 'Surgical recovery, medication start, and close monitoring' },
         { day: 'Day 4–7', title: 'Early Mobility', desc: 'Gradual reduction in discomfort, light movement exercises' },
@@ -88,11 +98,14 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
     ta: {
       badge: (badgeLabels.ta[badgeKey] || badgeLabels.ta.on_track),
       pathway: '14-நாள் மருத்துவமனைக்கு பிந்தைய மீட்புப் பாதை',
-      journeyTitle: `எனது மீட்புப் பயணம் — நாள் ${currentDay} / 14`,
+      journeyTitle: hasStarted
+        ? `எனது மீட்புப் பயணம் — நாள் ${currentDay} / 14`
+        : 'எனது மீட்புப் பயணம் — மருந்துகள் ஒதுக்கீட்டிற்காக காத்திருக்கிறது',
       checkinBtn: 'தினசரி சோதனையை முடிக்கவும்',
       corridorLabel: 'குணமடைதல் முன்னேற்ற நிலை',
       completed: 'முடிந்தது',
       currentLabel: 'தற்போதைய நிலை',
+      pendingLabel: 'தொடக்க நிலுவை',
       milestones: [
         { day: 'நாள் 1–3', title: 'ஆரம்ப மீட்பு & ஓய்வு', desc: 'அறுவை சிகிச்சை மீட்பு, மருந்துகள் தொடக்கம் மற்றும் தீவிர கண்காணிப்பு' },
         { day: 'நாள் 4–7', title: 'ஆரம்ப நடமாட்டம்', desc: 'வலி குறைதல், மெதுவான நடைபயிற்சி மற்றும் லேசான செயல்பாடுகள்' },
@@ -103,11 +116,14 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
     hi: {
       badge: (badgeLabels.hi[badgeKey] || badgeLabels.hi.on_track),
       pathway: '14-दिवसीय डिस्चार्ज-उपरांत रिकवरी मार्ग',
-      journeyTitle: `मेरी रिकवरी यात्रा — दिन ${currentDay} / 14`,
+      journeyTitle: hasStarted
+        ? `मेरी रिकवरी यात्रा — दिन ${currentDay} / 14`
+        : 'मेरी रिकवरी यात्रा — दवा आवंटन की प्रतीक्षा',
       checkinBtn: 'दैनिक चेक-इन पूरा करें',
       corridorLabel: 'रिकवरी प्रगति स्तर',
       completed: 'पूर्ण',
       currentLabel: 'वर्तमान चरण',
+      pendingLabel: 'प्रतीक्षारत',
       milestones: [
         { day: 'दिन 1–3', title: 'प्रारंभिक आराम और उपचार', desc: 'सर्जरी के बाद आराम, दवाइयां शुरू करना और करीबी निगरानी' },
         { day: 'दिन 4–7', title: 'हल्की गतिशीलता', desc: 'दर्द में धीरे-धीरे कमी, हल्का चलना और रिकवरी व्यायाम' },
@@ -180,8 +196,8 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
       {/* 4-Stage Milestone Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 16 }}>
         {t.milestones.map((m, idx) => {
-          const isDone = (idx + 1) * 3.5 <= currentDay;
-          const isCurrent = !isDone && (idx * 3.5 <= currentDay);
+          const isDone = hasStarted && ((idx + 1) * 3.5 <= currentDay);
+          const isCurrent = hasStarted ? (!isDone && (idx * 3.5 <= currentDay)) : (idx === 0);
 
           return (
             <div key={m.day} style={{
@@ -200,7 +216,9 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
                 {isDone ? (
                   <CheckCircle2 size={13} style={{ color: 'var(--success)' }} />
                 ) : isCurrent ? (
-                  <span className="badge badge-teal" style={{ fontSize: 9 }}>{t.currentLabel}</span>
+                  <span className="badge badge-teal" style={{ fontSize: 9 }}>
+                    {hasStarted ? t.currentLabel : t.pendingLabel}
+                  </span>
                 ) : null}
               </div>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>

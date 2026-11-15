@@ -18,6 +18,10 @@ export function DigitalTwinTab({ patientId, session }) {
   const [reviewingAlertId, setReviewingAlertId] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
   const [error, setError] = useState(null);
+  const [predictionsData, setPredictionsData] = useState(null);
+  const [simulationResult, setSimulationResult] = useState(null);
+  const [simulating, setSimulating] = useState(false);
+  const [selectedScenario, setSelectedScenario] = useState('adherence_drop');
 
   const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
   const headers = useMemo(() => ({
@@ -29,10 +33,11 @@ export function DigitalTwinTab({ patientId, session }) {
     try {
       setLoading(true);
       setError(null);
-      const [sRes, tRes, aRes] = await Promise.all([
+      const [sRes, tRes, aRes, pRes] = await Promise.all([
         fetch(`${API_BASE}/api/digital-twin/patients/${patientId}/state`, { headers }),
         fetch(`${API_BASE}/api/digital-twin/patients/${patientId}/trajectory`, { headers }),
-        fetch(`${API_BASE}/api/digital-twin/patients/${patientId}/alerts`, { headers })
+        fetch(`${API_BASE}/api/digital-twin/patients/${patientId}/alerts`, { headers }),
+        fetch(`${API_BASE}/api/digital-twin/patients/${patientId}/predictions`, { headers }).catch(() => null)
       ]);
 
       if (!sRes.ok || !tRes.ok) {
@@ -42,10 +47,12 @@ export function DigitalTwinTab({ patientId, session }) {
       const sData = await sRes.json();
       const tData = await tRes.json();
       const aData = aRes.ok ? await aRes.json() : [];
+      const pData = (pRes && pRes.ok) ? await pRes.json() : null;
 
       setStateData(sData);
       setTrajectoryData(tData);
       setAlerts(aData);
+      if (pData) setPredictionsData(pData);
       setSelectedDay(tData.current_day || 1);
     } catch (err) {
       console.error('Digital Twin error:', err);
@@ -99,6 +106,25 @@ export function DigitalTwinTab({ patientId, session }) {
       alert(`Failed to review alert: ${err.message}`);
     } finally {
       setReviewingAlertId(null);
+    }
+  };
+
+  const handleRunSimulation = async (scenarioType) => {
+    try {
+      setSimulating(true);
+      setSelectedScenario(scenarioType);
+      const res = await fetch(`${API_BASE}/api/digital-twin/patients/${patientId}/simulate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ scenario_type: scenarioType })
+      });
+      if (!res.ok) throw new Error('Simulation failed');
+      const sJson = await res.json();
+      setSimulationResult(sJson);
+    } catch (err) {
+      alert(`Simulation Error: ${err.message}`);
+    } finally {
+      setSimulating(false);
     }
   };
 
@@ -230,7 +256,9 @@ export function DigitalTwinTab({ patientId, session }) {
                   ● {tierConfig.label}
                 </span>
                 <span className="badge badge-neutral" style={{ fontSize: 11 }}>
-                  Day {trajectoryData?.current_day || 1} of 14
+                  {trajectoryData?.has_started === false
+                    ? '14-Day Pathway: Awaiting Medication'
+                    : `Day ${trajectoryData?.current_day || 1} of 14`}
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   Evaluated: {stateData?.last_calculated_at ? new Date(stateData.last_calculated_at).toLocaleTimeString() : 'Just now'}
@@ -790,6 +818,200 @@ export function DigitalTwinTab({ patientId, session }) {
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION: Clinical Machine Learning Multi-Model Predictions */}
+      <div className="card" style={{ padding: 22, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="section-head" style={{ marginBottom: 16 }}>
+          <div>
+            <span className="eyebrow">PREDICTIVE ARTIFICIAL INTELLIGENCE</span>
+            <h3 style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>
+              Clinical Machine Learning Multi-Model Inferences (Live Grounding)
+            </h3>
+          </div>
+          <span className="badge badge-teal" style={{ fontSize: 11 }}>
+            Model Registry v1.0 Active
+          </span>
+        </div>
+
+        {predictionsData?.predictions?.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+              {predictionsData.predictions.map((p) => {
+                const isRed = p.predicted_risk_level === 'RED';
+                const isYellow = p.predicted_risk_level === 'YELLOW';
+                const badgeClass = isRed ? 'badge-red' : (isYellow ? 'badge-amber' : 'badge-teal');
+
+                return (
+                  <div key={p.model_id} style={{
+                    padding: 14,
+                    borderRadius: 8,
+                    background: 'var(--surface2)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                          {p.architecture}
+                        </div>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>
+                          {p.model_name}
+                        </div>
+                      </div>
+                      {p.predicted_risk_level ? (
+                        <span className={`badge ${badgeClass}`} style={{ fontSize: 10.5, fontWeight: 800 }}>
+                          {p.predicted_risk_level} ({p.probability}%)
+                        </span>
+                      ) : (
+                        <span className="badge badge-teal" style={{ fontSize: 10.5, fontWeight: 800 }}>
+                          {p.predicted_value} pts
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                      {p.prediction_type} · Version {p.model_version}
+                    </div>
+
+                    {/* Model Evaluation Metric summary */}
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, fontSize: 10.5, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                      {p.evaluation_metrics?.accuracy && <span>Acc: <strong>{p.evaluation_metrics.accuracy}%</strong></span>}
+                      {p.evaluation_metrics?.roc_auc && <span>AUC: <strong>{p.evaluation_metrics.roc_auc}</strong></span>}
+                      {p.evaluation_metrics?.f1_score && <span>F1: <strong>{p.evaluation_metrics.f1_score}%</strong></span>}
+                      {p.evaluation_metrics?.mae && <span>MAE: <strong>{p.evaluation_metrics.mae} pts</strong></span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Key Input Factors / Drivers */}
+            {predictionsData.key_drivers?.length > 0 && (
+              <div style={{ padding: 12, borderRadius: 8, background: 'rgba(20, 184, 166, 0.06)', border: '1px solid rgba(20, 184, 166, 0.25)' }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--teal)', marginBottom: 4 }}>
+                  Identified Key Risk Input Drivers:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text-dim)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {predictionsData.key_drivers.map((kd, idx) => (
+                    <li key={idx}>{kd}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
+            Synthesizing machine learning inference from patient telemetry...
+          </div>
+        )}
+      </div>
+
+      {/* SECTION: Hypothetical Scenario Simulator (What-If Analysis) */}
+      <div className="card" style={{ padding: 22, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="section-head" style={{ marginBottom: 14 }}>
+          <div>
+            <span className="eyebrow">WHAT-IF CLINICAL SIMULATOR</span>
+            <h3 style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>
+              Hypothetical Trajectory Simulation Engine
+            </h3>
+          </div>
+          <span className="badge badge-amber" style={{ fontSize: 10.5, fontWeight: 700 }}>
+            SIMULATION MODE: HYPOTHETICAL ONLY
+          </span>
+        </div>
+
+        <div style={{
+          padding: '10px 14px',
+          borderRadius: 8,
+          background: 'rgba(245, 158, 11, 0.08)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          marginBottom: 16,
+          fontSize: 12,
+          color: 'var(--text-dim)',
+          lineHeight: 1.45
+        }}>
+          <strong style={{ color: 'var(--amber)' }}>Scientific Rigor Notice:</strong> This simulator operates strictly on an in-memory cloned feature vector to test hypothetical scenarios for clinical decision support. Simulated adjustments <strong>never alter verified patient telemetry</strong> or active clinical records.
+        </div>
+
+        {/* Scenario Selection Buttons */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+          <button
+            className={`btn btn-sm ${selectedScenario === 'adherence_drop' ? 'btn-danger' : 'btn-ghost'}`}
+            onClick={() => handleRunSimulation('adherence_drop')}
+            disabled={simulating}
+          >
+            Scenario 1: Non-Compliance Spike (-35% Adherence, +2 Missed Doses)
+          </button>
+          <button
+            className={`btn btn-sm ${selectedScenario === 'perfect_adherence' ? 'btn-teal' : 'btn-ghost'}`}
+            onClick={() => handleRunSimulation('perfect_adherence')}
+            disabled={simulating}
+          >
+            Scenario 2: Full Compliance (100% Adherence, 0 Missed Doses)
+          </button>
+          <button
+            className={`btn btn-sm ${selectedScenario === 'pain_escalation' ? 'btn-amber' : 'btn-ghost'}`}
+            onClick={() => handleRunSimulation('pain_escalation')}
+            disabled={simulating}
+          >
+            Scenario 3: Discomfort Escalation (+3 Pain Score, Steep Slope)
+          </button>
+          <button
+            className={`btn btn-sm ${selectedScenario === 'fever_spike' ? 'btn-danger' : 'btn-ghost'}`}
+            onClick={() => handleRunSimulation('fever_spike')}
+            disabled={simulating}
+          >
+            Scenario 4: Acute Infection Marker (Fever Flag Active)
+          </button>
+        </div>
+
+        {/* Simulation Output Display */}
+        {simulationResult && (
+          <div style={{ padding: 16, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <span className="badge badge-amber" style={{ fontSize: 10 }}>
+                  Active Scenario: {simulationResult.scenario_type.replace(/_/g, ' ').toUpperCase()}
+                </span>
+                <h4 style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+                  Projected Trajectory Impact
+                </h4>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className={`badge ${simulationResult.projected_risk_tier === 'RED' ? 'badge-red' : (simulationResult.projected_risk_tier === 'YELLOW' ? 'badge-amber' : 'badge-teal')}`} style={{ fontSize: 12, fontWeight: 800 }}>
+                  Projected Tier: {simulationResult.projected_risk_tier}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <div style={{ padding: 12, borderRadius: 6, background: 'var(--surface)', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Projected Deterioration Probability</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: simulationResult.projected_deterioration_probability > 50 ? '#ef4444' : '#22c55e', marginTop: 2 }}>
+                  {simulationResult.projected_deterioration_probability}%
+                </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 6, background: 'var(--surface)', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Projected Recovery Score</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>
+                  {simulationResult.projected_recovery_score} pts
+                </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 6, background: 'var(--surface)', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Baseline Adherence vs Sim</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginTop: 4 }}>
+                  {simulationResult.baseline_features?.adherence_pct}% → <span style={{ color: 'var(--p)' }}>{simulationResult.simulated_features?.adherence_pct}%</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

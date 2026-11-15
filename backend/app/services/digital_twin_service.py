@@ -31,17 +31,33 @@ def get_or_create_trajectory_milestones(
     """
     Ensures a 14-day clinician-approved expected recovery corridor exists for the patient.
     Defaults to evidence-based post-discharge recovery decline envelopes.
+    Day 1 is anchored to the medication assignment date (first prescribed medication),
+    so the 14-day count begins only when medications are assigned to the patient.
     """
+    # Look up medication assignment start date
+    first_med = db.scalar(
+        select(Medication)
+        .where(Medication.patient_id == patient_id)
+        .order_by(Medication.start_date.asc(), Medication.created_at.asc())
+        .limit(1)
+    )
+    med_start_date = (first_med.start_date or (first_med.created_at.date() if first_med.created_at else None)) if first_med else None
+    effective_base = start_date or med_start_date
+
     existing = db.scalars(
         select(RecoveryTrajectoryMilestone)
         .where(RecoveryTrajectoryMilestone.patient_id == patient_id)
         .order_by(RecoveryTrajectoryMilestone.day_number.asc())
     ).all()
     if existing:
+        # Re-anchor existing milestones if medication start date has been established
+        if effective_base and existing[0].target_date != effective_base:
+            for m in existing:
+                m.target_date = effective_base + dt.timedelta(days=m.day_number - 1)
+            db.commit()
         return list(existing)
 
-    patient = db.get(Patient, patient_id)
-    base_date = start_date or (patient.created_at.date() if patient and patient.created_at else dt.date.today())
+    base_date = effective_base or dt.date.today()
 
     # Evidence-based recovery curve: gradual expected pain reduction over 14 days
     curve_archetype = [
@@ -94,23 +110,31 @@ def compute_digital_twin_state(
     """
     now = dt.datetime.utcnow()
     today_d = now.date()
-    milestones = get_or_create_trajectory_milestones(db, patient_id)
 
-    # Recovery pathway base date (Day 1) is anchored to milestones[0].target_date
-    patient = db.get(Patient, patient_id)
-    base_date = (
-        milestones[0].target_date
-        if (milestones and milestones[0].target_date)
-        else (patient.created_at.date() if patient and patient.created_at else today_d)
+    first_med = db.scalar(
+        select(Medication)
+        .where(Medication.patient_id == patient_id)
+        .order_by(Medication.start_date.asc(), Medication.created_at.asc())
+        .limit(1)
     )
+    med_start_date = (first_med.start_date or (first_med.created_at.date() if first_med.created_at else None)) if first_med else None
+    has_meds = first_med is not None
+
+    milestones = get_or_create_trajectory_milestones(db, patient_id, start_date=med_start_date)
+
+    if has_meds and med_start_date:
+        base_date = med_start_date
+        diff = (today_d - base_date).days
+        days_elapsed = max(1, min(14, diff + 1)) if diff >= 0 else 1
+    else:
+        base_date = milestones[0].target_date if (milestones and milestones[0].target_date) else today_d
+        days_elapsed = 1
+
     end_date = (
         milestones[-1].target_date
         if (milestones and milestones[-1].target_date)
         else (base_date + dt.timedelta(days=13))
     )
-
-    # Elapsed days in recovery pathway up to today (clamped between 1 and 14)
-    days_elapsed = max(1, min(14, (today_d - base_date).days + 1))
 
     # 1. Fetch Plan Version
     latest_plan = db.scalar(
@@ -205,9 +229,13 @@ def compute_digital_twin_state(
     t_score = min(100.0, round(consecutive_rising_days * 35.0, 1))
 
     # Q_t: Data Quality & Missingness (Check-in Completeness over elapsed recovery window)
-    submitted_count = sum(1 for m in milestones if m.target_date and m.target_date <= today_d and m.target_date in checkin_map)
-    missing_checkins = max(0, days_elapsed - submitted_count)
-    q_score = round(min(100.0, (missing_checkins / max(1, days_elapsed)) * 100.0), 1)
+    if not has_meds:
+        missing_checkins = 0
+        q_score = 0.0
+    else:
+        submitted_count = sum(1 for m in milestones if m.target_date and m.target_date <= today_d and m.target_date in checkin_map)
+        missing_checkins = max(0, days_elapsed - submitted_count)
+        q_score = round(min(100.0, (missing_checkins / max(1, days_elapsed)) * 100.0), 1)
 
     # Composite Deviation D_t
     # Weights: Symptom (35%), Adherence (25%), Trend (20%), Acute/Follow-up (10%), Missingness (10%)
