@@ -30,6 +30,16 @@ from app.models.digital_twin import (
     DigitalTwinPrediction,
     DigitalTwinDeviationAlert,
 )
+from app.models.image_analysis import (
+    MedicalImage,
+    ImageAnalysisSession,
+    ImageAnalysis,
+    WoundObservation,
+    FractureAnalysis,
+    GeminiReassessment,
+    AnalysisExport,
+    ModelTrainingRun,
+)
 
 __all__ = [
     "Base",
@@ -71,6 +81,14 @@ __all__ = [
     "RecoveryTrajectoryMilestone",
     "DigitalTwinPrediction",
     "DigitalTwinDeviationAlert",
+    "MedicalImage",
+    "ImageAnalysisSession",
+    "ImageAnalysis",
+    "WoundObservation",
+    "FractureAnalysis",
+    "GeminiReassessment",
+    "AnalysisExport",
+    "ModelTrainingRun",
 ]
 
 def init_db():

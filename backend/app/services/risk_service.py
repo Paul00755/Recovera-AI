@@ -348,6 +348,34 @@ def evaluate_patient_risk(
         if condition_context:
             reasons.extend(condition_context)
 
+    # 4b. Multi-Modal Vision Biomarkers (Saved Medical Image Analysis)
+    latest_saved_img_analysis = None
+    try:
+        from app.models.image_analysis import ImageAnalysis, ImageAnalysisSession
+        latest_saved_img_analysis = db.scalars(
+            select(ImageAnalysis)
+            .join(ImageAnalysisSession, ImageAnalysis.session_id == ImageAnalysisSession.id)
+            .where(
+                ImageAnalysis.patient_id == patient_id,
+                ImageAnalysisSession.status == "saved"
+            )
+            .order_by(desc(ImageAnalysis.created_at))
+        ).first()
+
+        if latest_saved_img_analysis:
+            img_sev = latest_saved_img_analysis.severity_level
+            img_pred = latest_saved_img_analysis.primary_prediction
+            if img_sev == "critical":
+                level = RiskLevel.RED.value
+                reasons.insert(0, f"AI Vision Critical Alert: {img_pred} ({latest_saved_img_analysis.analysis_type.replace('_', ' ').title()})")
+            elif img_sev == "elevated" and level != RiskLevel.RED.value:
+                level = RiskLevel.YELLOW.value
+                reasons.insert(0, f"AI Vision Warning: {img_pred} ({latest_saved_img_analysis.analysis_type.replace('_', ' ').title()})")
+            elif img_sev == "low" and level == RiskLevel.GREEN.value:
+                reasons.append(f"AI Vision Confirmation: Favorable tissue recovery verified ({img_pred})")
+    except Exception:
+        latest_saved_img_analysis = None
+
     # 5. Advanced Clinical LLM Intelligence Analysis (Medical History + Specific Meds + Custom Notes via Gemini)
     from app.services.clinical_llm_risk_analyzer import analyze_patient_risk_with_ai
 
@@ -377,6 +405,10 @@ def evaluate_patient_risk(
         "doctor_nurse_summary": ai_risk_output.get("doctor_nurse_summary"),
         "medical_history_impact": ai_risk_output.get("medical_history_impact"),
         "custom_message_analysis": ai_risk_output.get("custom_message_analysis"),
+        "image_analysis_summary": (
+            f"{latest_saved_img_analysis.analysis_type.replace('_', ' ').title()}: {latest_saved_img_analysis.primary_prediction} "
+            f"({latest_saved_img_analysis.severity_level.upper()}, Confidence: {latest_saved_img_analysis.confidence_score*100:.1f}%)"
+        ) if latest_saved_img_analysis else None,
         "ai_evaluated": True,
         "model_used": ai_risk_output.get("model_used", "Google Gemini")
     }

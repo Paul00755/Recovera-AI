@@ -27,6 +27,7 @@ from app.api.staff_chat_api import router as staff_chat_router, staff_chat_webso
 from app.api.announcements_api import router as announcements_router
 from app.api.digital_twin_api import router as digital_twin_router
 from app.api.research_api import router as research_router
+from app.api.image_analysis_api import router as image_analysis_router
 
 app = FastAPI(
     title="Recovera AI API",
@@ -82,6 +83,7 @@ app.include_router(staff_chat_router)
 app.include_router(announcements_router)
 app.include_router(digital_twin_router)
 app.include_router(research_router)
+app.include_router(image_analysis_router)
 
 # Staff Chat WebSocket alias
 @app.websocket("/ws/staff-chat")
@@ -179,6 +181,18 @@ def on_startup():
             db.close()
     except Exception as e:
         # Graceful fallback: startup continues even if seed warning occurs
+        pass
+
+    # Ensure experimental image analysis cohort & benchmarks exist
+    try:
+        from app.core.database import SessionLocal
+        from app.services.seed_image_analysis_data import seed_image_analysis_cohort
+        db = SessionLocal()
+        try:
+            seed_image_analysis_cohort(db)
+        finally:
+            db.close()
+    except Exception as e:
         pass
 
     # Start automated medication reminder background worker thread

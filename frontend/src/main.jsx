@@ -29,6 +29,7 @@ import { PatientRecoveryJourneyCard } from './components/digital-twin/PatientRec
 import { ResearchEvaluationStudio } from './components/research/ResearchEvaluationStudio';
 import { ExperimentalTrackingDashboard } from './components/research/ExperimentalTrackingDashboard';
 import { HighRiskCommandCenter } from './components/risk/HighRiskCommandCenter';
+import { ImageAnalysisWorkspace } from './components/image-analysis/ImageAnalysisWorkspace';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -6222,6 +6223,7 @@ function AppShell({ session, logout, theme, setTheme }) {
                 {navItem('#/staff/caseload', <LayoutDashboard size={15} />, 'Doctor Caseload View')}
 
                 <div className="nav-label" style={{ marginTop: 8 }}>Clinical AI & Account</div>
+                {navItem('#/staff/image-analysis', <Camera size={15} />, 'AI Image Analysis', '#/staff/image-analysis')}
                 {navItem('#/staff/chat', <Bot size={15} />, 'AI Assistant')}
                 {navItem('#/staff/digital-twin-benchmarks', <Layers size={15} />, 'AI Digital Twin Studio')}
                 {navItem('#/staff/research-studio', <BarChart3 size={15} />, 'AI Research & Benchmarks')}
@@ -6246,6 +6248,7 @@ function AppShell({ session, logout, theme, setTheme }) {
                 {navItem('#/staff/consultations', <Video size={15} />, '15m Consultations')}
 
                 <div className="nav-label" style={{ marginTop: 8 }}>Clinical AI & Account</div>
+                {navItem('#/staff/image-analysis', <Camera size={15} />, 'AI Image Analysis', '#/staff/image-analysis')}
                 {navItem('#/staff/chat', <Bot size={15} />, 'AI Assistant')}
                 {navItem('#/staff/digital-twin-benchmarks', <Layers size={15} />, 'AI Digital Twin Studio')}
                 {navItem('#/staff/research-studio', <BarChart3 size={15} />, 'AI Research & Benchmarks')}
@@ -6304,7 +6307,7 @@ function AppShell({ session, logout, theme, setTheme }) {
               <div className="topbar-breadcrumb">
               <span className="breadcrumb-root">{isPatient ? 'Patient Portal' : isAdmin ? 'Hospital Admin' : 'Hospital Clinical OS'}</span>
               <span className="breadcrumb-sep">/</span>
-              <span className="breadcrumb-current">{page === 'admin' ? 'Admin Dashboard' : page === 'digital-twin-benchmarks' ? 'AI Digital Twin Studio' : page === 'research-studio' ? 'AI Research & Benchmarks' : page === 'experimental-tracking' ? '5-Patient Experimental Cohort' : (page || 'overview').replace(/-/g, ' ')}</span>
+              <span className="breadcrumb-current">{page === 'admin' ? 'Admin Dashboard' : page === 'image-analysis' ? 'AI Image Analysis' : page === 'digital-twin-benchmarks' ? 'AI Digital Twin Studio' : page === 'research-studio' ? 'AI Research & Benchmarks' : page === 'experimental-tracking' ? '5-Patient Experimental Cohort' : (page || 'overview').replace(/-/g, ' ')}</span>
             </div>
               <div className="topbar-title">{currentSession.user.name}</div>
             </div>
@@ -6780,6 +6783,7 @@ function StaffPortal({ session, route, navigate, doctorStatus, unreadCount, setN
       {page === 'digital-twin-benchmarks' && <DigitalTwinBenchmarkStudio key="staff-dt-benchmarks" session={session} />}
       {page === 'research-studio'         && <ResearchEvaluationStudio key="staff-research-studio" session={session} navigate={navigate} />}
       {page === 'experimental-tracking'   && <ExperimentalTrackingDashboard key="staff-exp-tracking" session={session} navigate={navigate} />}
+      {page === 'image-analysis'          && <ImageAnalysisWorkspace key="staff-image-analysis" session={session} navigate={navigate} />}
     </div>
   );
 }
@@ -7008,6 +7012,9 @@ function PatientDirectory({ session, patients, loadingPatients, navigate, onRelo
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      <button className="icon-btn" title="AI Medical Image Analysis" onClick={() => navigate(`#/staff/image-analysis?patientId=${p.id}`)} style={{ color: '#00d4b8' }}>
+                        <Camera size={14} />
+                      </button>
                       {canEdit && (
                         <button className="icon-btn" title="Edit patient details" onClick={() => setEditPatient(p)}>
                           <Edit size={14} />

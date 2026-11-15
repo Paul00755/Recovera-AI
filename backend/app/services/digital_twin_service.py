@@ -304,7 +304,7 @@ def compute_digital_twin_state(
         .order_by(DigitalTwinPrediction.created_at.desc())
         .limit(1)
     )
-    forecast_dict = None
+    forecast_dict = {}
     if latest_pred:
         forecast_dict = {
             "model_name": latest_pred.model_name,
@@ -316,6 +316,49 @@ def compute_digital_twin_state(
             "limitations_note": latest_pred.limitations_note,
             "created_at": latest_pred.created_at.isoformat(),
         }
+
+    # Medical Image Biomarkers Integration
+    try:
+        from app.models.image_analysis import ImageAnalysis, ImageAnalysisSession
+        latest_saved_img = db.scalars(
+            select(ImageAnalysis)
+            .join(ImageAnalysisSession, ImageAnalysis.session_id == ImageAnalysisSession.id)
+            .where(
+                ImageAnalysis.patient_id == patient_id,
+                ImageAnalysisSession.status == "saved"
+            )
+            .order_by(desc(ImageAnalysis.created_at))
+        ).first()
+
+        if latest_saved_img:
+            img_bio = {
+                "analysis_id": latest_saved_img.id,
+                "analysis_type": latest_saved_img.analysis_type,
+                "primary_prediction": latest_saved_img.primary_prediction,
+                "severity_level": latest_saved_img.severity_level,
+                "confidence_score": latest_saved_img.confidence_score,
+                "created_at": latest_saved_img.created_at.isoformat(),
+            }
+            if latest_saved_img.analysis_type == "surgical_wound" and latest_saved_img.wound_observation:
+                wo = latest_saved_img.wound_observation
+                img_bio.update({
+                    "wound_area_cm2": wo.wound_area_cm2,
+                    "erythema_score": wo.erythema_score,
+                    "dehiscence_risk_score": wo.dehiscence_risk_score,
+                    "tissue_type": wo.predominant_tissue_type,
+                    "healing_trajectory": wo.healing_trajectory_status
+                })
+            elif latest_saved_img.analysis_type == "bone_fracture_xray" and latest_saved_img.fracture_analysis:
+                fa = latest_saved_img.fracture_analysis
+                img_bio.update({
+                    "fracture_detected": fa.fracture_detected,
+                    "callus_observed": fa.callus_formation_observed,
+                    "healing_stage": fa.healing_stage,
+                    "displacement": fa.displacement_severity
+                })
+            forecast_dict["image_biomarkers"] = img_bio
+    except Exception:
+        pass
 
     # 5. Save or Update DigitalTwinState
     twin = db.scalar(select(DigitalTwinState).where(DigitalTwinState.patient_id == patient_id))
