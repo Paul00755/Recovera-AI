@@ -12,6 +12,10 @@ class MedicalHistoryIn(BaseModel):
 
 class PatientCreateIn(BaseModel):
     name: str = Field(..., min_length=2, max_length=200)
+    condition: Optional[str] = Field(None, min_length=2, max_length=150, description="Mandatory active clinical condition/diagnosis e.g. Dengue Fever, Viral Pyrexia, Post-Op Cholecystectomy")
+    active_condition: Optional[str] = None
+    condition_stage: Optional[str] = "active"
+    condition_notes: Optional[str] = None
     dob: Optional[dt.date] = None
     age: Optional[int] = None
     gender: Optional[str] = "unspecified"
@@ -35,6 +39,10 @@ class PatientCreateIn(BaseModel):
 
 class PatientUpdateIn(BaseModel):
     name: Optional[str] = None
+    condition: Optional[str] = None
+    active_condition: Optional[str] = None
+    condition_stage: Optional[str] = None
+    condition_notes: Optional[str] = None
     dob: Optional[dt.date] = None
     age: Optional[int] = None
     gender: Optional[str] = None
@@ -69,6 +77,10 @@ class PatientPreferencesIn(BaseModel):
     preferred_language: Optional[str] = None
     sms_language: Optional[str] = None
     sms_opt_in: Optional[bool] = None
+    condition: Optional[str] = None
+    active_condition: Optional[str] = None
+    condition_stage: Optional[str] = None
+    condition_notes: Optional[str] = None
 
 class CareStatusUpdateIn(BaseModel):
     care_status: str

@@ -348,11 +348,44 @@ def evaluate_patient_risk(
         if condition_context:
             reasons.extend(condition_context)
 
-    # 5. Persist Evaluation in RiskClassificationHistory
+    # 5. Advanced Clinical LLM Intelligence Analysis (Medical History + Specific Meds + Custom Notes via Gemini)
+    from app.services.clinical_llm_risk_analyzer import analyze_patient_risk_with_ai
+
+    ai_risk_output = analyze_patient_risk_with_ai(
+        db=db,
+        patient_id=patient_id,
+        baseline_level=level,
+        baseline_reasons=reasons,
+        window_days=window_days
+    )
+
+    final_level = ai_risk_output.get("ai_risk_level", level)
+    # Clinical Safety Invariant: Rule-based RED cannot be downgraded by AI
+    if level == RiskLevel.RED.value:
+        final_level = RiskLevel.RED.value
+
+    # Combine explainability reasons with any AI extracted flags
+    combined_reasons = list(reasons)
+    custom_flags = ai_risk_output.get("doctor_nurse_summary", {}).get("custom_notes_sentiment_flags", [])
+    for flag in custom_flags:
+        if flag and "No acute distress" not in flag and flag not in combined_reasons:
+            combined_reasons.append(f"AI Note Signal: {flag}")
+
+    explainability_payload = {
+        "reasons": combined_reasons,
+        "patient_facing_summary": ai_risk_output.get("patient_facing_summary"),
+        "doctor_nurse_summary": ai_risk_output.get("doctor_nurse_summary"),
+        "medical_history_impact": ai_risk_output.get("medical_history_impact"),
+        "custom_message_analysis": ai_risk_output.get("custom_message_analysis"),
+        "ai_evaluated": True,
+        "model_used": ai_risk_output.get("model_used", "Google Gemini")
+    }
+
+    # 6. Persist Evaluation in RiskClassificationHistory
     record = RiskClassificationHistory(
         patient_id=patient_id,
-        level=level,
-        explainability_reasons=reasons,
+        level=final_level,
+        explainability_reasons=explainability_payload,
         insufficient_data=insufficient_data,
         data_window_days=window_days,
         is_override=False,
@@ -362,7 +395,7 @@ def evaluate_patient_risk(
     db.commit()
 
     # If categorized as RED, notify the assigned doctor via in-app alert + SMS Gateway
-    if level == RiskLevel.RED.value and patient.assigned_doctor_id:
+    if final_level == RiskLevel.RED.value and patient.assigned_doctor_id:
         try:
             doctor = db.get(User, patient.assigned_doctor_id)
             if doctor and doctor.active:

@@ -11260,6 +11260,110 @@ function RiskAnalyticsTab({ patientId, session }) {
                 })
               )}
             </div>
+
+            {/* AI Multimodal Clinical Assessment (Gemini Clinical Engine) */}
+            <div style={{
+              marginTop: 20,
+              padding: '16px 18px',
+              borderRadius: 12,
+              background: 'linear-gradient(145deg, rgba(0, 212, 184, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%)',
+              border: '1.5px solid rgba(0, 212, 184, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <HeartPulse size={17} color="var(--p)" />
+                  <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>
+                    AI Clinical Assessment & Telemetry NLP
+                  </span>
+                  <span className="badge badge-teal" style={{ fontSize: 10 }}>Gemini 3.5 Flash-Lite</span>
+                </div>
+                {risk?.model_used && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    Engine: <strong style={{ color: 'var(--p)' }}>{risk.model_used}</strong>
+                  </span>
+                )}
+              </div>
+
+              {/* Condition & Medical History Impact */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+                <div style={{ padding: 12, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 4 }}>
+                    Active Condition & Comorbidity Profile
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                    {risk?.active_condition || 'General Post-Discharge Convalescence'}
+                    {risk?.condition_stage && <span className="badge badge-teal" style={{ marginLeft: 6, fontSize: 10 }}>{risk.condition_stage}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.45 }}>
+                    {risk?.medical_history_impact || 'No adverse chronic comorbidity interactions identified with current acute regimen.'}
+                  </div>
+                </div>
+
+                <div style={{ padding: 12, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 4 }}>
+                    Medication Telemetry Adherence Impact
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.45 }}>
+                    {risk?.doctor_nurse_summary?.medication_impact || 'Prescription adherence is satisfactory or undergoing initial ingestion.'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Patient Custom Message & NLP Sentiment Flags */}
+              {(risk?.custom_message_analysis || risk?.doctor_nurse_summary?.custom_notes_sentiment_flags?.length > 0) && (
+                <div style={{ padding: 12, borderRadius: 8, background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ fontSize: 11.5, textTransform: 'uppercase', color: 'var(--danger)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <AlertTriangle size={13} /> Patient Verbatim Notes & AI Signal Detection
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {(risk?.doctor_nurse_summary?.custom_notes_sentiment_flags || []).map((flag, idx) => (
+                        <span key={idx} className="badge badge-red" style={{ fontSize: 10, fontWeight: 700 }}>
+                          {flag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {risk?.custom_message_analysis && (
+                    <div style={{ fontSize: 12.5, color: 'var(--text)', fontStyle: 'italic', background: 'rgba(0,0,0,0.15)', padding: '8px 12px', borderRadius: 6 }}>
+                      "{risk.custom_message_analysis}"
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Comprehensive Clinical Narrative */}
+              {risk?.doctor_nurse_summary?.clinical_assessment && (
+                <div style={{ padding: 12, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 4 }}>
+                    Clinician & Nursing Synthesis Narrative
+                  </div>
+                  <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text)', lineHeight: 1.55 }}>
+                    {risk.doctor_nurse_summary.clinical_assessment}
+                  </p>
+                </div>
+              )}
+
+              {/* Recommended Clinical Interventions */}
+              {risk?.doctor_nurse_summary?.recommended_clinical_interventions?.length > 0 && (
+                <div style={{ padding: 12, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--p)', fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle2 size={13} /> Recommended Clinical Interventions
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {risk.doctor_nurse_summary.recommended_clinical_interventions.map((step, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--text)' }}>
+                        <span style={{ color: 'var(--p)', fontWeight: 800 }}>•</span>
+                        <span>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -14457,6 +14561,11 @@ function PatientRecoveryStatusCard({ patientId, lang = 'en', onNavigate }) {
     }
   }
 
+  // Dual-Tier Clinical Explainability: If AI patient-facing summary exists, display it for the patient
+  if (risk?.patient_facing_summary) {
+    statusDesc = risk.patient_facing_summary;
+  }
+
   return (
     <div className={`recovery-status-card ${level}`}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -14479,7 +14588,7 @@ function PatientRecoveryStatusCard({ patientId, lang = 'en', onNavigate }) {
               ● {level === 'green' ? 'Optimal Recovery (GREEN)' : level === 'yellow' ? 'Moderate Attention (YELLOW)' : 'Action Needed (RED)'}
             </span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Clinical Triage & Health Status
+              Clinical Triage & Health Status {risk?.active_condition ? `· ${risk.active_condition}` : ''}
             </span>
           </div>
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginTop: 4 }}>
@@ -19354,6 +19463,9 @@ function AddPatientModal({ onClose, onSuccess, session }) {
     password: '',
     must_change_password: true,
     phone: '',
+    condition: '',
+    condition_stage: 'active',
+    condition_notes: '',
     dob: '',
     age: '',
     gender: 'male',
@@ -19398,6 +19510,10 @@ function AddPatientModal({ onClose, onSuccess, session }) {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!form.condition || !form.condition.trim()) {
+      setErr('Clinical Condition / Primary Diagnosis is mandatory. (e.g. Dengue Fever, Acute Viral Pyrexia, Post-Op Surgery)');
+      return;
+    }
     setBusy(true); setErr('');
     try {
       const payload = {
@@ -19406,6 +19522,10 @@ function AddPatientModal({ onClose, onSuccess, session }) {
         password: form.password ? form.password.trim() : undefined,
         must_change_password: form.must_change_password,
         phone: form.phone,
+        condition: form.condition.trim(),
+        active_condition: form.condition.trim(),
+        condition_stage: form.condition_stage || 'active',
+        condition_notes: (form.condition_notes || '').trim() || undefined,
         dob: form.dob || undefined,
         age: form.age ? parseInt(form.age, 10) : undefined,
         gender: form.gender,
@@ -19439,6 +19559,55 @@ function AddPatientModal({ onClose, onSuccess, session }) {
           <div className="form-field"><div className="form-label">Full Name *</div><input className="form-input" required placeholder="Patient full name" value={form.name} onChange={e => set('name', e.target.value)} /></div>
           <div className="form-field"><div className="form-label">Email Address *</div><input className="form-input" required type="email" placeholder="patient@email.com" value={form.email} onChange={e => set('email', e.target.value)} /></div>
           <div className="form-field"><div className="form-label">Phone Number *</div><input className="form-input" required placeholder="+91 98765 43210" value={form.phone} onChange={e => set('phone', e.target.value)} /></div>
+
+          {/* Mandatory Clinical Condition Field with Quick Select */}
+          <div className="form-field" style={{ gridColumn: 'span 2', background: 'rgba(0, 212, 184, 0.04)', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(0, 212, 184, 0.3)' }}>
+            <div className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Activity size={14} color="var(--p)" />
+                Clinical Condition / Primary Diagnosis <span style={{ color: 'var(--danger, #ef4444)' }}>*</span>
+              </span>
+              <span className="badge badge-teal" style={{ fontSize: 10 }}>Mandatory for Clinical Triage</span>
+            </div>
+            <input
+              className="form-input"
+              required
+              placeholder="e.g. Dengue Fever, Acute Viral Pyrexia, Typhoid, Post-Op Knee Surgery"
+              value={form.condition}
+              onChange={e => set('condition', e.target.value)}
+              style={{ borderColor: !form.condition && err ? 'var(--danger, #ef4444)' : undefined }}
+            />
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Quick Select:</span>
+              {[
+                'Dengue Fever',
+                'Acute Viral Pyrexia',
+                'Typhoid Fever',
+                'Post-Op Knee Surgery',
+                'Laparoscopic Cholecystectomy',
+                'Appendectomy Recovery',
+                'General Convalescence'
+              ].map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => set('condition', c)}
+                  style={{
+                    fontSize: 11,
+                    padding: '3px 10px',
+                    borderRadius: 14,
+                    border: form.condition === c ? '1px solid var(--p)' : '1px solid var(--border)',
+                    background: form.condition === c ? 'var(--p-dim, rgba(16,185,129,0.18))' : 'var(--surface2)',
+                    color: form.condition === c ? 'var(--p)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontWeight: form.condition === c ? 700 : 500
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="form-field">
             <div className="form-label">Date of Birth</div>
             <input className="form-input" type="date" value={form.dob} onChange={e => handleDobChange(e.target.value)} />

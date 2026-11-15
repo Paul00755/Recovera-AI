@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import {
   AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Search,
   Filter, TrendingUp, TrendingDown, Clock, Calendar, User,
   ChevronRight, AlertCircle, HelpCircle, Activity, HeartPulse,
-  Eye, Edit3, X, Check, ShieldCheck
+  Eye, Edit3, X, Check, ShieldCheck, ChevronDown, ChevronUp,
+  Sparkles, MessageSquare, ClipboardList, Pill
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -18,6 +19,7 @@ export function HighRiskCommandCenter({ session, navigate }) {
   const [overrideReason, setOverrideReason] = useState('');
   const [actionSuccess, setActionSuccess] = useState(null);
   const [error, setError] = useState(null);
+  const [expandedPatientId, setExpandedPatientId] = useState(null);
 
   const token = session?.token || JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}')?.token;
   const headers = useMemo(() => ({
@@ -338,114 +340,270 @@ export function HighRiskCommandCenter({ session, navigate }) {
                   const rLvl = (p.risk_level || 'green').toLowerCase();
                   const badgeClass = rLvl === 'red' ? 'badge-red' : (rLvl === 'yellow' ? 'badge-amber' : (rLvl === 'green' ? 'badge-teal' : 'badge-neutral'));
                   const trendColor = p.trend_indicator === 'deteriorating' ? '#ef4444' : (p.trend_indicator === 'improving' ? '#22c55e' : 'var(--text-dim)');
+                  const isExpanded = expandedPatientId === p.patient_id;
 
                   return (
-                    <tr
-                      key={p.patient_id}
-                      style={{
-                        borderBottom: '1px solid var(--border)',
-                        background: rLvl === 'red' ? 'rgba(239, 68, 68, 0.04)' : 'transparent'
-                      }}
-                    >
-                      {/* Patient Details */}
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text)' }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                          <code>{p.patient_code}</code> · {p.age ? `${p.age}y` : ''} {p.gender}
-                        </div>
-                      </td>
-
-                      {/* Assigned Specialist */}
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{p.assigned_doctor}</div>
-                      </td>
-
-                      {/* Risk Level & Score */}
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className={`badge ${badgeClass}`} style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase' }}>
-                            {p.risk_level}
-                          </span>
-                          <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text)' }}>
-                            {p.risk_score}
-                          </span>
-                        </div>
-                        {p.is_override && (
-                          <div style={{ fontSize: 10, color: 'var(--amber)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <ShieldAlert size={11} /> Overridden by MD
+                    <Fragment key={p.patient_id}>
+                      <tr
+                        style={{
+                          borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
+                          background: rLvl === 'red' ? 'rgba(239, 68, 68, 0.04)' : isExpanded ? 'rgba(0, 212, 184, 0.03)' : 'transparent',
+                          transition: 'background 0.2s ease'
+                        }}
+                      >
+                        {/* Patient Details & Condition */}
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text)' }}>{p.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                            <code>{p.patient_code}</code> · {p.age ? `${p.age}y` : ''} {p.gender}
                           </div>
-                        )}
-                      </td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, flexWrap: 'wrap' }}>
+                            <span className="badge badge-teal" style={{ fontSize: 10, fontWeight: 700 }}>
+                              {p.active_condition || 'Convalescence'}
+                            </span>
+                            {p.medical_history?.conditions?.length > 0 && (
+                              <span className="badge badge-amber" style={{ fontSize: 9.5 }}>
+                                {p.medical_history.conditions.length} Comorbidities
+                              </span>
+                            )}
+                            {(p.custom_message_analysis || p.doctor_nurse_summary?.custom_notes_sentiment_flags?.length > 0) && (
+                              <span className="badge badge-red" style={{ fontSize: 9.5, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                <MessageSquare size={10} /> Note Signal
+                              </span>
+                            )}
+                          </div>
+                        </td>
 
-                      {/* Trajectory Trend */}
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: trendColor, fontWeight: 700, textTransform: 'capitalize' }}>
-                          {p.trend_indicator === 'deteriorating' && <TrendingDown size={14} />}
-                          {p.trend_indicator === 'improving' && <TrendingUp size={14} />}
-                          <span>{p.trend_indicator}</span>
-                        </div>
-                      </td>
+                        {/* Assigned Specialist */}
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{p.assigned_doctor}</div>
+                        </td>
 
-                      {/* Key Contributing Factors */}
-                      <td style={{ padding: '12px', maxWidth: 280 }}>
-                        <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: 'var(--text-dim)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          {p.key_contributing_factors?.slice(0, 2).map((factor, idx) => (
-                            <li key={idx}>{factor}</li>
-                          ))}
-                          {p.key_contributing_factors?.length > 2 && (
-                            <li style={{ color: 'var(--p)', listStyle: 'none' }}>
-                              +{p.key_contributing_factors.length - 2} more factors
-                            </li>
+                        {/* Risk Level & Score */}
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span className={`badge ${badgeClass}`} style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase' }}>
+                              {p.risk_level}
+                            </span>
+                            <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text)' }}>
+                              {p.risk_score}
+                            </span>
+                          </div>
+                          {p.is_override && (
+                            <div style={{ fontSize: 10, color: 'var(--amber)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <ShieldAlert size={11} /> Overridden by MD
+                            </div>
                           )}
-                        </ul>
-                      </td>
+                        </td>
 
-                      {/* Last Telemetry */}
-                      <td style={{ padding: '12px', fontSize: 11.5, color: 'var(--text-dim)' }}>
-                        {p.last_checkin_date || 'No check-in'}
-                      </td>
+                        {/* Trajectory Trend */}
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: trendColor, fontWeight: 700, textTransform: 'capitalize' }}>
+                            {p.trend_indicator === 'deteriorating' && <TrendingDown size={14} />}
+                            {p.trend_indicator === 'improving' && <TrendingUp size={14} />}
+                            <span>{p.trend_indicator}</span>
+                          </div>
+                        </td>
 
-                      {/* Recommended Clinical Action */}
-                      <td style={{ padding: '12px', maxWidth: 240 }}>
-                        <div style={{ fontSize: 11.5, color: 'var(--text)', lineHeight: 1.35 }}>
-                          {p.recommended_action}
-                        </div>
-                      </td>
+                        {/* Key Contributing Factors */}
+                        <td style={{ padding: '12px', maxWidth: 280 }}>
+                          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: 'var(--text-dim)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {p.key_contributing_factors?.slice(0, 2).map((factor, idx) => (
+                              <li key={idx}>{factor}</li>
+                            ))}
+                            {p.key_contributing_factors?.length > 2 && (
+                              <li style={{ color: 'var(--p)', listStyle: 'none' }}>
+                                +{p.key_contributing_factors.length - 2} more factors
+                              </li>
+                            )}
+                          </ul>
+                        </td>
 
-                      {/* Actions */}
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => navigate && navigate(`#/staff/patients/${p.patient_id}/overview`)}
-                            title="Open Patient Clinical Overview"
-                            style={{ padding: '4px 8px' }}
-                          >
-                            <Eye size={13} />
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => handleReevaluate(p.patient_id)}
-                            title="Force Re-evaluation"
-                            style={{ padding: '4px 8px' }}
-                          >
-                            <RefreshCw size={13} />
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => {
-                              setOverrideModal(p);
-                              setOverrideLevel(p.risk_level);
-                              setOverrideReason('');
-                            }}
-                            title="Clinician Risk Override"
-                            style={{ padding: '4px 8px' }}
-                          >
-                            <Edit3 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        {/* Last Telemetry */}
+                        <td style={{ padding: '12px', fontSize: 11.5, color: 'var(--text-dim)' }}>
+                          {p.last_checkin_date || 'No check-in'}
+                        </td>
+
+                        {/* Recommended Clinical Action */}
+                        <td style={{ padding: '12px', maxWidth: 240 }}>
+                          <div style={{ fontSize: 11.5, color: 'var(--text)', lineHeight: 1.35 }}>
+                            {p.recommended_action}
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, flexWrap: 'wrap' }}>
+                            <button
+                              className={`btn btn-sm ${isExpanded ? 'btn-primary' : 'btn-ghost'}`}
+                              onClick={() => setExpandedPatientId(isExpanded ? null : p.patient_id)}
+                              title="Toggle AI Clinical Assessment & Notes Deep-Dive"
+                              style={{ padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
+                            >
+                              <Sparkles size={12} color={isExpanded ? '#fff' : 'var(--p)'} />
+                              <span>AI Deep-Dive</span>
+                              {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => navigate && navigate(`#/staff/patients/${p.patient_id}/overview`)}
+                              title="Open Patient Clinical Overview"
+                              style={{ padding: '4px 6px' }}
+                            >
+                              <Eye size={13} />
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleReevaluate(p.patient_id)}
+                              title="Force Re-evaluation"
+                              style={{ padding: '4px 6px' }}
+                            >
+                              <RefreshCw size={13} />
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => {
+                                setOverrideModal(p);
+                                setOverrideLevel(p.risk_level);
+                                setOverrideReason('');
+                              }}
+                              title="Clinician Risk Override"
+                              style={{ padding: '4px 6px' }}
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expanded AI Clinical Deep-Dive Drawer */}
+                      {isExpanded && (
+                        <tr style={{ background: 'rgba(0, 212, 184, 0.02)' }}>
+                          <td colSpan={8} style={{ padding: '16px 20px', borderBottom: '2px solid rgba(0, 212, 184, 0.4)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                              {/* Header Banner */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <Sparkles size={16} color="var(--p)" />
+                                  <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--text)' }}>
+                                    AI Multimodal Clinical Risk Assessment & Telemetry Analysis
+                                  </span>
+                                  <span className="badge badge-teal" style={{ fontSize: 10 }}>
+                                    {p.active_condition} · {p.condition_stage || 'active'}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                    Engine: <strong style={{ color: 'var(--p)' }}>{p.model_used || 'Gemini 3.5 Flash-Lite Clinical Risk Engine'}</strong>
+                                  </span>
+                                  {p.evaluated_at && (
+                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                      Evaluated: {new Date(p.evaluated_at).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* 3-Column Diagnostic Breakdown */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                                {/* Card 1: Medical History & Comorbidities */}
+                                <div style={{ background: 'var(--surface2)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <ClipboardList size={13} color="var(--p)" /> Medical History & Comorbidities
+                                  </div>
+                                  <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.45, marginBottom: 8 }}>
+                                    {p.medical_history_impact || 'No adverse chronic disease interactions identified.'}
+                                  </div>
+                                  {p.medical_history?.conditions?.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                      {p.medical_history.conditions.map((c, i) => (
+                                        <span key={i} className="badge badge-amber" style={{ fontSize: 10 }}>{c}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {p.medical_history?.notes && (
+                                    <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6, fontStyle: 'italic' }}>
+                                      Notes: {p.medical_history.notes}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Card 2: Medication Adherence & Regimen */}
+                                <div style={{ background: 'var(--surface2)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Pill size={13} color="var(--p)" /> Medication Adherence & Regimen
+                                  </div>
+                                  <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.45, marginBottom: 6 }}>
+                                    {p.doctor_nurse_summary?.medication_impact || 'Prescription telemetry adheres to scheduled regimen.'}
+                                  </div>
+                                  {p.has_repeated_missed_meds ? (
+                                    <div className="badge badge-red" style={{ fontSize: 10.5, marginTop: 4 }}>
+                                      ⚠️ Repeated missed medication doses detected
+                                    </div>
+                                  ) : (
+                                    <div className="badge badge-teal" style={{ fontSize: 10.5, marginTop: 4 }}>
+                                      ✓ No critical missed medication streaks
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Card 3: Telemetry & Patient Custom Note NLP */}
+                                <div style={{ background: 'var(--surface2)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <MessageSquare size={13} color="var(--p)" /> Symptom Trajectory & Patient Notes
+                                  </div>
+                                  <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.45, marginBottom: 6 }}>
+                                    {p.doctor_nurse_summary?.symptom_trajectory_analysis || 'Telemetry and pain progression monitored.'}
+                                  </div>
+                                  {(p.custom_message_analysis || p.doctor_nurse_summary?.custom_notes_sentiment_flags?.length > 0) && (
+                                    <div style={{ marginTop: 8, padding: 8, borderRadius: 6, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
+                                        {(p.doctor_nurse_summary?.custom_notes_sentiment_flags || []).map((fl, idx) => (
+                                          <span key={idx} className="badge badge-red" style={{ fontSize: 9.5 }}>{fl}</span>
+                                        ))}
+                                      </div>
+                                      {p.custom_message_analysis && (
+                                        <div style={{ fontSize: 11.5, color: 'var(--text)', fontStyle: 'italic' }}>
+                                          "{p.custom_message_analysis}"
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Full Clinical Narrative & Interventions */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+                                {/* Clinical Assessment */}
+                                <div style={{ background: 'var(--surface2)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+                                    Synthesized Clinical Assessment (Clinician & Nursing)
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text)', lineHeight: 1.5 }}>
+                                    {p.doctor_nurse_summary?.clinical_assessment || p.recommended_action}
+                                  </p>
+                                </div>
+
+                                {/* Recommended Interventions */}
+                                <div style={{ background: 'var(--surface2)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--p)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <CheckCircle2 size={13} /> Actionable Clinical Interventions
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {(p.doctor_nurse_summary?.recommended_clinical_interventions || [p.recommended_action]).map((act, i) => (
+                                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12, color: 'var(--text)' }}>
+                                        <span style={{ color: 'var(--p)', fontWeight: 800 }}>•</span>
+                                        <span>{act}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

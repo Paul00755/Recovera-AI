@@ -45,7 +45,25 @@ def _risk_to_dict(r: RiskClassificationHistory, db: Session) -> dict:
             doctor_name = doc.name
     lvl_cap = r.level.capitalize() if r.level else "Green"
     lvl_lower = str(r.level).lower() if r.level else "green"
-    reasons_count = len(r.explainability_reasons or [])
+
+    reasons_list = []
+    patient_summary = None
+    doctor_nurse_summary = None
+    medical_history_impact = None
+    custom_message_analysis = None
+    model_used = None
+
+    if isinstance(r.explainability_reasons, dict):
+        reasons_list = r.explainability_reasons.get("reasons", [])
+        patient_summary = r.explainability_reasons.get("patient_facing_summary")
+        doctor_nurse_summary = r.explainability_reasons.get("doctor_nurse_summary")
+        medical_history_impact = r.explainability_reasons.get("medical_history_impact")
+        custom_message_analysis = r.explainability_reasons.get("custom_message_analysis")
+        model_used = r.explainability_reasons.get("model_used")
+    elif isinstance(r.explainability_reasons, list):
+        reasons_list = r.explainability_reasons
+
+    reasons_count = len(reasons_list)
     if lvl_lower == "red":
         computed_score = min(96, 72 + (reasons_count * 4))
     elif lvl_lower == "yellow":
@@ -66,13 +84,26 @@ def _risk_to_dict(r: RiskClassificationHistory, db: Session) -> dict:
         ).limit(1)
     )
 
+    pat = db.get(Patient, r.patient_id)
+    active_condition = pat.active_condition if pat else None
+    condition_stage = pat.condition_stage if pat else None
+    medical_history = pat.history if pat else None
+
     return {
         "id": r.id,
         "patient_id": r.patient_id,
+        "active_condition": active_condition,
+        "condition_stage": condition_stage,
+        "medical_history": medical_history,
         "level": r.level,
         "risk_level": lvl_cap,
         "risk_score": risk_score,
-        "explainability_reasons": r.explainability_reasons or [],
+        "explainability_reasons": reasons_list,
+        "patient_facing_summary": patient_summary,
+        "doctor_nurse_summary": doctor_nurse_summary,
+        "medical_history_impact": medical_history_impact,
+        "custom_message_analysis": custom_message_analysis,
+        "model_used": model_used,
         "insufficient_data": r.insufficient_data,
         "data_window_days": r.data_window_days,
         "is_override": r.is_override,
@@ -283,7 +314,25 @@ def get_high_risk_overview(
         else:
             summary_counters["insufficient_data_count"] += 1
 
-        reasons = r.explainability_reasons if r else ["Telemetry data pending initial ingestion"]
+        raw_exp = r.explainability_reasons if r else None
+        reasons = []
+        patient_facing_summary = None
+        doctor_nurse_summary = None
+        medical_history_impact = None
+        custom_message_analysis = None
+        model_used = None
+
+        if isinstance(raw_exp, dict):
+            reasons = raw_exp.get("reasons", [])
+            patient_facing_summary = raw_exp.get("patient_facing_summary")
+            doctor_nurse_summary = raw_exp.get("doctor_nurse_summary")
+            medical_history_impact = raw_exp.get("medical_history_impact")
+            custom_message_analysis = raw_exp.get("custom_message_analysis")
+            model_used = raw_exp.get("model_used")
+        elif isinstance(raw_exp, list):
+            reasons = raw_exp
+        else:
+            reasons = ["Telemetry data pending initial ingestion"]
 
         # Check for repeated missed meds
         has_repeated_missed = any("missed" in reason.lower() and ("consecutive" in reason.lower() or "doses" in reason.lower()) for reason in reasons)
@@ -358,9 +407,17 @@ def get_high_risk_overview(
             "age": age,
             "gender": p.gender,
             "assigned_doctor": doc_name,
+            "active_condition": p.active_condition or "General Post-Discharge Convalescence",
+            "condition_stage": p.condition_stage or "active",
+            "medical_history": p.history or {},
             "risk_level": lvl,
             "risk_score": r.risk_score if (r and hasattr(r, 'risk_score')) else (85 if lvl == "red" else (50 if lvl == "yellow" else 15)),
             "key_contributing_factors": reasons,
+            "patient_facing_summary": patient_facing_summary,
+            "doctor_nurse_summary": doctor_nurse_summary,
+            "medical_history_impact": medical_history_impact,
+            "custom_message_analysis": custom_message_analysis,
+            "model_used": model_used,
             "last_checkin_date": last_checkin_date,
             "trend_indicator": trend,
             "recommended_action": rec_action,

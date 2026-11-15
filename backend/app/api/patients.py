@@ -196,7 +196,15 @@ def create_patient(
     if normalized_phone_val:
         assert_phone_number_unique(db, normalized_phone_val)
 
-    # 1. Create User account for patient with configured or default temporary password
+    # 1. Enforce Mandatory Clinical Condition
+    condition_val = (req.condition or req.active_condition or "").strip()
+    if not condition_val:
+        raise HTTPException(
+            status_code=422,
+            detail="Patient clinical condition (e.g. Dengue, Acute Viral Fever, Post-Op Surgery) is mandatory for patient registration."
+        )
+
+    # 2. Create User account for patient with configured or default temporary password
     patient_email = req.email.strip().lower() if req.email else f"patient_{uuid.uuid4().hex[:8]}@hospital.local"
     existing_user = db.scalar(select(User).where(User.email == patient_email))
     if existing_user:
@@ -219,13 +227,13 @@ def create_patient(
     db.add(user)
     db.flush()
 
-    # 2. Compute date of birth if age is provided
+    # 3. Compute date of birth if age is provided
     patient_dob = req.dob
     if not patient_dob and req.age is not None and req.age > 0:
         today = dt.date.today()
         patient_dob = dt.date(today.year - req.age, today.month, min(today.day, 28))
 
-    # 3. Generate patient_code e.g. P261012A1B2
+    # 4. Generate patient_code e.g. P261012A1B2
     today_code = dt.datetime.utcnow().strftime("%y%m%d")
     unique_suffix = uuid.uuid4().hex[:4].upper()
     patient_code = f"P{today_code}{unique_suffix}"
@@ -243,6 +251,11 @@ def create_patient(
         sms_opt_in_at=dt.datetime.utcnow() if req.sms_opt_in else None,
         sms_opt_in_recorded_by=current_user.id if req.sms_opt_in else None,
         previous_history=req.has_medical_history,
+        history=req.medical_history.model_dump() if req.medical_history else {},
+        active_condition=condition_val,
+        condition_stage=req.condition_stage or ("acute" if any(w in condition_val.lower() for w in ["dengue", "fever", "acute", "sepsis", "emergency"]) else "active"),
+        condition_notes=req.condition_notes,
+        condition_updated_at=dt.datetime.utcnow(),
         created_by=current_user.id,
         created_at=dt.datetime.utcnow(),
         assigned_doctor_id=req.assigned_doctor_ids[0] if req.assigned_doctor_ids else None
@@ -250,7 +263,7 @@ def create_patient(
     db.add(patient)
     db.flush()
 
-    # 4. Multi-doctor assignments
+    # 5. Multi-doctor assignments
     if req.assigned_doctor_ids:
         from app.services.notification_service import create_in_app_notification
         for doc_id in req.assigned_doctor_ids:
@@ -1165,6 +1178,15 @@ def update_patient(
             patient.sms_opt_in_at = dt.datetime.utcnow()
             patient.sms_opt_in_recorded_by = current_user.id
 
+    cond_update = (getattr(req, "condition", None) or getattr(req, "active_condition", None) or "").strip()
+    if cond_update:
+        patient.active_condition = cond_update
+        if getattr(req, "condition_stage", None):
+            patient.condition_stage = req.condition_stage
+        if getattr(req, "condition_notes", None) is not None:
+            patient.condition_notes = req.condition_notes
+        patient.condition_updated_at = dt.datetime.utcnow()
+
     # If nurse or admin supplies assigned_doctor_ids, sync multi-doctor assignments
     if req.assigned_doctor_ids is not None and current_user.role in (Role.ADMIN.value, Role.NURSE.value):
         from app.services.notification_service import create_in_app_notification
@@ -1251,6 +1273,15 @@ def update_patient_preferences(
         if req.sms_opt_in:
             patient.sms_opt_in_at = dt.datetime.utcnow()
             patient.sms_opt_in_recorded_by = current_user.id
+
+    cond_update = (getattr(req, "condition", None) or getattr(req, "active_condition", None) or "").strip()
+    if cond_update:
+        patient.active_condition = cond_update
+        if getattr(req, "condition_stage", None):
+            patient.condition_stage = req.condition_stage
+        if getattr(req, "condition_notes", None) is not None:
+            patient.condition_notes = req.condition_notes
+        patient.condition_updated_at = dt.datetime.utcnow()
 
     patient.updated_at = dt.datetime.utcnow()
     record_audit(
