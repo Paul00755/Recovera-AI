@@ -379,10 +379,11 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
 def refresh_session_token(current_user: User = Depends(get_current_user)):
     """Issues a fresh access token for an active authenticated user to prevent session expiration."""
     access_token = create_access_token(
-        data={"sub": current_user.email, "role": current_user.role, "user_id": current_user.id}
+        data={"sub": current_user.id, "role": current_user.role, "user_id": current_user.id, "email": current_user.email}
     )
     return {
         "access_token": access_token,
+        "token": access_token,
         "token_type": "bearer",
         "user": {
             "id": current_user.id,

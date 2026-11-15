@@ -30,6 +30,14 @@ def get_current_user(
             detail="Invalid authentication token."
         )
     user = db.get(User, user_id)
+    if not user:
+        # Fallback if sub is email or user_id is in secondary field
+        user = db.scalar(select(User).where(User.email == user_id))
+    if not user and payload.get("user_id"):
+        user = db.get(User, payload.get("user_id"))
+    if not user and payload.get("email"):
+        user = db.scalar(select(User).where(User.email == payload.get("email")))
+
     if not user or not user.active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

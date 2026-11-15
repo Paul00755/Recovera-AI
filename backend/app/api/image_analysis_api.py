@@ -209,19 +209,22 @@ def list_patients_for_image_analysis(
     Returns authorized patients for medical image analysis with clinical condition,
     assigned physician, and image baseline indicators.
     """
-    query = select(Patient).where(Patient.active == True)
+    query = select(Patient).where(or_(Patient.active == True, Patient.care_status != "archived", Patient.care_status == "active"))
 
     if current_user.role == Role.DOCTOR.value:
         # Assigned patients or primary physician
-        subq = select(PatientDoctorAssignment.patient_id).where(PatientDoctorAssignment.doctor_id == current_user.id)
+        subq = select(PatientDoctorAssignment.patient_id).where(
+            PatientDoctorAssignment.doctor_id == current_user.id,
+            or_(PatientDoctorAssignment.is_active == True, PatientDoctorAssignment.is_active == None)
+        )
         query = query.where(or_(Patient.assigned_doctor_id == current_user.id, Patient.id.in_(subq)))
 
     patients = db.scalars(query.order_by(Patient.created_at.desc())).all()
 
     results = []
     for p in patients:
-        p_name = p.name
-        p_code = p.patient_code
+        p_name = p.name or (p.user.name if p.user else None) or p.patient_code or "Patient"
+        p_code = p.patient_code or "REC-PT"
         cond = p.active_condition or ""
 
         # Filter by search string if provided

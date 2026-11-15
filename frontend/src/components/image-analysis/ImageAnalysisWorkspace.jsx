@@ -9,11 +9,15 @@ import {
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 async function clientApi(path, options = {}) {
-  const sessionStr = localStorage.getItem('recovera_session');
-  let token = null;
-  try {
-    token = JSON.parse(sessionStr)?.token;
-  } catch (e) {}
+  const getStoredToken = () => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}');
+      return stored?.token || stored?.access_token || '';
+    } catch {
+      return '';
+    }
+  };
+  const token = getStoredToken();
 
   const headers = { ...(options.headers || {}) };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -30,15 +34,15 @@ async function clientApi(path, options = {}) {
   return res.json();
 }
 
-export function ImageAnalysisWorkspace({ session, navigate }) {
+export function ImageAnalysisWorkspace({ session, navigate, patients: propPatients = [] }) {
   const isDoctor = session?.user?.role === 'doctor';
   const isNurse = session?.user?.role === 'nurse';
   const isAdmin = session?.user?.role === 'admin';
 
-  // State
-  const [patients, setPatients] = useState([]);
-  const [loadingPatients, setLoadingPatients] = useState(true);
-  const [selectedPatientId, setSelectedPatientId] = useState('');
+  // State - initialized immediately with assigned patients from StaffShell if available
+  const [patients, setPatients] = useState(() => (Array.isArray(propPatients) && propPatients.length > 0 ? propPatients : []));
+  const [loadingPatients, setLoadingPatients] = useState(() => !(Array.isArray(propPatients) && propPatients.length > 0));
+  const [selectedPatientId, setSelectedPatientId] = useState(() => (Array.isArray(propPatients) && propPatients.length > 0 ? propPatients[0].id : ''));
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modality & Upload state
@@ -86,17 +90,48 @@ export function ImageAnalysisWorkspace({ session, navigate }) {
   const loadPatients = async () => {
     try {
       setLoadingPatients(true);
-      const data = await clientApi('/api/image-analysis/patients');
-      setPatients(data || []);
-      if (data?.length > 0 && !selectedPatientId) {
-        setSelectedPatientId(data[0].id);
+      let data = null;
+      try {
+        data = await clientApi('/api/image-analysis/patients');
+      } catch (err) {
+        console.warn('Image analysis patients endpoint error, attempting /api/patients fallback:', err);
+      }
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        try {
+          data = await clientApi('/api/patients');
+        } catch (err) {
+          console.warn('Fallback /api/patients error:', err);
+        }
+      }
+      if ((!data || data.length === 0) && Array.isArray(propPatients) && propPatients.length > 0) {
+        data = propPatients;
+      }
+      if (Array.isArray(data) && data.length > 0) {
+        setPatients(data);
+        setSelectedPatientId(prev => prev || data[0].id);
       }
     } catch (e) {
       console.error('Failed to load patients for image analysis:', e);
+      if (Array.isArray(propPatients) && propPatients.length > 0) {
+        setPatients(propPatients);
+        setSelectedPatientId(prev => prev || propPatients[0].id);
+      }
     } finally {
       setLoadingPatients(false);
     }
   };
+
+  useEffect(() => {
+    if (Array.isArray(propPatients) && propPatients.length > 0) {
+      setPatients(prev => {
+        if (!prev || prev.length === 0) {
+          setSelectedPatientId(pId => pId || propPatients[0].id);
+          return propPatients;
+        }
+        return prev;
+      });
+    }
+  }, [propPatients]);
 
   const loadPendingReviews = async () => {
     try {
@@ -522,11 +557,17 @@ export function ImageAnalysisWorkspace({ session, navigate }) {
                 outline: 'none'
               }}
             >
-              {patients.map(p => (
-                <option key={p.id} value={p.id} style={{ background: '#0c131d', color: '#fff' }}>
-                  {p.name} ({p.patient_code}) — {p.active_condition ? p.active_condition.slice(0, 32) : 'General'}
+              {patients.length === 0 ? (
+                <option value="" disabled style={{ background: '#0c131d', color: '#94a3b8' }}>
+                  {loadingPatients ? 'Loading assigned patients...' : 'No assigned patients available'}
                 </option>
-              ))}
+              ) : (
+                patients.map(p => (
+                  <option key={p.id} value={p.id} style={{ background: '#0c131d', color: '#fff' }}>
+                    {p.name || 'Patient'} ({p.patient_code || 'REC-PT'}) — {p.active_condition ? p.active_condition.slice(0, 32) : 'General Care'}
+                  </option>
+                ))
+              )}
             </select>
 
             {/* Selected Patient Dossier */}

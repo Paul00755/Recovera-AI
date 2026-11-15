@@ -146,12 +146,12 @@ def list_patients(
     if current_user.role == Role.DOCTOR.value:
         subq = select(PatientDoctorAssignment.patient_id).where(
             PatientDoctorAssignment.doctor_id == current_user.id,
-            PatientDoctorAssignment.is_active == True
+            or_(PatientDoctorAssignment.is_active == True, PatientDoctorAssignment.is_active.is_(None))
         )
         query = (
             select(Patient)
             .where(
-                Patient.active == True,
+                or_(Patient.active == True, Patient.active.is_(None), Patient.care_status != "archived"),
                 or_(
                     Patient.assigned_doctor_id == current_user.id,
                     Patient.id.in_(subq)
@@ -161,7 +161,9 @@ def list_patients(
         )
     else:
         # Admin / Nurse see all active patients
-        query = select(Patient).where(Patient.active == True).order_by(Patient.created_at.desc())
+        query = select(Patient).where(
+            or_(Patient.active == True, Patient.active.is_(None), Patient.care_status != "archived")
+        ).order_by(Patient.created_at.desc())
 
     patients = db.scalars(query).all()
 

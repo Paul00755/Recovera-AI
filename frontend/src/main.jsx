@@ -774,7 +774,8 @@ function translateClinicalSpeech(text, targetLang = 'en') {
 async function api(path, opts = {}) {
   const s = getSession();
   const headers = { ...(opts.headers || {}) };
-  if (s?.token) headers.Authorization = `Bearer ${s.token}`;
+  const token = s?.token || s?.access_token;
+  if (token) headers.Authorization = `Bearer ${token}`;
   let r;
   try {
     r = await fetch(API + path, { ...opts, headers });
@@ -790,7 +791,7 @@ async function api(path, opts = {}) {
 
     // Global 401 Session Expiration Interceptor:
     // If the token is invalid or expired, gracefully log out and prompt re-authentication
-    if (r.status === 401 && !path.includes('/login') && !path.includes('/forgot-password') && !path.includes('/register')) {
+    if (r.status === 401 && !path.includes('/login') && !path.includes('/forgot-password') && !path.includes('/register') && !path.includes('/refresh')) {
       if (typeof window !== 'undefined') {
         saveSession(null);
         window.dispatchEvent(new CustomEvent('recovera_session_expired', {
@@ -3027,7 +3028,8 @@ function App() {
 
   // Validate existing session token on boot and refresh user profile data
   useEffect(() => {
-    if (session?.token) {
+    const activeToken = session?.token || session?.access_token;
+    if (activeToken) {
       api('/api/auth/me')
         .then(freshUser => {
           if (freshUser && freshUser.id) {
@@ -3040,7 +3042,7 @@ function App() {
           }
         })
         .catch(err => {
-          if (err.message && (err.message.includes('expired') || err.message.includes('token') || err.message.includes('Could not validate'))) {
+          if (err.message && (err.message.includes('expired') || err.message.includes('Invalid authentication token') || err.message.includes('Could not validate'))) {
             saveSession(null);
             setSession(null);
             setSessionNotice('Your session has expired. Please sign in again.');
@@ -3059,16 +3061,19 @@ function App() {
     return () => window.removeEventListener('recovera_session_updated', handleSessionUpdated);
   }, []);
 
-  // Proactive background token keep-alive every 30 minutes while tab is open
+  // Proactive background token keep-alive every 15 minutes while tab is open
   useEffect(() => {
-    if (!session?.token) return;
+    const activeToken = session?.token || session?.access_token;
+    if (!activeToken) return;
     const interval = setInterval(() => {
       api('/api/auth/refresh', { method: 'POST' })
         .then(res => {
-          if (res?.access_token) {
+          const freshToken = res?.access_token || res?.token;
+          if (freshToken) {
             const curr = getSession();
             if (curr) {
-              curr.token = res.access_token;
+              curr.token = freshToken;
+              curr.access_token = freshToken;
               if (res.user) curr.user = { ...curr.user, ...res.user };
               saveSession(curr);
               setSession(curr);
@@ -3076,9 +3081,9 @@ function App() {
           }
         })
         .catch(() => {});
-    }, 30 * 60 * 1000);
+    }, 15 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [session?.token]);
+  }, [session?.token, session?.access_token]);
 
   const [currentHash, setCurrentHash] = useState(() => window.location.hash || '');
 
@@ -6795,7 +6800,7 @@ function StaffPortal({ session, route, navigate, doctorStatus, unreadCount, setN
       {page === 'digital-twin-benchmarks' && <DigitalTwinBenchmarkStudio key="staff-dt-benchmarks" session={session} />}
       {page === 'research-studio'         && <ResearchEvaluationStudio key="staff-research-studio" session={session} navigate={navigate} />}
       {page === 'experimental-tracking'   && <ExperimentalTrackingDashboard key="staff-exp-tracking" session={session} navigate={navigate} />}
-      {page === 'image-analysis'          && <ImageAnalysisWorkspace key="staff-image-analysis" session={session} navigate={navigate} />}
+      {page === 'image-analysis'          && <ImageAnalysisWorkspace key="staff-image-analysis" session={session} navigate={navigate} patients={patients} />}
     </div>
   );
 }
@@ -9855,8 +9860,8 @@ function ConsultationRoom({ consult: initialConsult, session, onEnd }) {
     const isImageMsg = cleanText.includes('data:image/') || cleanText.startsWith('📸 [Image Attached') || cleanText.startsWith('📎 [Document Attached') || cleanText.startsWith('📸') || cleanText.startsWith('📎');
     if (isImageMsg) {
       const imgUrlMatch = cleanText.match(/(data:image\/[a-zA-Z0-9+.-]+;base64,[^\s]+)/);
-      const imgNameMatch = cleanText.match(/\[(?:Image|Document) Attached:\s*([^\]]+)\]/i);
-      const fileName = imgNameMatch ? imgNameMatch[1] : (cleanText.match(/IMG_[0-9_]+\.(?:jpg|jpeg|png|webp)/i)?.[0] || 'Clinical Photo Attachment');
+      const imgNameMatch = cleanText.match(/\[(?:Image|Document)\s*Attached:?\s*([^\]]+)\]/i) || cleanText.match(/\[(?:Image|Document)\s*Attached\]:\s*([^\s]+)/i);
+      const fileName = imgNameMatch ? (imgNameMatch[1] || '').trim() : (cleanText.match(/IMG_[0-9_]+\.(?:jpg|jpeg|png|webp)/i)?.[0] || 'Clinical Photo Attachment');
       const imgSrc = imgUrlMatch ? imgUrlMatch[1] : null;
 
       return (

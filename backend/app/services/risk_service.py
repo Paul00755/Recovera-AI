@@ -114,6 +114,7 @@ def evaluate_patient_risk(
     has_cough = any(c.cough for c in checkins)
 
     # Telemetry in the active window (last 48 hours / most recent submission)
+    today_date = dt.date.today()
     recent_checkins = [c for c in checkins if c.checkin_date >= (today_date - dt.timedelta(days=2))]
     if not recent_checkins and checkins:
         recent_checkins = [checkins[0]]
