@@ -1,19 +1,17 @@
 """
-Recovera AI: High-Performance GPU Deep Learning Training Pipeline (PyTorch + CUDA)
-Optimized for NVIDIA GeForce RTX GPUs (Tensor Cores & Mixed Precision FP16).
+Recovera AI: Bone Fracture Radiograph (X-Ray) Deep Learning Training Pipeline
+Dedicated script for training on: Dataset/Bone_Fracture_Binary_Classification_X_RAY
 
-Trains:
-1. Bone Fracture Detection & Classification (DenseNet-121)
-   Dataset: Dataset/Bone_Fracture_Binary_Classification_X_RAY
-2. Surgical Wound & Dermatological Lesion Analysis (ResNet-50)
-   Dataset: Dataset/Wound Analysis
+Supports BOTH:
+- CUDA GPU Acceleration (NVIDIA Tensor Cores + FP16 Mixed Precision)
+- Normal CPU Training (Automatic Fallback or manual switch via --device cpu)
 
-Features:
-- Full CUDA acceleration with Automatic Mixed Precision (torch.cuda.amp) for 2.5x speedup
-- ImageNet transfer learning with pre-trained feature extractors
-- Automatic batch-level gradient scaling & memory management for 4GB-6GB VRAM
-- Mathematical Grad-CAM explainability heatmap computation
-- Automatic model checkpoint saving (.pth) + ONNX export (.onnx) for zero-cost Render deployment
+Architecture: DenseNet-121 (ImageNet Pretrained Transfer Learning)
+Outputs:
+- backend/storage/models/fracture_densenet121_best.pth (PyTorch Model)
+- backend/storage/models/fracture_densenet121_best.onnx (ONNX Model for Render free tier)
+- backend/storage/models/fracture_densenet121_metadata.json (Metrics & Confusion Matrix)
+- backend/storage/models/gradcam/sample_fracture_gradcam.jpg (Grad-CAM Heatmap)
 """
 
 import os
@@ -22,7 +20,7 @@ import time
 import json
 import argparse
 from pathlib import Path
-from typing import List, Tuple, Dict, Any, Optional
+from typing import List, Tuple, Optional
 
 import numpy as np
 from PIL import Image
@@ -37,25 +35,33 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, models
 
+
 # ----------------------------------------------------
-# Device Detection & CUDA GPU Verification
+# 1. Device Selection (Auto CUDA GPU vs CPU)
 # ----------------------------------------------------
-def get_device() -> torch.device:
+def get_compute_device(requested_device: str = "auto") -> Tuple[torch.device, bool]:
+    if requested_device == "cpu":
+        device = torch.device("cpu")
+        print("[HARDWARE] Explicitly running on CPU.")
+        return device, False
+
     if torch.cuda.is_available():
         device = torch.device("cuda")
         gpu_name = torch.cuda.get_device_name(0)
         vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-        print(f"[GPU ACCELERATION ACTIVE] Using CUDA Device 0: {gpu_name} ({vram_gb:.2f} GB VRAM)")
+        print(f"[GPU ACCELERATION ACTIVE] Using CUDA: {gpu_name} ({vram_gb:.2f} GB VRAM)")
+        print("[OPTIMIZATION] Tensor Cores & FP16 Mixed Precision Enabled for Fast Training.")
+        return device, True
     else:
         device = torch.device("cpu")
-        print("[WARNING] CUDA GPU not detected. Falling back to CPU.")
-    return device
+        print("[INFO] CUDA GPU not detected. Automatically falling back to CPU.")
+        return device, False
 
 
 # ----------------------------------------------------
-# Custom PyTorch Medical Dataset
+# 2. Dataset Discovery & Loading
 # ----------------------------------------------------
-class MedicalImageDataset(Dataset):
+class XRayDataset(Dataset):
     def __init__(self, samples: List[Tuple[Path, int]], transform=None):
         self.samples = samples
         self.transform = transform
@@ -69,7 +75,6 @@ class MedicalImageDataset(Dataset):
             with Image.open(path) as img:
                 img = img.convert("RGB")
         except Exception:
-            # Fallback for corrupted file
             img = Image.new("RGB", (256, 256), color=0)
 
         if self.transform:
@@ -78,11 +83,7 @@ class MedicalImageDataset(Dataset):
         return img, label, str(path)
 
 
-def discover_dataset(data_dir: Path, split: str = "train") -> Tuple[List[Tuple[Path, int]], List[str]]:
-    """
-    Scans data directory for standard folder-per-class layout.
-    Supports either <data_dir>/<split>/<class_name> or direct <data_dir>/<class_name>.
-    """
+def discover_xray_samples(data_dir: Path, split: str = "train") -> Tuple[List[Tuple[Path, int]], List[str]]:
     split_dir = data_dir / split
     target_dir = split_dir if split_dir.exists() and split_dir.is_dir() else data_dir
 
@@ -103,7 +104,7 @@ def discover_dataset(data_dir: Path, split: str = "train") -> Tuple[List[Tuple[P
 
 
 # ----------------------------------------------------
-# Grad-CAM Mathematical Visualization Class
+# 3. Grad-CAM Explainable AI Generator
 # ----------------------------------------------------
 class GradCAM:
     def __init__(self, model: nn.Module, target_layer: nn.Module):
@@ -127,7 +128,7 @@ class GradCAM:
     def generate(self, input_tensor: torch.Tensor, target_class: Optional[int] = None) -> np.ndarray:
         self.model.eval()
         input_tensor.requires_grad = True
-        
+
         output = self.model(input_tensor)
         if target_class is None:
             target_class = output.argmax(dim=1).item()
@@ -139,7 +140,6 @@ class GradCAM:
         if self.gradients is None or self.activations is None:
             return np.zeros((input_tensor.shape[2], input_tensor.shape[3]), dtype=np.float32)
 
-        # Global Average Pooling of gradients across channels
         weights = torch.mean(self.gradients, dim=(2, 3), keepdim=True)
         cam = torch.sum(weights * self.activations, dim=1, keepdim=True)
         cam = F.relu(cam)
@@ -175,141 +175,118 @@ def overlay_heatmap(image_path: Path, cam: np.ndarray, alpha: float = 0.45) -> n
 
 
 # ----------------------------------------------------
-# Main Training Function
+# 4. Main Training Pipeline
 # ----------------------------------------------------
-def train_gpu(
-    task: str = "fracture",
-    data_dir: str = "",
-    arch: str = "densenet121",
-    epochs: int = 10,
-    batch_size: int = 16,
-    lr: float = 1e-4,
-    img_size: int = 256,
-    save_dir: str = "backend/storage/models",
-    export_onnx: bool = True
-):
-    print("=" * 72)
-    print(f"  Recovera AI: GPU Transfer Learning Pipeline — [{task.upper()}]")
-    print("=" * 72)
+def main():
+    parser = argparse.ArgumentParser(description="Recovera AI: Train Bone Fracture X-Ray Model (DenseNet-121)")
+    parser.add_argument("--data_dir", type=str, default="",
+                        help="Path to fracture dataset. Defaults to Dataset/Bone_Fracture_Binary_Classification_X_RAY")
+    parser.add_argument("--epochs", type=int, default=10,
+                        help="Number of epochs (default: 10)")
+    parser.add_argument("--batch_size", type=int, default=16,
+                        help="Batch size (default: 16)")
+    parser.add_argument("--lr", type=float, default=1e-4,
+                        help="Initial learning rate (default: 1e-4)")
+    parser.add_argument("--img_size", type=int, default=256,
+                        help="Input image resolution (default: 256)")
+    parser.add_argument("--device", type=str, default="auto", choices=["auto", "cuda", "cpu"],
+                        help="Device to train on ('auto' detects CUDA GPU, or 'cpu')")
+    parser.add_argument("--save_dir", type=str, default="backend/storage/models",
+                        help="Target output directory")
 
-    device = get_device()
-    use_cuda = device.type == "cuda"
+    args = parser.parse_args()
 
-    # Default paths
-    workspace_root = Path(__file__).resolve().parent
-    if not data_dir:
-        if task == "fracture":
-            data_dir = str(workspace_root / "Dataset" / "Bone_Fracture_Binary_Classification_X_RAY")
-        else:
-            data_dir = str(workspace_root / "Dataset" / "Wound Analysis")
+    print("=" * 75)
+    print("  Recovera AI: Bone Fracture Radiograph Transfer Learning Pipeline")
+    print("=" * 75)
 
-    data_path = Path(data_dir)
-    if not data_path.exists():
-        print(f"[ERROR] Dataset directory not found: {data_path}")
+    device, use_cuda = get_compute_device(args.device)
+
+    # Resolve Dataset Path
+    root = Path(__file__).resolve().parent
+    data_dir = Path(args.data_dir) if args.data_dir else (root / "Dataset" / "Bone_Fracture_Binary_Classification_X_RAY")
+    if not data_dir.exists():
+        print(f"[ERROR] Dataset directory not found: {data_dir}")
+        print("Please check that Dataset/Bone_Fracture_Binary_Classification_X_RAY exists.")
         sys.exit(1)
 
-    # Discover classes and splits
-    train_samples, classes = discover_dataset(data_path, split="train")
-    val_samples, _ = discover_dataset(data_path, split="val")
+    train_samples, classes = discover_xray_samples(data_dir, split="train")
+    val_samples, _ = discover_xray_samples(data_dir, split="val")
     if not val_samples:
-        val_samples, _ = discover_dataset(data_path, split="test")
+        val_samples, _ = discover_xray_samples(data_dir, split="test")
 
     if not train_samples:
-        print(f"[ERROR] No training images found in {data_path}")
+        print(f"[ERROR] No training images found in: {data_dir}")
         sys.exit(1)
 
-    print(f"Dataset root:     {data_path.resolve()}")
-    print(f"Target Classes:   {len(classes)} classes -> {classes}")
-    print(f"Training split:   {len(train_samples)} images")
-    print(f"Validation split: {len(val_samples)} images")
-    print(f"Architecture:     {arch.upper()} (ImageNet-pretrained)")
-    print(f"Batch Size:       {batch_size} (FP16 Mixed Precision: {use_cuda})")
-    print(f"Epochs:           {epochs} | Base Learning Rate: {lr}")
-    print("-" * 72)
+    print(f"Dataset Location: {data_dir.resolve()}")
+    print(f"Classes:          {len(classes)} -> {classes}")
+    print(f"Train Images:     {len(train_samples)}")
+    print(f"Val Images:       {len(val_samples)}")
+    print(f"Architecture:     DenseNet-121 (ImageNet Pretrained)")
+    print(f"Batch Size:       {args.batch_size} | Epochs: {args.epochs} | Base LR: {args.lr}")
+    print("-" * 75)
 
-    # Preprocessing & Data Augmentations
+    # Preprocessing Transforms
     imagenet_mean = [0.485, 0.456, 0.406]
     imagenet_std = [0.229, 0.224, 0.225]
 
-    if task == "fracture":
-        train_transforms = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=10),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=imagenet_mean, std=imagenet_std)
-        ])
-    else:
-        # Wound color constancy & slight jitter
-        train_transforms = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.2),
-            transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.10),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=imagenet_mean, std=imagenet_std)
-        ])
-
-    val_transforms = transforms.Compose([
-        transforms.Resize((img_size, img_size)),
+    train_transforms = transforms.Compose([
+        transforms.Resize((args.img_size, args.img_size)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(degrees=10),
         transforms.ToTensor(),
         transforms.Normalize(mean=imagenet_mean, std=imagenet_std)
     ])
 
-    train_ds = MedicalImageDataset(train_samples, transform=train_transforms)
-    val_ds = MedicalImageDataset(val_samples, transform=val_transforms)
+    val_transforms = transforms.Compose([
+        transforms.Resize((args.img_size, args.img_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=imagenet_mean, std=imagenet_std)
+    ])
 
-    # Multi-worker DataLoader with pinned memory for CUDA DMA transfers
+    train_ds = XRayDataset(train_samples, transform=train_transforms)
+    val_ds = XRayDataset(val_samples, transform=val_transforms)
+
     num_workers = 2 if os.name != "nt" else 0
     train_loader = DataLoader(
-        train_ds, batch_size=batch_size, shuffle=True,
+        train_ds, batch_size=args.batch_size, shuffle=True,
         num_workers=num_workers, pin_memory=use_cuda, drop_last=True
     )
     val_loader = DataLoader(
-        val_ds, batch_size=batch_size, shuffle=False,
+        val_ds, batch_size=args.batch_size, shuffle=False,
         num_workers=num_workers, pin_memory=use_cuda
     )
 
-    # Model Setup with ImageNet Pretrained Transfer Backbone
-    num_classes = len(classes)
-    if arch.lower() == "densenet121":
-        model = models.densenet121(weights=models.DenseNet121_Weights.DEFAULT)
-        in_features = model.classifier.in_features
-        model.classifier = nn.Linear(in_features, num_classes)
-        gradcam_layer = model.features.denseblock4
-    elif arch.lower() == "resnet50":
-        model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-        in_features = model.fc.in_features
-        model.fc = nn.Linear(in_features, num_classes)
-        gradcam_layer = model.layer4
-    else:
-        raise ValueError(f"Unsupported architecture: {arch}")
-
+    # Model Setup
+    model = models.densenet121(weights=models.DenseNet121_Weights.DEFAULT)
+    in_features = model.classifier.in_features
+    model.classifier = nn.Linear(in_features, len(classes))
+    gradcam_layer = model.features.denseblock4
     model.to(device)
 
-    # Loss, Optimizer & Learning Rate Schedule
+    # Optimizer, Loss & Scheduler
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
 
-    # Mixed precision scaler (FP16 acceleration on NVIDIA Tensor Cores)
+    # Mixed precision scaler (active when CUDA is available)
     scaler = torch.cuda.amp.GradScaler(enabled=use_cuda)
 
-    # Target output paths
-    out_dir = Path(save_dir)
+    out_dir = Path(args.save_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    best_weight_pth = out_dir / f"{task}_{arch}_best.pth"
-    best_weight_onnx = out_dir / f"{task}_{arch}_best.onnx"
-    metadata_path = out_dir / f"{task}_{arch}_metadata.json"
+    best_pth = out_dir / "fracture_densenet121_best.pth"
+    best_onnx = out_dir / "fracture_densenet121_best.onnx"
+    meta_path = out_dir / "fracture_densenet121_metadata.json"
 
-    best_val_acc = 0.0
     best_val_f1 = 0.0
+    best_val_acc = 0.0
     history = []
 
     print("[STARTING TRAINING]")
     start_time = time.time()
 
-    for epoch in range(1, epochs + 1):
+    for epoch in range(1, args.epochs + 1):
         epoch_start = time.time()
         model.train()
         total_loss = 0.0
@@ -335,7 +312,7 @@ def train_gpu(
             train_targets.extend(labels.cpu().numpy())
 
             if (step + 1) % max(1, len(train_loader) // 5) == 0:
-                print(f"  Epoch [{epoch}/{epochs}] Step [{step+1}/{len(train_loader)}] — Batch Loss: {loss.item():.4f}")
+                print(f"  Epoch [{epoch}/{args.epochs}] Step [{step+1}/{len(train_loader)}] — Batch Loss: {loss.item():.4f}")
 
         train_loss = total_loss / len(train_loader)
         train_acc = accuracy_score(train_targets, train_preds) * 100.0
@@ -361,7 +338,7 @@ def train_gpu(
         scheduler.step()
 
         print(
-            f"Epoch {epoch:02d}/{epochs:02d} ({epoch_sec:.1f}s) | "
+            f"Epoch {epoch:02d}/{args.epochs:02d} ({epoch_sec:.1f}s) | "
             f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.1f}% | "
             f"Val Acc: {val_acc:.1f}% | Val Recall: {val_recall:.1f}% | "
             f"Val F1: {val_f1:.1f}%"
@@ -378,27 +355,23 @@ def train_gpu(
             "epoch_sec": round(epoch_sec, 1)
         })
 
-        # Save Best Checkpoint
         if val_f1 > best_val_f1 or (val_f1 == best_val_f1 and val_acc > best_val_acc):
             best_val_f1 = val_f1
             best_val_acc = val_acc
-            torch.save(model.state_dict(), str(best_weight_pth))
-            print(f"  >>> Best model checkpoint saved to: {best_weight_pth.resolve()} (F1: {val_f1:.2f}%)")
+            torch.save(model.state_dict(), str(best_pth))
+            print(f"  >>> Best model saved to: {best_pth.resolve()} (F1: {val_f1:.2f}%)")
 
     total_training_sec = round(time.time() - start_time, 2)
-    print("=" * 72)
-    print(f"TRAINING COMPLETED in {total_training_sec}s | Best Val Accuracy: {best_val_acc:.2f}% | Best F1: {best_val_f1:.2f}%")
+    print("=" * 75)
+    print(f"TRAINING COMPLETE in {total_training_sec}s | Best Val Acc: {best_val_acc:.2f}% | Best F1: {best_val_f1:.2f}%")
 
-    # Compute Final Evaluation Confusion Matrix
     cm = confusion_matrix(val_targets, val_preds).tolist()
-
-    # Save Run Metadata
     meta = {
-        "task": task,
-        "arch": arch,
+        "task": "fracture",
+        "arch": "densenet121",
         "classes": classes,
         "num_classes": len(classes),
-        "img_size": img_size,
+        "img_size": args.img_size,
         "best_val_accuracy": round(best_val_acc, 2),
         "best_val_f1": round(best_val_f1, 2),
         "total_training_sec": total_training_sec,
@@ -406,21 +379,21 @@ def train_gpu(
         "history": history,
         "device": str(device)
     }
-    with open(metadata_path, "w", encoding="utf-8") as f:
+    with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
-    print(f"Metadata and metrics saved: {metadata_path.resolve()}")
+    print(f"Saved Metadata: {meta_path.resolve()}")
 
-    # Export to Quantized ONNX for 100% Free Render Deployment
-    if export_onnx and best_weight_pth.exists():
+    # Export to ONNX (For Free Render Deployment)
+    if best_pth.exists():
         try:
-            print("\n[EXPORTING TO ONNX FOR RENDER ZERO-COST DEPLOYMENT]")
-            model.load_state_dict(torch.load(str(best_weight_pth), map_location="cpu"))
+            print("\n[EXPORTING ONNX FOR RENDER DEPLOYMENT]")
+            model.load_state_dict(torch.load(str(best_pth), map_location="cpu"))
             model.eval()
-            dummy_input = torch.randn(1, 3, img_size, img_size, device="cpu")
+            dummy_input = torch.randn(1, 3, args.img_size, args.img_size, device="cpu")
             torch.onnx.export(
                 model.to("cpu"),
                 dummy_input,
-                str(best_weight_onnx),
+                str(best_onnx),
                 export_params=True,
                 opset_version=14,
                 do_constant_folding=True,
@@ -428,17 +401,17 @@ def train_gpu(
                 output_names=["output"],
                 dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}}
             )
-            print(f"ONNX Model successfully exported to: {best_weight_onnx.resolve()}")
-            print(f"ONNX Size: {best_weight_onnx.stat().st_size / (1024*1024):.2f} MB (Fits comfortably within Render 512MB RAM!)")
+            print(f"ONNX Model Exported: {best_onnx.resolve()}")
+            print(f"ONNX Size: {best_onnx.stat().st_size / (1024*1024):.2f} MB (Runs on Render free tier in ~45MB RAM)")
         except Exception as e:
-            print(f"[WARNING] ONNX export failed: {e}")
+            print(f"[WARNING] ONNX export: {e}")
 
-    # Generate Sample Grad-CAM Explainability Heatmap
-    if val_samples and best_weight_pth.exists():
+    # Generate Grad-CAM Sample
+    if val_samples and best_pth.exists():
         try:
-            print("\n[GENERATING GRAD-CAM EXPLAINABILITY VISUALIZATION]")
+            print("\n[GENERATING GRAD-CAM EXPLAINABILITY MAP]")
             sample_img_path, sample_label = val_samples[0]
-            model.load_state_dict(torch.load(str(best_weight_pth), map_location=device))
+            model.load_state_dict(torch.load(str(best_pth), map_location=device))
             model.to(device)
 
             gradcam = GradCAM(model, gradcam_layer)
@@ -448,49 +421,17 @@ def train_gpu(
 
             gradcam_dir = out_dir / "gradcam"
             gradcam_dir.mkdir(parents=True, exist_ok=True)
-            sample_out = gradcam_dir / f"sample_{task}_gradcam.jpg"
+            sample_out = gradcam_dir / "sample_fracture_gradcam.jpg"
 
             overlay = overlay_heatmap(sample_img_path, cam)
             cv2.imwrite(str(sample_out), overlay)
-            print(f"Grad-CAM Attribution Overlay generated at: {sample_out.resolve()}")
+            print(f"Grad-CAM Heatmap saved: {sample_out.resolve()}")
             gradcam.remove_hooks()
         except Exception as e:
-            print(f"[WARNING] Grad-CAM generation skipped: {e}")
+            print(f"[WARNING] Grad-CAM: {e}")
 
-    print("=" * 72)
+    print("=" * 75)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Recovera AI GPU Vision Transfer Learning Pipeline")
-    parser.add_argument("--task", type=str, default="fracture", choices=["fracture", "wound"],
-                        help="Medical task: 'fracture' or 'wound'")
-    parser.add_argument("--data_dir", type=str, default="",
-                        help="Path to dataset directory. Defaults to Dataset/...")
-    parser.add_argument("--arch", type=str, default="",
-                        help="Architecture: 'densenet121' or 'resnet50'")
-    parser.add_argument("--epochs", type=int, default=10,
-                        help="Number of epochs (default: 10)")
-    parser.add_argument("--batch_size", type=int, default=16,
-                        help="Batch size (default: 16)")
-    parser.add_argument("--lr", type=float, default=1e-4,
-                        help="Learning rate (default: 1e-4)")
-    parser.add_argument("--img_size", type=int, default=256,
-                        help="Input image resolution (default: 256)")
-    parser.add_argument("--save_dir", type=str, default="backend/storage/models",
-                        help="Directory to save model checkpoints")
-
-    args = parser.parse_args()
-
-    if not args.arch:
-        args.arch = "densenet121" if args.task == "fracture" else "resnet50"
-
-    train_gpu(
-        task=args.task,
-        data_dir=args.data_dir,
-        arch=args.arch,
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        lr=args.lr,
-        img_size=args.img_size,
-        save_dir=args.save_dir
-    )
+    main()
