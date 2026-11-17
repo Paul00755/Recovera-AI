@@ -272,8 +272,8 @@ export function DigitalTwinTab({ patientId, session }) {
                 </span>
                 <span className="badge badge-neutral" style={{ fontSize: 11 }}>
                   {trajectoryData?.has_started === false
-                    ? '14-Day Pathway: Awaiting Medication'
-                    : `Day ${trajectoryData?.current_day || 1} of 14`}
+                    ? 'Awaiting Medication Schedule'
+                    : `Day ${trajectoryData?.current_day || 1} · Clinical Recovery Corridor`}
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   Evaluated: {stateData?.last_calculated_at ? new Date(stateData.last_calculated_at).toLocaleTimeString() : 'Just now'}
@@ -399,7 +399,7 @@ export function DigitalTwinTab({ patientId, session }) {
               weight: '25%',
               score: components.adherence_penalty_at || 0,
               weighted: ((components.adherence_penalty_at || 0) * 0.25).toFixed(1),
-              tooltip: 'Unrecorded or delayed scheduled medication occurrences over 14-day history'
+              tooltip: 'Unrecorded or delayed scheduled medication occurrences over longitudinal recovery history'
             },
             {
               symbol: 'T_t',
@@ -464,12 +464,12 @@ export function DigitalTwinTab({ patientId, session }) {
         </div>
       </div>
 
-      {/* Interactive 14-Day Trajectory Corridor & Deep Learning Forecast */}
+      {/* Interactive Trajectory Corridor & Deep Learning Forecast */}
       <div className="card" style={{ padding: 22 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
-              14-Day Post-Discharge Clinical Corridor & Forecast
+              Clinical Recovery Corridor & Deep Learning Forecast
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--text-muted)' }}>
               Green shaded envelope indicates the clinician-approved recovery corridor. The dashed line depicts next 48h projections with 95% confidence intervals.

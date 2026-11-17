@@ -114,23 +114,26 @@ def get_checkin_eligibility(
     has_meds = db.scalar(select(func.count(Medication.id)).where(Medication.patient_id == patient.id, Medication.status == "active")) or 0
     has_plan = db.scalar(select(func.count(RecoveryPlan.id)).where(RecoveryPlan.patient_id == patient.id, RecoveryPlan.status.in_(["published", "active"]))) or 0
 
-    if has_meds == 0 and has_plan == 0:
+    # Daily check-ins and recovery journey strictly require scheduled medications
+    if has_meds == 0 or not earliest_med_date:
         return {
             "eligible": False,
-            "reason": "no_active_care",
-            "message": "Daily check-in is paused: No active medications or recovery plan requiring daily monitoring.",
+            "reason": "awaiting_medication",
+            "message": "Daily check-in will be enabled once your medication schedule is prescribed by your clinical care team.",
             "care_status": "active",
-            "earliest_medication_date": earliest_med_date.isoformat() if earliest_med_date else None,
-            "treatment_start_date": treatment_start_date.isoformat() if treatment_start_date else None
+            "has_medications": False,
+            "has_recovery_plan": bool(has_plan),
+            "earliest_medication_date": None,
+            "treatment_start_date": None
         }
 
     return {
         "eligible": True,
         "care_status": "active",
-        "has_medications": bool(has_meds),
+        "has_medications": True,
         "has_recovery_plan": bool(has_plan),
-        "earliest_medication_date": earliest_med_date.isoformat() if earliest_med_date else None,
-        "treatment_start_date": treatment_start_date.isoformat() if treatment_start_date else None,
+        "earliest_medication_date": earliest_med_date.isoformat(),
+        "treatment_start_date": treatment_start_date.isoformat() if treatment_start_date else earliest_med_date.isoformat(),
         "message": "Patient is actively undergoing care and eligible for daily check-in."
     }
 
@@ -174,9 +177,23 @@ def submit_checkin(
     from app.models.medication import Medication
     from app.models.recovery_plan import RecoveryPlan
     has_meds = db.scalar(select(func.count(Medication.id)).where(Medication.patient_id == patient.id, Medication.status == "active")) or 0
-    has_plan = db.scalar(select(func.count(RecoveryPlan.id)).where(RecoveryPlan.patient_id == patient.id, RecoveryPlan.status.in_(["published", "active"]))) or 0
-    if has_meds == 0 and has_plan == 0:
-        raise HTTPException(status_code=400, detail="Daily check-in is not required: Patient has no active medications or recovery plan.")
+
+    # Pre-treatment boundary: check-ins strictly require scheduled medications
+    earliest_med = db.scalar(
+        select(func.min(Medication.start_date)).where(Medication.patient_id == target_patient_id)
+    )
+    if not earliest_med:
+        earliest_created = db.scalar(
+            select(func.min(Medication.created_at)).where(Medication.patient_id == target_patient_id)
+        )
+        if earliest_created:
+            earliest_med = earliest_created.date()
+
+    if has_meds == 0 or not earliest_med:
+        raise HTTPException(
+            status_code=400,
+            detail="Daily check-in is not yet enabled. A medication schedule must first be prescribed by your clinical care team."
+        )
 
     target_date = req.checkin_date or dt.date.today()
     today = dt.date.today()
@@ -190,18 +207,7 @@ def submit_checkin(
             detail="Cannot report missed daily check-ins older than 7 days from today to prevent retrospective recall bias."
         )
 
-    # Pre-treatment boundary: check-ins cannot be logged prior to the patient's first medication added date
-    earliest_med = db.scalar(
-        select(func.min(Medication.start_date)).where(Medication.patient_id == target_patient_id)
-    )
-    if not earliest_med:
-        earliest_created = db.scalar(
-            select(func.min(Medication.created_at)).where(Medication.patient_id == target_patient_id)
-        )
-        if earliest_created:
-            earliest_med = earliest_created.date()
-
-    if earliest_med and target_date < earliest_med:
+    if target_date < earliest_med:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot submit daily check-in prior to medication start date ({earliest_med.isoformat()}). Daily check-in tracking begins when medications are prescribed."

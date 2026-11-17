@@ -4417,7 +4417,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>Digital Twin Telemetry &amp; Corridor</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>
-                      Continuous 14-day post-op trajectory monitoring with mathematical deviation vector tracking (symptoms, adherence, trend, fever, missingness).
+                      Continuous post-discharge trajectory monitoring with mathematical deviation vector tracking (symptoms, adherence, trend, fever, missingness).
                     </div>
                   </div>
                 </div>
@@ -4665,7 +4665,7 @@ function HomePage({ session, onLogout, theme, setTheme, notice = '' }) {
                   {twinMetrics.status}
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                  Selected: Day {simDay} of 14 · {twinMetrics.contourText}
+                  Selected: Day {simDay} · {twinMetrics.contourText}
                 </span>
               </div>
 
@@ -11446,7 +11446,7 @@ function RiskAnalyticsTab({ patientId, session }) {
               <span className="eyebrow" style={{ margin: 0 }}>LONGITUDINAL TELEMETRY</span>
               {hasStartedRecovery && medStartDate ? (
                 <span className="badge badge-teal" style={{ fontSize: 10 }}>
-                  Day {currentRecoveryDay} of 14 · Started {medStartDate}
+                  Day {currentRecoveryDay} · Started {medStartDate}
                 </span>
               ) : (
                 <span className="badge badge-amber" style={{ fontSize: 10 }}>
@@ -11454,10 +11454,10 @@ function RiskAnalyticsTab({ patientId, session }) {
                 </span>
               )}
             </div>
-            <h2>14-Day Adherence & Symptom Trajectories</h2>
+            <h2>Longitudinal Adherence & Symptom Trajectories</h2>
             <p>
               {hasStartedRecovery && medStartDate
-                ? `14-day post-discharge recovery pathway anchored to medication assignment date (${medStartDate}).`
+                ? `Standard clinical recovery pathway anchored to medication assignment date (${medStartDate}).`
                 : 'Longitudinal daily tracking begins once prescribed medications are assigned to this patient.'}
             </p>
           </div>
@@ -11479,7 +11479,7 @@ function RiskAnalyticsTab({ patientId, session }) {
             <div>
               <div className="stat-value">{pain14} / 10</div>
               <div className="stat-label">
-                {hasStartedRecovery ? `Avg Pain (Days 1–${currentRecoveryDay})` : '14-Day Avg Pain Score'}
+                {hasStartedRecovery ? `Avg Pain (Days 1–${currentRecoveryDay})` : 'Avg Pain Score'}
               </div>
             </div>
           </div>
@@ -11494,11 +11494,11 @@ function RiskAnalyticsTab({ patientId, session }) {
           </div>
         </div>
 
-        {/* 14-Day Medication Adherence SVG Chart */}
+        {/* Longitudinal Medication Adherence SVG Chart */}
         <div style={{ marginTop: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-              14-Day Medication Adherence Trajectory (Days 1–14)
+              Longitudinal Medication Adherence Trajectory (Days 1–{adherenceList.length || currentRecoveryDay})
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               Target: <span style={{ color: 'var(--p)', fontWeight: 700 }}>≥ 75% adherence</span>
@@ -11547,11 +11547,11 @@ function RiskAnalyticsTab({ patientId, session }) {
           </div>
         </div>
 
-        {/* 14-Day Pain Trajectory SVG Chart */}
+        {/* Longitudinal Pain Trajectory SVG Chart */}
         <div style={{ marginTop: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-              14-Day Pain Trajectory (Visual 0-10 Scale)
+              Longitudinal Pain Trajectory (Visual 0-10 Scale)
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               Telemetry: Daily check-in submissions

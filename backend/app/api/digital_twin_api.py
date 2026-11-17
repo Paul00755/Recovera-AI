@@ -17,7 +17,10 @@ from app.core.database import get_db
 from app.core.constants import Role
 from app.models.patient import Patient
 from app.models.user import User
-from app.models.medication import Medication
+from app.models.medication import Medication, MedicationOccurrence
+from app.models.checkin import DailyCheckIn
+from app.models.appointment import Appointment
+from app.core.constants import OccurrenceState
 from app.models.digital_twin import (
     DigitalTwinState,
     DigitalTwinStateHistory,
@@ -129,11 +132,14 @@ def get_patient_trajectory_corridor(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Returns 14-day expected clinical corridor [Y_min, Y_max], daily milestones,
-    actual patient telemetry observations, and 24h-48h forecast with 95% confidence intervals.
+    Returns dynamic post-discharge recovery corridor, daily milestones,
+    actual patient telemetry observations, adaptive timeline of past and upcoming days,
+    and 24h-48h forecast with 95% confidence intervals.
     """
     patient = _verify_patient_access(patient_id, current_user, db)
-    
+    today_d = dt.date.today()
+    now = dt.datetime.utcnow()
+
     # 0. Check medication assignment to anchor Day 1 strictly to medication start date
     first_med = db.scalar(
         select(Medication)
@@ -143,48 +149,77 @@ def get_patient_trajectory_corridor(
     )
     has_medications = first_med is not None
     med_start_date = (first_med.start_date or (first_med.created_at.date() if first_med.created_at else None)) if first_med else None
+    if isinstance(med_start_date, dt.datetime):
+        med_start_date = med_start_date.date()
+
+    if not has_medications or not med_start_date:
+        return {
+            "patient_id": str(patient_id),
+            "corridor_milestones": [],
+            "observed_points": [],
+            "forecasts": [],
+            "current_day": 0,
+            "has_started": False,
+            "medication_start_date": None,
+            "awaiting_reason": "Awaiting medication schedule from attending care team",
+            "deviation_tier": "normal",
+            "total_timeline_days": 0,
+            "completed_checkins_count": 0,
+            "scheduled_doses": 0,
+            "taken_doses": 0,
+            "adherence_rate": 0.0,
+            "next_event_summary": "Awaiting clinical medication prescription",
+            "timeline": []
+        }
+
+    diff_days = (today_d - med_start_date).days
+    if diff_days < 0:
+        return {
+            "patient_id": str(patient_id),
+            "corridor_milestones": [],
+            "observed_points": [],
+            "forecasts": [],
+            "current_day": 0,
+            "has_started": False,
+            "medication_start_date": med_start_date.isoformat(),
+            "awaiting_reason": f"Medication course scheduled to commence on {med_start_date.isoformat()}",
+            "deviation_tier": "normal",
+            "total_timeline_days": 0,
+            "completed_checkins_count": 0,
+            "scheduled_doses": 0,
+            "taken_doses": 0,
+            "adherence_rate": 0.0,
+            "next_event_summary": f"Treatment starts on {med_start_date.isoformat()}",
+            "timeline": []
+        }
+
+    current_day = diff_days + 1
+    has_started = True
 
     # 1. Fetch or create milestones anchored to medication start date
-    milestones = get_or_create_trajectory_milestones(db, str(patient_id), start_date=med_start_date)
-    
+    milestones = get_or_create_trajectory_milestones(db, str(patient_id), start_date=med_start_date, min_days=max(14, current_day + 7))
+
     # 2. Fetch current state & observations
     state = db.scalar(
         select(DigitalTwinState).where(DigitalTwinState.patient_id == str(patient_id))
     )
     if not state:
         state = compute_digital_twin_state(db, str(patient_id))
-    
+
     history_points = state.observed_trajectory_json or []
-
-    # 3. Compute 24h/48h calibrated forecast with 95% confidence bounds
-    today_d = dt.date.today()
-    if has_medications and med_start_date:
-        diff_days = (today_d - med_start_date).days
-        if diff_days >= 0:
-            current_day = max(1, min(14, diff_days + 1))
-            has_started = True
-        else:
-            current_day = 0
-            has_started = False
-    else:
-        has_started = False
-        current_day = 0
-
     last_val = state.current_recovery_score
 
+    # 3. Compute 24h/48h calibrated forecast with 95% confidence bounds
     forecasts = []
-    # Project day + 1 and day + 2 from current recovery day
     for offset in [1, 2]:
-        f_day = min(14, current_day + offset)
+        f_day = current_day + offset
         ms = next((m for m in milestones if m.day_number == f_day), None)
         target = (100.0 - ((ms.expected_pain_min + ms.expected_pain_max) / 2.0 * 10.0)) if ms else min(100.0, last_val + 2.0)
-        # Point prediction moves smoothly toward corridor target
         point_pred = round(last_val * 0.7 + target * 0.3, 1)
-        # Calibrated residual standard error sigma = 4.2
         sigma = 4.2 * (1.0 + 0.2 * offset)
         lower_95 = round(max(0.0, point_pred - 1.96 * sigma), 1)
         upper_95 = round(min(100.0, point_pred + 1.96 * sigma), 1)
-        
+
         forecasts.append({
             "horizon_hours": offset * 24,
             "day_number": f_day,
@@ -212,6 +247,199 @@ def get_patient_trajectory_corridor(
             "milestone_description": m.clinical_milestone_note or f"Day {m.day_number} Recovery Target"
         })
 
+    # 4. Fetch checkins, occurrences, appointments, and active prescriptions for dynamic timeline
+    checkins = db.scalars(
+        select(DailyCheckIn)
+        .where(DailyCheckIn.patient_id == str(patient_id))
+        .order_by(DailyCheckIn.checkin_date.asc())
+    ).all()
+    checkin_map = {c.checkin_date: c for c in checkins}
+
+    occurrences = db.scalars(
+        select(MedicationOccurrence)
+        .where(
+            MedicationOccurrence.patient_id == str(patient_id),
+            MedicationOccurrence.state != OccurrenceState.CANCELLED.value
+        )
+        .order_by(MedicationOccurrence.scheduled_at.asc())
+    ).all()
+
+    occ_by_date: Dict[dt.date, Dict[str, int]] = {}
+    for o in occurrences:
+        d = o.scheduled_at.date()
+        if d not in occ_by_date:
+            occ_by_date[d] = {"scheduled": 0, "taken": 0, "missed": 0, "pending": 0}
+        occ_by_date[d]["scheduled"] += 1
+        if o.state == OccurrenceState.TAKEN.value:
+            occ_by_date[d]["taken"] += 1
+        elif o.state in (OccurrenceState.MISSED.value, OccurrenceState.NOT_TAKEN.value) or (
+            o.state == OccurrenceState.PENDING.value and o.scheduled_at <= (now - dt.timedelta(minutes=30))
+        ):
+            occ_by_date[d]["missed"] += 1
+        else:
+            occ_by_date[d]["pending"] += 1
+
+    all_meds = db.scalars(select(Medication).where(Medication.patient_id == str(patient_id))).all()
+
+    appts = db.scalars(
+        select(Appointment)
+        .where(
+            Appointment.patient_id == str(patient_id),
+            Appointment.status.in_(["scheduled", "confirmed", "pending", "in_progress"])
+        )
+        .order_by(Appointment.start_time.asc())
+    ).all()
+    appts_by_date: Dict[dt.date, List[Any]] = {}
+    for a in appts:
+        if a.start_time:
+            d = a.start_time.date()
+            if d not in appts_by_date:
+                appts_by_date[d] = []
+            appts_by_date[d].append(a)
+
+    # Calculate timeline horizon
+    future_dates = [d for d in occ_by_date.keys() if d > today_d]
+    for a_date in appts_by_date.keys():
+        if a_date > today_d:
+            future_dates.append(a_date)
+    for m in all_meds:
+        if m.end_date:
+            m_end = m.end_date.date() if isinstance(m.end_date, dt.datetime) else m.end_date
+            if m_end > today_d:
+                future_dates.append(m_end)
+
+    max_future_date = max(future_dates) if future_dates else (today_d + dt.timedelta(days=3))
+    total_future_days = max(3, min(14, (max_future_date - today_d).days))
+    total_timeline_days = current_day + total_future_days
+
+    timeline_items = []
+    total_sched = 0
+    total_taken = 0
+    checkins_completed = 0
+    next_event_summary = None
+
+    for day_num in range(1, total_timeline_days + 1):
+        day_date = med_start_date + dt.timedelta(days=day_num - 1)
+        is_today = (day_date == today_d)
+        is_past = (day_date < today_d)
+        is_future = (day_date > today_d)
+
+        # Check-in telemetry
+        ci = checkin_map.get(day_date)
+        if ci:
+            checkins_completed += 1
+            checkin_status = "completed"
+            checkin_pain = ci.pain_level
+            checkin_msg = f"Check-in done (Pain: {ci.pain_level}/10)" + (" · Fever reported" if ci.fever else "")
+        elif is_today:
+            checkin_status = "pending"
+            checkin_pain = None
+            checkin_msg = "Check-in pending today"
+        elif is_past:
+            checkin_status = "missed"
+            checkin_pain = None
+            checkin_msg = "Check-in not logged"
+        else:
+            checkin_status = "future"
+            checkin_pain = None
+            checkin_msg = "Upcoming daily check-in"
+
+        # Medication telemetry
+        occ_info = occ_by_date.get(day_date)
+        if occ_info and occ_info["scheduled"] > 0:
+            sched = occ_info["scheduled"]
+            taken = occ_info["taken"]
+            missed = occ_info["missed"]
+            pending = occ_info["pending"]
+            if is_past or is_today:
+                total_sched += sched
+                total_taken += taken
+
+            if taken == sched:
+                med_status = "all_taken"
+                med_msg = f"All meds taken ({taken}/{sched} doses)"
+            elif taken > 0:
+                med_status = "partially_taken"
+                med_msg = f"Partially done ({taken}/{sched} taken, {missed or pending} unrecorded)"
+            else:
+                med_status = "not_taken"
+                med_msg = f"Meds not logged (0/{sched})" if is_past else f"0/{sched} taken (pending today)"
+        else:
+            sched = 0
+            taken = 0
+            missed = 0
+            pending = 0
+            med_status = "none_scheduled"
+            med_msg = "No meds scheduled"
+
+        # Appointments & Future predictions
+        has_appt = day_date in appts_by_date
+        appt_detail = None
+        if has_appt:
+            a = appts_by_date[day_date][0]
+            appt_time = a.start_time.strftime("%I:%M %p") if a.start_time else ""
+            appt_detail = f"Scheduled {a.appointment_type or 'consultation'} ({appt_time})"
+            if not next_event_summary and is_future:
+                next_event_summary = f"Day {day_num}: {appt_detail}"
+
+        days_ahead = (day_date - today_d).days
+        if is_future:
+            proj_score = min(100.0, max(0.0, round(last_val + (1.2 * days_ahead), 1)))
+            proj_margin = round(3.2 + 0.6 * days_ahead, 1)
+            pred_msg = f"Projected score: {proj_score} (±{proj_margin} pts)"
+
+            ending_meds = [
+                m.name for m in all_meds
+                if m.end_date and (m.end_date.date() if isinstance(m.end_date, dt.datetime) else m.end_date) == day_date
+            ]
+            if ending_meds:
+                med_future_note = f"Course completion: {', '.join(ending_meds)}"
+                if not next_event_summary:
+                    next_event_summary = f"Day {day_num}: {med_future_note}"
+            elif occ_info and occ_info["scheduled"] > 0:
+                med_future_note = f"{occ_info['scheduled']} scheduled doses"
+            else:
+                med_future_note = "Observation & stabilization"
+
+            if has_appt:
+                summary_msg = f"{appt_detail} · {med_future_note}"
+            else:
+                summary_msg = f"{pred_msg} · {med_future_note}"
+        else:
+            proj_score = None
+            proj_margin = None
+            pred_msg = None
+            if is_today:
+                summary_msg = f"Today: {med_msg} · {checkin_msg}"
+                if occ_info and occ_info["pending"] > 0 and not next_event_summary:
+                    next_event_summary = f"Today: {occ_info['pending']} pending medication dose(s)"
+            else:
+                summary_msg = f"{checkin_msg} · {med_msg}"
+
+        timeline_items.append({
+            "day_number": day_num,
+            "date": day_date.isoformat(),
+            "formatted_date": day_date.strftime("%b %d"),
+            "is_today": is_today,
+            "is_past": is_past,
+            "is_future": is_future,
+            "checkin_status": checkin_status,
+            "checkin_pain": checkin_pain,
+            "checkin_message": checkin_msg,
+            "med_status": med_status,
+            "med_scheduled": sched,
+            "med_taken": taken,
+            "med_message": med_msg,
+            "has_appointment": has_appt,
+            "appointment_detail": appt_detail,
+            "projected_score": proj_score,
+            "projected_margin": proj_margin,
+            "prediction_message": pred_msg,
+            "summary_message": summary_msg
+        })
+
+    adherence_pct = round((total_taken / total_sched) * 100, 1) if total_sched > 0 else 100.0
+
     return {
         "patient_id": str(patient_id),
         "corridor_milestones": milestone_list,
@@ -219,8 +447,15 @@ def get_patient_trajectory_corridor(
         "forecasts": forecasts,
         "current_day": current_day,
         "has_started": has_started,
-        "medication_start_date": med_start_date.isoformat() if med_start_date else None,
-        "deviation_tier": state.deviation_tier
+        "medication_start_date": med_start_date.isoformat(),
+        "deviation_tier": state.deviation_tier,
+        "total_timeline_days": total_timeline_days,
+        "completed_checkins_count": checkins_completed,
+        "scheduled_doses": total_sched,
+        "taken_doses": total_taken,
+        "adherence_rate": adherence_pct,
+        "next_event_summary": next_event_summary or "Active self-monitoring and resting",
+        "timeline": timeline_items
     }
 
 

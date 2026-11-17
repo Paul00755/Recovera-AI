@@ -594,10 +594,11 @@ def get_patient_analytics_trends(
     # Recovery pathway starts strictly at med_start_date
     start_date = med_start_date
     diff_days = (today_d - med_start_date).days
-    current_day = max(1, min(14, diff_days + 1)) if diff_days >= 0 else 0
+    current_day = max(1, diff_days + 1) if diff_days >= 0 else 0
 
-    # Build the 14 recovery pathway milestone dates
-    protocol_dates = [med_start_date + dt.timedelta(days=i) for i in range(14)]
+    # Build the longitudinal recovery pathway dates (elapsed days + future horizon)
+    total_protocol_days = max(current_day + 2, 7)
+    protocol_dates = [med_start_date + dt.timedelta(days=i) for i in range(total_protocol_days)]
     end_date = protocol_dates[-1]
 
     # Active medications subquery

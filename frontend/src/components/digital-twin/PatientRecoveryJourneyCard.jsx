@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   CalendarDays, CheckCircle2, ChevronRight, Activity, HeartPulse,
-  Clock, Award, ShieldCheck, Sparkles
+  Clock, Award, ShieldCheck, Sparkles, XCircle, Pill, AlertTriangle
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -40,9 +40,8 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
 
   const hasStarted = Boolean(data.has_started) && Boolean(data.medication_start_date);
   const currentDay = hasStarted && data.current_day != null && Number(data.current_day) > 0
-    ? Math.max(1, Math.min(14, Number(data.current_day)))
+    ? Number(data.current_day)
     : 0;
-  const progressPct = hasStarted && currentDay > 0 ? Math.min(100, Math.round((currentDay / 14) * 100)) : 0;
 
   const tier = (data.deviation_tier || 'normal').toLowerCase();
   let badgeKey = 'on_track';
@@ -68,98 +67,132 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
       mild: '● Healing Progress: Mild Deviation',
       moderate: '● Healing Trajectory: Moderate Deviation',
       critical: '● Healing Trajectory: Action Recommended',
-      awaiting_start: '● Recovery Pathway: Awaiting Medication Start'
+      awaiting_start: '● Recovery Journey: Awaiting Medication Start'
     },
     ta: {
       on_track: '● குணமடைதல் முன்னேற்றம்: சரியான பாதையில்',
       mild: '● குணமடைதல் முன்னேற்றம்: லேசான விலகல்',
       moderate: '● குணமடைதல் முன்னேற்றம்: மிதமான விலகல்',
       critical: '● குணமடைதல் முன்னேற்றம்: தீவிர விலகல்',
-      awaiting_start: '● மீட்புப் பாதை: மருந்துகள் தொடக்கம் நிலுவையில்'
+      awaiting_start: '● மீட்புப் பயணம்: மருந்துகள் தொடக்கம் நிலுவையில்'
     },
     hi: {
       on_track: '● रिकवरी प्रगति: सही राह पर',
       mild: '● रिकवरी प्रगति: हल्का विचलन',
       moderate: '● रिकवरी प्रगति: मध्यम विचलन',
       critical: '● रिकवरी प्रगति: तत्काल ध्यान आवश्यक',
-      awaiting_start: '● रिकवरी मार्ग: दवा शुरू होने की प्रतीक्षा'
+      awaiting_start: '● रिकवरी यात्रा: दवा शुरू होने की प्रतीक्षा'
     }
   };
 
   const contentMap = {
     en: {
       badge: (badgeLabels.en[badgeKey] || badgeLabels.en.on_track),
-      pathway: '14-Day Post-Discharge Pathway',
+      pathway: 'Standard Clinical Recovery Pathway',
       journeyTitle: hasStarted
-        ? `My Recovery Journey — Day ${currentDay} of 14`
-        : 'My Recovery Journey — Awaiting Medication Assignment',
+        ? `My Recovery Journey — Currently on Day ${currentDay}`
+        : 'My Recovery Journey — Awaiting Medication Schedule',
+      awaitingDesc: 'Your personalized daily recovery timeline begins on Day 1 once prescribed medications are scheduled by your attending care team.',
       checkinBtn: 'Complete Daily Check-in',
-      corridorLabel: 'Healing Corridor Progress',
-      completed: 'Completed',
-      currentLabel: 'CURRENT',
-      pendingLabel: 'AWAITING START',
-      milestones: [
-        { day: 'Day 1–3', title: 'Initial Healing & Rest', desc: 'Surgical recovery, medication start, and close monitoring' },
-        { day: 'Day 4–7', title: 'Early Mobility', desc: 'Gradual reduction in discomfort, light movement exercises' },
-        { day: 'Day 8–11', title: 'Progressive Healing', desc: 'Strengthening routine, steady pain tapering, daily check-ins' },
-        { day: 'Day 12–14', title: 'Full Recovery Transition', desc: 'Returning to regular daily activities and final clinical review' }
-      ]
+      checkinDoneToday: 'Today’s Check-in Complete',
+      todayLabel: 'TODAY',
+      pastLabel: 'RECORDED',
+      futureLabel: 'UPCOMING',
+      phaseLabel: 'Current Status',
+      checkinsMetric: 'Check-ins Logged',
+      adherenceMetric: 'Med Adherence',
+      nextEventMetric: 'Next Follow-up',
+      checkinDone: 'Check-in done',
+      checkinPending: 'Pending today',
+      checkinMissed: 'Check-in not logged',
+      medsAllTaken: 'All meds taken',
+      medsPartial: 'Partially done',
+      medsNotLogged: 'Meds not logged',
+      medsPendingToday: 'Pending today',
+      medsNoneScheduled: 'None scheduled',
+      projectedRecovery: 'Projected recovery',
+      timelineSection: 'Longitudinal Daily Recovery Progress'
     },
     ta: {
       badge: (badgeLabels.ta[badgeKey] || badgeLabels.ta.on_track),
-      pathway: '14-நாள் மருத்துவமனைக்கு பிந்தைய மீட்புப் பாதை',
+      pathway: 'நிலையான மருத்துவ மீட்புப் பாதை',
       journeyTitle: hasStarted
-        ? `எனது மீட்புப் பயணம் — நாள் ${currentDay} / 14`
-        : 'எனது மீட்புப் பயணம் — மருந்துகள் ஒதுக்கீட்டிற்காக காத்திருக்கிறது',
+        ? `எனது மீட்புப் பயணம் — தற்போது நாள் ${currentDay}`
+        : 'எனது மீட்புப் பயணம் — மருந்துகள் அட்டவணை நிலுவையில்',
+      awaitingDesc: 'மருத்துவர் மருந்து அட்டவணையை பதிவு செய்தவுடன் உங்களின் தனிப்பயனாக்கப்பட்ட மீட்பு பயணம் நாள் 1-ல் தொடங்கும்.',
       checkinBtn: 'தினசரி சோதனையை முடிக்கவும்',
-      corridorLabel: 'குணமடைதல் முன்னேற்ற நிலை',
-      completed: 'முடிந்தது',
-      currentLabel: 'தற்போதைய நிலை',
-      pendingLabel: 'தொடக்க நிலுவை',
-      milestones: [
-        { day: 'நாள் 1–3', title: 'ஆரம்ப மீட்பு & ஓய்வு', desc: 'அறுவை சிகிச்சை மீட்பு, மருந்துகள் தொடக்கம் மற்றும் தீவிர கண்காணிப்பு' },
-        { day: 'நாள் 4–7', title: 'ஆரம்ப நடமாட்டம்', desc: 'வலி குறைதல், மெதுவான நடைபயிற்சி மற்றும் லேசான செயல்பாடுகள்' },
-        { day: 'நாள் 8–11', title: 'படிப்படியான முன்னேற்றம்', desc: 'வலுப்படுத்தும் பயிற்சிகள், வலி தணிவு மற்றும் தினசரி சோதனை' },
-        { day: 'நாள் 12–14', title: 'முழு மீட்பு மாற்றம்', desc: 'வழக்கமான தினசரி பணிகளுக்கு திரும்புதல் மற்றும் இறுதி மருத்துவ ஆய்வு' }
-      ]
+      checkinDoneToday: 'இன்றைய சோதனை முடிந்தது',
+      todayLabel: 'இன்று',
+      pastLabel: 'பதிவானது',
+      futureLabel: 'வரவிருக்கும்',
+      phaseLabel: 'தற்போதைய நிலை',
+      checkinsMetric: 'பதிவான சோதனைகள்',
+      adherenceMetric: 'மருந்து கடைபிடிப்பு',
+      nextEventMetric: 'அடுத்த நிகழ்வு',
+      checkinDone: 'சோதனை முடிந்தது',
+      checkinPending: 'இன்று நிலுவையில்',
+      checkinMissed: 'சோதனை பதிவு செய்யப்படவில்லை',
+      medsAllTaken: 'அனைத்து மருந்துகளும் எடுக்கப்பட்டன',
+      medsPartial: 'பகுதி முடிந்தது',
+      medsNotLogged: 'மருந்துகள் எடுக்கப்படவில்லை',
+      medsPendingToday: 'இன்று நிலுவை',
+      medsNoneScheduled: 'மருந்துகள் திட்டமிடப்படவில்லை',
+      projectedRecovery: 'எதிர்பார்க்கப்படும் மீட்பு',
+      timelineSection: 'நீண்டகால தினசரி மீட்பு முன்னேற்றம்'
     },
     hi: {
       badge: (badgeLabels.hi[badgeKey] || badgeLabels.hi.on_track),
-      pathway: '14-दिवसीय डिस्चार्ज-उपरांत रिकवरी मार्ग',
+      pathway: 'मानक क्लिनिकल रिकवरी मार्ग',
       journeyTitle: hasStarted
-        ? `मेरी रिकवरी यात्रा — दिन ${currentDay} / 14`
-        : 'मेरी रिकवरी यात्रा — दवा आवंटन की प्रतीक्षा',
+        ? `मेरी रिकवरी यात्रा — वर्तमान में दिन ${currentDay}`
+        : 'मेरी रिकवरी यात्रा — दवा अनुसूची की प्रतीक्षा',
+      awaitingDesc: 'चिकित्सक द्वारा दवा अनुसूची निर्धारित किए जाने पर आपकी व्यक्तिगत दैनिक रिकवरी यात्रा दिन 1 से शुरू होगी।',
       checkinBtn: 'दैनिक चेक-इन पूरा करें',
-      corridorLabel: 'रिकवरी प्रगति स्तर',
-      completed: 'पूर्ण',
-      currentLabel: 'वर्तमान चरण',
-      pendingLabel: 'प्रतीक्षारत',
-      milestones: [
-        { day: 'दिन 1–3', title: 'प्रारंभिक आराम और उपचार', desc: 'सर्जरी के बाद आराम, दवाइयां शुरू करना और करीबी निगरानी' },
-        { day: 'दिन 4–7', title: 'हल्की गतिशीलता', desc: 'दर्द में धीरे-धीरे कमी, हल्का चलना और रिकवरी व्यायाम' },
-        { day: 'दिन 8–11', title: 'प्रगतिशील सुधार', desc: 'दैनिक चेक-इन, दर्द में कमी और नियमित सक्रिय प्रोटोकॉल' },
-        { day: 'दिन 12–14', title: 'पूर्ण रिकवरी संक्रमण', desc: 'दैनिक गतिविधियों में वापसी और अंतिम क्लिनिकल समीक्षा' }
-      ]
+      checkinDoneToday: 'आज का चेक-इन पूर्ण',
+      todayLabel: 'आज',
+      pastLabel: 'दर्ज',
+      futureLabel: 'आगामी',
+      phaseLabel: 'वर्तमान स्थिति',
+      checkinsMetric: 'चेक-इन दर्ज',
+      adherenceMetric: 'दवा पालन',
+      nextEventMetric: 'अगला परामर्श',
+      checkinDone: 'चेक-इन पूर्ण',
+      checkinPending: 'आज प्रतीक्षारत',
+      checkinMissed: 'चेक-इन दर्ज नहीं हुआ',
+      medsAllTaken: 'सभी दवाइयां ली गईं',
+      medsPartial: 'आंशिक रूप से ली गई',
+      medsNotLogged: 'दवा दर्ज नहीं हुई',
+      medsPendingToday: 'आज प्रतीक्षारत',
+      medsNoneScheduled: 'कोई दवा नहीं',
+      projectedRecovery: 'अनुमानित रिकवरी',
+      timelineSection: 'दैनिक रिकवरी प्रगति'
     }
   };
 
   const t = contentMap[lang] || contentMap.en;
+  const timeline = data.timeline || [];
+
+  const todayItem = timeline.find(item => item.is_today);
+  const isCheckedInToday = todayItem?.checkin_status === 'completed';
 
   return (
     <div className="card" style={{ padding: 22, marginTop: 18, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {/* Header Row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            width: 44,
-            height: 44,
+            width: 46,
+            height: 46,
             borderRadius: 12,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(135deg, rgba(0,212,184,0.18), rgba(56,189,248,0.18))',
-            color: 'var(--p)'
+            background: hasStarted
+              ? 'linear-gradient(135deg, rgba(0,212,184,0.18), rgba(56,189,248,0.18))'
+              : 'rgba(148, 163, 184, 0.12)',
+            color: hasStarted ? 'var(--p)' : 'var(--text-muted)'
           }}>
-            <HeartPulse size={24} />
+            <HeartPulse size={26} />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -167,86 +200,253 @@ export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', on
                 {t.badge}
               </span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {t.pathway}
+                {t.pathway} {hasStarted && data.medication_start_date ? `· Started ${data.medication_start_date}` : ''}
               </span>
             </div>
-            <h3 style={{ margin: '3px 0 0', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>
+            <h3 style={{ margin: '4px 0 0', fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
               {t.journeyTitle}
             </h3>
           </div>
         </div>
 
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={() => onNavigate ? onNavigate('#/patient/check-in') : (window.location.hash = '#/patient/check-in')}
-          style={{ fontSize: 12 }}
-        >
-          <CheckCircle2 size={13} /> {t.checkinBtn}
-        </button>
+        {hasStarted ? (
+          isCheckedInToday ? (
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled
+              style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, opacity: 0.9 }}
+            >
+              <CheckCircle2 size={13} style={{ color: 'var(--success)' }} /> {t.checkinDoneToday}
+            </button>
+          ) : (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => onNavigate ? onNavigate('#/patient/check-in') : (window.location.hash = '#/patient/check-in')}
+              style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <CheckCircle2 size={13} /> {t.checkinBtn}
+            </button>
+          )
+        ) : null}
       </div>
 
-      {/* Progress Bar */}
-      <div style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-          <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>{t.corridorLabel}</span>
-          <span style={{ color: 'var(--p)', fontWeight: 700 }}>{progressPct}% {t.completed}</span>
+      {/* When awaiting medication start */}
+      {!hasStarted ? (
+        <div style={{
+          marginTop: 16,
+          padding: '16px 20px',
+          borderRadius: 10,
+          background: 'var(--surface2)',
+          border: '1px dashed var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14
+        }}>
+          <Clock size={24} style={{ color: 'var(--p)', flexShrink: 0 }} />
+          <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+            {t.awaitingDesc}
+          </div>
         </div>
-        <div style={{ height: 8, borderRadius: 4, background: 'var(--surface2)', overflow: 'hidden' }}>
+      ) : (
+        <>
+          {/* Key Clinical Telemetry Metrics Row */}
           <div style={{
-            width: `${progressPct}%`,
-            height: '100%',
-            borderRadius: 4,
-            background: 'linear-gradient(90deg, var(--p) 0%, #38bdf8 100%)',
-            boxShadow: '0 0 10px rgba(0,212,184,0.4)',
-            transition: 'width 0.4s ease'
-          }} />
-        </div>
-      </div>
-
-      {/* 4-Stage Milestone Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 16 }}>
-        {t.milestones.map((m, idx) => {
-          const isDone = hasStarted && ((idx + 1) * 3.5 <= currentDay);
-          const isCurrent = hasStarted && !isDone && (idx * 3.5 <= currentDay);
-          const isAwaiting = !hasStarted;
-
-          return (
-            <div key={m.day} style={{
-              padding: 12,
-              borderRadius: 8,
-              background: isCurrent ? 'rgba(0, 212, 184, 0.08)' : 'var(--surface2)',
-              border: `1px solid ${isCurrent ? 'var(--p)' : 'var(--border)'}`,
-              opacity: isAwaiting ? 0.75 : 1,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: isCurrent ? 'var(--p)' : 'var(--text-muted)' }}>
-                  {m.day}
-                </span>
-                {isDone ? (
-                  <CheckCircle2 size={13} style={{ color: 'var(--success)' }} />
-                ) : isCurrent ? (
-                  <span className="badge badge-teal" style={{ fontSize: 9 }}>
-                    {t.currentLabel}
-                  </span>
-                ) : isAwaiting && idx === 0 ? (
-                  <span className="badge badge-blue" style={{ fontSize: 9 }}>
-                    {t.pendingLabel}
-                  </span>
-                ) : null}
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: 10,
+            marginTop: 16,
+            marginBottom: 16
+          }}>
+            <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                {t.phaseLabel}
               </div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>
-                {m.title}
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--p)', marginTop: 2 }}>
+                Day {currentDay} Active
               </div>
-              <p style={{ margin: 0, fontSize: 11.5, color: 'var(--text-dim)', lineHeight: 1.4 }}>
-                {m.desc}
-              </p>
             </div>
-          );
-        })}
-      </div>
+
+            <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                {t.checkinsMetric}
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>
+                {data.completed_checkins_count || 0} / {currentDay} Days
+              </div>
+            </div>
+
+            <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                {t.adherenceMetric}
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: data.adherence_rate >= 75 ? 'var(--success)' : 'var(--warn)', marginTop: 2 }}>
+                {data.adherence_rate ?? 0}% <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>({data.taken_doses || 0}/{data.scheduled_doses || 0})</span>
+              </div>
+            </div>
+
+            <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                {t.nextEventMetric}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {data.next_event_summary || 'Rest & Monitoring'}
+              </div>
+            </div>
+          </div>
+
+          {/* Adaptive Daily Recovery Timeline */}
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                {t.timelineSection}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                Scroll horizontal to inspect full journey →
+              </span>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              gap: 12,
+              overflowX: 'auto',
+              paddingBottom: 8,
+              paddingTop: 4,
+              scrollbarWidth: 'thin'
+            }}>
+              {timeline.map((item) => {
+                const isToday = item.is_today;
+                const isPast = item.is_past;
+                const isFuture = item.is_future;
+
+                return (
+                  <div
+                    key={item.day_number}
+                    style={{
+                      flex: '0 0 200px',
+                      padding: 12,
+                      borderRadius: 10,
+                      background: isToday
+                        ? 'rgba(0, 212, 184, 0.08)'
+                        : isFuture
+                          ? 'rgba(15, 23, 42, 0.35)'
+                          : 'var(--surface2)',
+                      border: isToday
+                        ? '1.5px solid var(--p)'
+                        : isFuture
+                          ? '1px dashed var(--border)'
+                          : '1px solid var(--border)',
+                      boxShadow: isToday ? '0 0 12px rgba(0, 212, 184, 0.2)' : 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: 8
+                    }}
+                  >
+                    {/* Top day header */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{
+                          fontSize: 13,
+                          fontWeight: 800,
+                          color: isToday ? 'var(--p)' : 'var(--text)'
+                        }}>
+                          Day {item.day_number}
+                        </span>
+                        {isToday ? (
+                          <span className="badge badge-teal" style={{ fontSize: 9, fontWeight: 800 }}>
+                            {t.todayLabel}
+                          </span>
+                        ) : isPast ? (
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+                            {item.formatted_date}
+                          </span>
+                        ) : (
+                          <span className="badge badge-blue" style={{ fontSize: 9 }}>
+                            {item.formatted_date || t.futureLabel}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Daily Check-in status line */}
+                      {!isFuture && (
+                        <div style={{ fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 6, margin: '4px 0' }}>
+                          {item.checkin_status === 'completed' ? (
+                            <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                              <CheckCircle2 size={12} /> {t.checkinDone} (Pain {item.checkin_pain}/10)
+                            </span>
+                          ) : isToday ? (
+                            <span style={{ color: 'var(--p)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                              <Clock size={12} /> {t.checkinPending}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <XCircle size={12} /> {t.checkinMissed}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Medication status line */}
+                      {!isFuture && (
+                        <div style={{ fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 6, margin: '4px 0' }}>
+                          {item.med_status === 'all_taken' ? (
+                            <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                              <Pill size={12} /> {t.medsAllTaken} ({item.med_taken}/{item.med_scheduled})
+                            </span>
+                          ) : item.med_status === 'partially_taken' ? (
+                            <span style={{ color: 'var(--warn)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                              <Pill size={12} /> {t.medsPartial} ({item.med_taken}/{item.med_scheduled})
+                            </span>
+                          ) : item.med_status === 'not_taken' ? (
+                            <span style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Pill size={12} /> {isToday ? t.medsPendingToday : t.medsNotLogged}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Pill size={12} /> {t.medsNoneScheduled}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Future schedules & genuine likelihood predictions */}
+                      {isFuture && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, margin: '4px 0' }}>
+                          {item.has_appointment ? (
+                            <span style={{ color: '#38bdf8', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <CalendarDays size={12} /> {item.appointment_detail}
+                            </span>
+                          ) : item.projected_score != null ? (
+                            <span style={{ color: 'var(--p)', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Activity size={12} /> {t.projectedRecovery}: {item.projected_score} pts
+                            </span>
+                          ) : null}
+
+                          <span style={{ color: 'var(--text-dim)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Pill size={12} /> {item.med_message}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Small status message under the day */}
+                    <div style={{
+                      fontSize: 10.5,
+                      color: 'var(--text-dim)',
+                      lineHeight: 1.35,
+                      borderTop: '1px solid var(--border)',
+                      paddingTop: 6,
+                      fontStyle: isFuture ? 'italic' : 'normal'
+                    }}>
+                      {item.summary_message}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -26,13 +26,15 @@ from app.core.constants import OccurrenceState
 def get_or_create_trajectory_milestones(
     db: Session,
     patient_id: str,
-    start_date: Optional[dt.date] = None
+    start_date: Optional[dt.date] = None,
+    min_days: int = 14
 ) -> List[RecoveryTrajectoryMilestone]:
     """
-    Ensures a 14-day clinician-approved expected recovery corridor exists for the patient.
+    Ensures an evidence-based clinician-approved expected recovery corridor exists for the patient.
     Defaults to evidence-based post-discharge recovery decline envelopes.
     Day 1 is anchored to the medication assignment date (first prescribed medication),
-    so the 14-day count begins only when medications are assigned to the patient.
+    so recovery progression begins only when medications are assigned to the patient.
+    Expands dynamically beyond 14 days based on the patient's individual clinical duration.
     """
     # Look up medication assignment start date
     first_med = db.scalar(
@@ -49,17 +51,37 @@ def get_or_create_trajectory_milestones(
         .where(RecoveryTrajectoryMilestone.patient_id == patient_id)
         .order_by(RecoveryTrajectoryMilestone.day_number.asc())
     ).all()
+    
+    base_date = effective_base or dt.date.today()
+
     if existing:
         # Re-anchor existing milestones if medication start date has been established
         if effective_base and existing[0].target_date != effective_base:
             for m in existing:
                 m.target_date = effective_base + dt.timedelta(days=m.day_number - 1)
             db.commit()
+
+        # If patient has advanced beyond current milestones, extend dynamically
+        last_day = existing[-1].day_number
+        if last_day < min_days:
+            for d in range(last_day + 1, min_days + 1):
+                m = RecoveryTrajectoryMilestone(
+                    id=str(uuid.uuid4()),
+                    patient_id=patient_id,
+                    day_number=d,
+                    target_date=base_date + dt.timedelta(days=d - 1),
+                    expected_pain_min=0.0,
+                    expected_pain_max=1.5,
+                    expected_activity="active",
+                    clinical_milestone_note="Post-acute recovery maintenance & longitudinal stabilization",
+                    created_at=dt.datetime.utcnow(),
+                )
+                db.add(m)
+                existing.append(m)
+            db.commit()
         return list(existing)
 
-    base_date = effective_base or dt.date.today()
-
-    # Evidence-based recovery curve: gradual expected pain reduction over 14 days
+    # Evidence-based recovery curve: gradual expected pain reduction over standard pathway
     curve_archetype = [
         # (day, min_pain, max_pain, activity, note)
         (1, 5.0, 8.0, "rest", "Immediate post-discharge acute recovery; bed rest & analgesia"),
@@ -79,7 +101,13 @@ def get_or_create_trajectory_milestones(
     ]
 
     milestones = []
-    for day, p_min, p_max, act, note in curve_archetype:
+    target_count = max(len(curve_archetype), min_days)
+    for day in range(1, target_count + 1):
+        if day <= len(curve_archetype):
+            _, p_min, p_max, act, note = curve_archetype[day - 1]
+        else:
+            p_min, p_max, act, note = 0.0, 1.5, "active", "Post-acute recovery maintenance & longitudinal stabilization"
+
         m = RecoveryTrajectoryMilestone(
             id=str(uuid.uuid4()),
             patient_id=patient_id,
@@ -120,20 +148,20 @@ def compute_digital_twin_state(
     med_start_date = (first_med.start_date or (first_med.created_at.date() if first_med.created_at else None)) if first_med else None
     has_meds = first_med is not None
 
-    milestones = get_or_create_trajectory_milestones(db, patient_id, start_date=med_start_date)
-
     if has_meds and med_start_date:
         base_date = med_start_date
         diff = (today_d - base_date).days
-        days_elapsed = max(1, min(14, diff + 1)) if diff >= 0 else 1
+        days_elapsed = max(1, diff + 1) if diff >= 0 else 1
     else:
-        base_date = milestones[0].target_date if (milestones and milestones[0].target_date) else today_d
+        base_date = today_d
         days_elapsed = 1
+
+    milestones = get_or_create_trajectory_milestones(db, patient_id, start_date=med_start_date, min_days=max(14, days_elapsed + 7))
 
     end_date = (
         milestones[-1].target_date
         if (milestones and milestones[-1].target_date)
-        else (base_date + dt.timedelta(days=13))
+        else (base_date + dt.timedelta(days=max(13, days_elapsed + 6)))
     )
 
     # 1. Fetch Plan Version
