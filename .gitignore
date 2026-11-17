@@ -159,3 +159,20 @@ neon.ts
 package.json
 package-lock.json
 *.pdf
+
+# ------------------------------------------------------------------------------
+# 9. Large Datasets & Deep Learning Model Checkpoints
+# ------------------------------------------------------------------------------
+Dataset/
+datasets/
+*.zip
+*.tar
+*.tar.gz
+*.pdparams
+*.pdopt
+*.pdmodel
+*.pth
+*.pt
+*.bin
+*.onnx
+

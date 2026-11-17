@@ -153,6 +153,19 @@ def get_wound_model() -> WoundClassificationNet:
     if _wound_model is None:
         paddle.seed(42)
         _wound_model = WoundClassificationNet()
+        # Look for trained transfer learning checkpoint
+        candidates = [
+            Path(settings.UPLOAD_DIR) / "models" / "wound_resnet50_best.pdparams",
+            Path("backend/storage/models/wound_resnet50_best.pdparams"),
+            Path("storage/models/wound_resnet50_best.pdparams"),
+        ]
+        for ckpt in candidates:
+            if ckpt.exists():
+                try:
+                    _wound_model.set_state_dict(paddle.load(str(ckpt)))
+                    break
+                except Exception:
+                    pass
         _wound_model.eval()
     return _wound_model
 
@@ -161,6 +174,19 @@ def get_fracture_model() -> FractureDetectionNet:
     if _fracture_model is None:
         paddle.seed(42)
         _fracture_model = FractureDetectionNet()
+        # Look for trained transfer learning checkpoint
+        candidates = [
+            Path(settings.UPLOAD_DIR) / "models" / "fracture_densenet121_best.pdparams",
+            Path("backend/storage/models/fracture_densenet121_best.pdparams"),
+            Path("storage/models/fracture_densenet121_best.pdparams"),
+        ]
+        for ckpt in candidates:
+            if ckpt.exists():
+                try:
+                    _fracture_model.set_state_dict(paddle.load(str(ckpt)))
+                    break
+                except Exception:
+                    pass
         _fracture_model.eval()
     return _fracture_model
 
