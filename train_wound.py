@@ -66,7 +66,7 @@ from torchvision import transforms, models
 DEFAULT_EPOCHS = 35          # Increase (e.g., 45-60) for higher 23-class DermNet accuracy or decrease for quick runs
 WARMUP_FREEZE_EPOCHS = 3     # Epochs to train only the classification head before full unfreezing
 EARLY_STOPPING_PATIENCE = 8  # Stop early if Val Acc/F1 doesn't improve for N epochs
-DEFAULT_BATCH_SIZE = 32
+DEFAULT_BATCH_SIZE = 16
 DEFAULT_IMG_SIZE = 256       # Increase to 288 or 320 on GPU for finer skin lesion texture resolution
 DEFAULT_LR = 3e-4
 WEIGHT_DECAY = 1e-2
@@ -148,14 +148,25 @@ class WoundDataset(Dataset):
 
 
 def _find_split_dir(base_dir: Path, candidates: List[str]) -> Optional[Path]:
-    for child in base_dir.iterdir():
-        if child.is_dir() and child.name.lower() in candidates:
-            return child
-    for sub in base_dir.iterdir():
-        if sub.is_dir():
-            for child in sub.iterdir():
-                if child.is_dir() and child.name.lower() in candidates:
-                    return child
+    if not base_dir.exists() or not base_dir.is_dir():
+        return None
+    candidates_set = {c.lower() for c in candidates}
+    # 1. Direct child match (case-insensitive)
+    try:
+        for child in base_dir.iterdir():
+            if child.is_dir() and child.name.lower() in candidates_set:
+                return child
+    except Exception:
+        pass
+    # 2. Check up to 4 levels nested
+    for depth in range(1, 5):
+        pattern = "*/" * depth
+        try:
+            for sub in base_dir.glob(pattern):
+                if sub.is_dir() and sub.name.lower() in candidates_set:
+                    return sub
+        except Exception:
+            pass
     return None
 
 
@@ -501,9 +512,15 @@ def main():
     candidate_dirs = [
         Path(args.data_dir) if args.data_dir else None,
         root / "Dataset" / "Wound Analysis",
+        root / "Dataset" / "wound analysis",
+        root / "Dataset" / "Wound",
+        root / "Dataset" / "wound",
         root / "Dataset" / "dermnet",
+        root / "Dataset" / "DermNet",
+        root / "Dataset" / "DermNet Clinical Atlas",
+        root / "Dataset",
         Path("/kaggle/input/dermnet"),
-        Path("/kaggle/input/datasets/shubhamgoel27/dermnet")
+        Path("/kaggle/input/datasets/shubhamgoel27/dermnet"),
     ]
     data_dir = None
     for c in candidate_dirs:
@@ -651,6 +668,7 @@ def main():
                 inputs, targets_a, targets_b, lam = mixup_data(images, labels, alpha=args.mixup_alpha)
             else:
                 inputs = images
+                targets_a, targets_b, lam = labels, labels, 1.0
 
             with torch.cuda.amp.autocast(enabled=use_cuda):
                 outputs = model(inputs)
