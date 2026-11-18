@@ -38,6 +38,9 @@ from pathlib import Path
 from typing import List, Tuple, Optional, Dict
 
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning, module="PIL")
 from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import cv2
@@ -137,7 +140,10 @@ class WoundDataset(Dataset):
         path, label = self.samples[idx]
         try:
             with Image.open(path) as img:
-                img = img.convert("RGB")
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGBA").convert("RGB")
+                else:
+                    img = img.convert("RGB")
         except Exception:
             img = Image.new("RGB", (DEFAULT_IMG_SIZE, DEFAULT_IMG_SIZE), color=0)
 
@@ -670,7 +676,7 @@ def main():
                 inputs = images
                 targets_a, targets_b, lam = labels, labels, 1.0
 
-            with torch.cuda.amp.autocast(enabled=use_cuda):
+            with torch.amp.autocast("cuda", enabled=use_cuda):
                 outputs = model(inputs)
                 if use_mixup:
                     loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
@@ -703,7 +709,7 @@ def main():
             for images, labels, _ in val_loader:
                 images = images.to(device, non_blocking=True)
                 labels = labels.to(device, non_blocking=True)
-                with torch.cuda.amp.autocast(enabled=use_cuda):
+                with torch.amp.autocast("cuda", enabled=use_cuda):
                     outputs = model(images)
                     v_loss = val_criterion(outputs, labels)
                 val_running_loss += v_loss.item()
@@ -766,7 +772,7 @@ def main():
     with torch.no_grad():
         for images, labels, _ in test_loader:
             images = images.to(device, non_blocking=True)
-            with torch.cuda.amp.autocast(enabled=use_cuda):
+            with torch.amp.autocast("cuda", enabled=use_cuda):
                 # Test-Time Augmentation (Original + Horizontal Flip average)
                 logits_orig = model(images)
                 logits_flip = model(torch.flip(images, dims=[3]))
