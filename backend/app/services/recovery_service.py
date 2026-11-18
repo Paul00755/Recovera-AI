@@ -353,9 +353,9 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
     if existing_plan:
         plan = existing_plan
         plan.version = (plan.version or 1) + 1
-        plan.status = DocStatus.PUBLISHED.value
-        plan.approved_by = user_id
-        plan.approved_at = dt.datetime.utcnow()
+        plan.status = DocStatus.DRAFT.value
+        plan.approved_by = None
+        plan.approved_at = None
         plan.source_versions = source_versions
         plan.instructions = instructions
         plan.warning_signs = warning_signs
@@ -377,9 +377,9 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
         plan = RecoveryPlan(
             patient_id=patient_id,
             version=1,
-            status=DocStatus.PUBLISHED.value,
-            approved_by=user_id,
-            approved_at=dt.datetime.utcnow(),
+            status=DocStatus.DRAFT.value,
+            approved_by=None,
+            approved_at=None,
             source_versions=source_versions,
             instructions=instructions,
             warning_signs=warning_signs,
@@ -411,43 +411,6 @@ RESPOND IN VALID JSON ONLY matching this exact structure:
         target_id=plan.id,
         new_values={"version": plan.version, "status": plan.status, "model_used": model_used}
     )
-
-    # Alert patient of approved recovery plan in their preferred language
-    try:
-        from app.services.notification_service import create_in_app_notification, send_sms_job, _get_portal_url
-        from app.models.sms_job import SMSCategory
-
-        lang = (patient.preferred_language or "en").lower()[:2]
-        if lang == "ta":
-            notif_title = "மீட்புத் திட்டம் அங்கீகரிக்கப்பட்டது"
-            notif_msg = f"உங்கள் மீட்புத் திட்டம் [v{plan.version}] உருவாக்கப்பட்டு அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் விருப்பமான மொழியில் உங்கள் மீட்புத் திட்டத்தைக் காணலாம்."
-        elif lang == "hi":
-            notif_title = "रिकवरी योजना स्वीकृत"
-            notif_msg = f"आपकी रिकवरी योजना [v{plan.version}] तैयार और स्वीकृत कर दी गई है। आप अपनी पसंदीदा भाषा में अपनी रिकवरी योजना देख सकते हैं।"
-        else:
-            notif_title = "Recovery Plan Approved"
-            notif_msg = f"Your recovery plan [v{plan.version}] is generated and approved. You can view your recovery plan in your preferred language."
-
-        if patient.user_id:
-            create_in_app_notification(
-                db=db,
-                user_id=patient.user_id,
-                title=notif_title,
-                message=notif_msg,
-                category="recovery_plan",
-                link="#/patient/recovery"
-            )
-
-        if patient.phone and getattr(patient, "sms_opt_in", True):
-            send_sms_job(
-                db=db,
-                phone=patient.phone,
-                message_text=f"RecoveraAI: {notif_msg} Link: {_get_portal_url()}/#/patient/recovery",
-                category=SMSCategory.CARE_UPDATE.value if hasattr(SMSCategory, "CARE_UPDATE") else "care_update",
-                patient_id=patient.id
-            )
-    except Exception as e:
-        logger.warning("Failed to dispatch recovery plan notification: %s", e)
 
     db.commit()
     db.refresh(plan)
@@ -494,14 +457,40 @@ def publish_recovery_plan(
     warning_signs: Optional[List[Any]] = None
 ) -> RecoveryPlan:
     """
-    Doctor or Admin reviews and officially publishes a recovery plan.
-    Nurses cannot publish recovery plans (enforcing RBAC clinical responsibility).
+    Assigned Doctor, Assigned Nurse, or Admin reviews, clinically approves, and publishes a recovery plan.
+    Ensures that only authorized clinicians can release instructions to the patient portal.
     """
-    if user.role not in (Role.DOCTOR.value, Role.ADMIN.value):
+    if user.role not in (Role.DOCTOR.value, Role.NURSE.value, Role.ADMIN.value):
         raise HTTPException(
             status_code=403,
-            detail="Forbidden: Only Doctors and Administrators are authorized to publish recovery plans."
+            detail="Forbidden: Only Doctors, Nurses, and Administrators are authorized to approve and publish recovery plans."
         )
+
+    patient_rec = db.get(Patient, patient_id)
+    if not patient_rec or not patient_rec.active:
+        raise HTTPException(status_code=404, detail="Patient not found or inactive.")
+
+    # Doctor assignment check: Doctor must be assigned to this patient (or auto-assign if unassigned)
+    if user.role == Role.DOCTOR.value:
+        from app.models.patient import PatientDoctorAssignment
+        is_assigned = (patient_rec.assigned_doctor_id == user.id) or bool(
+            db.scalar(
+                select(PatientDoctorAssignment.id).where(
+                    PatientDoctorAssignment.patient_id == patient_id,
+                    PatientDoctorAssignment.doctor_id == user.id,
+                    PatientDoctorAssignment.is_active == True
+                )
+            )
+        )
+        if not is_assigned:
+            if not patient_rec.assigned_doctor_id:
+                patient_rec.assigned_doctor_id = user.id
+                db.flush()
+            else:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied: Only the doctor or nurse assigned to this patient can approve and publish their recovery plan."
+                )
 
     plan = db.scalar(
         select(RecoveryPlan).where(RecoveryPlan.patient_id == patient_id).order_by(RecoveryPlan.created_at.desc())
@@ -534,16 +523,13 @@ def publish_recovery_plan(
         action="recovery_plan_published",
         target_type="recovery_plan",
         target_id=plan.id,
-        new_values={"status": plan.status, "version": plan.version}
+        new_values={"status": plan.status, "version": plan.version, "approved_by": user.id, "approver_role": user.role}
     )
 
-    # Suggestion 4: Notify patient of published recovery plan guidelines
+    # Notify patient of clinically approved and published recovery plan guidelines
     try:
-        from app.models.patient import Patient
         from app.services.notification_service import notify_patient_recovery_plan_updated
-        patient_rec = db.get(Patient, patient_id)
-        if patient_rec:
-            notify_patient_recovery_plan_updated(db=db, patient=patient_rec, doctor=user, version=plan.version)
+        notify_patient_recovery_plan_updated(db=db, patient=patient_rec, doctor=user, version=plan.version)
     except Exception as e:
         import logging
         logging.getLogger("recovera.recovery_plan").warning("Failed to notify patient of published plan: %s", e)

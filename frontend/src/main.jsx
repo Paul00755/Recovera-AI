@@ -11950,7 +11950,7 @@ function EditAndPreviewPlanModal({ patient, plan, session, onClose, onUpdated })
     }
   };
 
-  const canPublish = session?.user?.role === 'doctor' || session?.user?.role === 'admin';
+  const canPublish = session?.user?.role === 'doctor' || session?.user?.role === 'nurse' || session?.user?.role === 'admin';
 
   return (
     <Modal open title={`Recovery Plan v${plan?.version || 1} — Clinical Review & Preview`} onClose={onClose} size="lg">
@@ -12863,9 +12863,9 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
                   <Edit3 size={13} /> Edit & Preview Plan
                 </button>
               )}
-              {(session.user.role === 'doctor' || session.user.role === 'admin') && plan && plan.status === 'draft' && (
+              {(session.user.role === 'doctor' || session.user.role === 'nurse' || session.user.role === 'admin') && plan && (plan.status !== 'published' || !plan.approved_by) && (
                 <button className="btn btn-primary btn-sm" onClick={() => setPublishPlanConfirmOpen(true)} disabled={planBusy}>
-                  {planBusy ? <Spinner /> : <><CheckCircle2 size={13} /> Publish to Patient</>}
+                  {planBusy ? <Spinner /> : <><CheckCircle2 size={13} /> Approve & Publish to Patient</>}
                 </button>
               )}
             </div>
@@ -12874,6 +12874,53 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
             ? <Empty icon={FileText} title="No recovery plan" desc="Generate a plan from approved clinical documents." />
             : (
               <>
+                {(plan.status !== 'published' || !plan.approved_by) ? (
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: 8,
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                    flexWrap: 'wrap',
+                    gap: 12
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Clock size={18} color="var(--amber)" style={{ flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--amber)' }}>
+                          ⚠️ Hidden From Patient — Pending Clinician Approval
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                          This recovery care plan is in draft mode. The patient cannot see these instructions until an assigned doctor or nurse clicks Approve & Publish.
+                        </div>
+                      </div>
+                    </div>
+                    {(session.user.role === 'doctor' || session.user.role === 'nurse' || session.user.role === 'admin') && (
+                      <button className="btn btn-primary btn-sm" onClick={() => setPublishPlanConfirmOpen(true)} disabled={planBusy}>
+                        {planBusy ? <Spinner size={13} /> : <><CheckCircle2 size={13} /> Approve & Publish to Patient</>}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    marginBottom: 16
+                  }}>
+                    <CheckCircle2 size={16} color="var(--success)" />
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--success)' }}>
+                      Visible to Patient — Clinically Approved by {plan.approver_role === 'nurse' ? 'Nurse' : 'Dr.'} {plan.approver_name || 'Clinician'} on {fmtDate(plan.approved_at || plan.updated_at)}
+                    </span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                   <Badge status={plan.status}>{plan.status}</Badge>
                   <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Version {plan.version} · Updated {fmtDate(plan.updated_at)}</span>
@@ -13352,14 +13399,14 @@ function PatientWorkspace({ patientId, subpage, session, navigate }) {
 
       {/* Publish Recovery Plan Confirmation Modal */}
       {publishPlanConfirmOpen && (
-        <Modal open title="Confirm Publish Recovery Plan" onClose={() => setPublishPlanConfirmOpen(false)} size="sm">
-          <p style={{ fontSize: 13, color: 'var(--text)', marginBottom: 16 }}>
-            Are you sure you want to finalize and publish this Recovery Plan to the patient? They will be granted immediate access in their portal to all prescribed instructions, diet schedules, and emergency warning signs.
+        <Modal open title="Confirm Clinical Approval & Publication" onClose={() => setPublishPlanConfirmOpen(false)} size="sm">
+          <p style={{ fontSize: 13, color: 'var(--text)', marginBottom: 16, lineHeight: 1.5 }}>
+            Are you sure you want to approve and publish this Recovery Plan to the patient? As their assigned clinician, you verify that all medication guidance, dietary instructions, and warning indicators are clinically safe. The patient will be granted immediate access in their portal.
           </p>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={() => setPublishPlanConfirmOpen(false)}>Cancel</button>
             <button className="btn btn-primary" disabled={planBusy} onClick={() => { setPublishPlanConfirmOpen(false); publishPlan(); }}>
-              {planBusy ? <Spinner size={14} /> : <><CheckCircle size={14} /> Confirm & Publish</>}
+              {planBusy ? <Spinner size={14} /> : <><CheckCircle2 size={14} /> Approve & Release to Patient</>}
             </button>
           </div>
         </Modal>
@@ -15290,7 +15337,7 @@ function PatientOverview({ session, patientId, navigate, lang = 'en' }) {
       )}
 
       {/* Patient Recovery Plan Approval Alert Banner */}
-      {activePlan && (activePlan.status === 'published' || activePlan.status === 'approved') && (
+      {activePlan && (activePlan.status === 'published' || activePlan.status === 'approved') && activePlan.approved_by ? (
         <div
           style={{
             padding: '12px 16px',
@@ -15308,13 +15355,18 @@ function PatientOverview({ session, patientId, navigate, lang = 'en' }) {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <CheckCircle2 size={18} color="var(--p)" style={{ flexShrink: 0 }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-              {lang === 'ta'
-                ? `உங்கள் மீட்புத் திட்டம் [v${activePlan.version_number || activePlan.version || 1}] உருவாக்கப்பட்டு அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் விருப்பமான மொழியில் உங்கள் மீட்புத் திட்டத்தைக் காணலாம்.`
-                : lang === 'hi'
-                ? `आपकी रिकवरी योजना [v${activePlan.version_number || activePlan.version || 1}] तैयार और स्वीकृत कर दी गई है। आप अपनी पसंदीदा भाषा में अपनी रिकवरी योजना देख सकते हैं।`
-                : `Your recovery plan [v${activePlan.version_number || activePlan.version || 1}] is generated and approved. You can view your recovery plan in your preferred language.`}
-            </span>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                {lang === 'ta'
+                  ? `உங்கள் மீட்புத் திட்டம் [v${activePlan.version_number || activePlan.version || 1}] அங்கீகரிக்கப்பட்டுள்ளது.`
+                  : lang === 'hi'
+                  ? `आपकी रिकवरी योजना [v${activePlan.version_number || activePlan.version || 1}] अनुमोदित है।`
+                  : `Your recovery plan [v${activePlan.version_number || activePlan.version || 1}] has been approved by your care team.`}
+              </span>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                {activePlan.approver_name ? `Approved by ${activePlan.approver_role === 'nurse' ? 'Nurse' : 'Dr.'} ${activePlan.approver_name}` : 'Approved by your clinical team'} · Click to view full instructions, dietary rules, and milestones.
+              </div>
+            </div>
           </div>
           <button
             type="button"
@@ -15324,6 +15376,43 @@ function PatientOverview({ session, patientId, navigate, lang = 'en' }) {
           >
             {lang === 'ta' ? 'திட்டத்தைப் பார் →' : lang === 'hi' ? 'योजना देखें →' : 'View Recovery Plan →'}
           </button>
+        </div>
+      ) : (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: 10,
+            background: 'rgba(245, 158, 11, 0.08)',
+            border: '1.5px solid rgba(245, 158, 11, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Clock size={18} color="var(--amber)" style={{ flexShrink: 0 }} />
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                {lang === 'ta'
+                  ? 'மீட்பு நெறிமுறை மதிப்பாய்வில் உள்ளது: உங்கள் தனிப்பயனாக்கப்பட்ட மீட்புத் திட்டம் மருத்துவக் குழுவால் மதிப்பாய்வு செய்யப்படுகிறது.'
+                  : lang === 'hi'
+                  ? 'रिकवरी प्रोटोकॉल समीक्षाधीन: आपकी वैयक्तिकृत रिकवरी योजना आपकी मेडिकल टीम द्वारा समीक्षा की जा रही है।'
+                  : 'Care Protocol Under Review: Your personalized recovery plan is currently being prepared and verified by your care team.'}
+              </span>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                {lang === 'ta'
+                  ? 'உங்கள் மருத்துவர் அல்லது செவிலியர் ஒப்புதல் அளித்தவுடன், அனைத்து வழிமுறைகளும் இங்கு தோன்றும்.'
+                  : lang === 'hi'
+                  ? 'आपके डॉक्टर या नर्स द्वारा अनुमोदित होते ही सभी नैदानिक निर्देश यहां दिखाई देंगे।'
+                  : `Full instructions, dietary rules, and milestones will be made active once approved by your assigned doctor or nurse.`}
+              </div>
+            </div>
+          </div>
+          <span className="badge badge-amber" style={{ fontSize: 11, fontWeight: 700 }}>
+            {lang === 'ta' ? 'ஒப்புதல் நிலுவையில் உள்ளது' : lang === 'hi' ? 'स्वीकृति लंबित' : 'Awaiting Clinician Approval'}
+          </span>
         </div>
       )}
 
@@ -15613,11 +15702,35 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
   const chunks = translatedRecoveryChunks[planLang] || translatedRecoveryChunks.en;
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size={28} /></div>;
-  if (!plan || (plan.status !== 'published' && plan.status !== 'approved' && plan.status !== 'active')) {
+  if (!plan || (!plan.is_approved && plan.status !== 'published' && plan.status !== 'approved') || !plan.approved_by) {
     return (
-      <div className="card">
-        <Empty icon={FileText} title={getTranslation('pending_plan_title', planLang)}
-          desc={getTranslation('pending_plan_desc', planLang)} />
+      <div className="card" style={{ padding: 36, textAlign: 'center' }}>
+        <div style={{
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          background: 'rgba(245, 158, 11, 0.12)',
+          color: 'var(--amber)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 16px'
+        }}>
+          <Clock size={28} />
+        </div>
+        <span className="badge badge-amber" style={{ fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
+          {planLang === 'ta' ? 'மருத்துவ ஒப்புதல் நிலுவையில் உள்ளது' : planLang === 'hi' ? 'चिकित्सकीय स्वीकृति लंबित' : 'AWAITING CLINICIAN APPROVAL'}
+        </span>
+        <h2 style={{ fontSize: 20, fontWeight: 800, margin: '8px 0', color: 'var(--text)' }}>
+          {planLang === 'ta' ? 'மீட்புத் திட்டம் மருத்துவக் குழுவின் பரிசீலனையில் உள்ளது' : planLang === 'hi' ? 'रिकवरी योजना मेडिकल टीम की समीक्षा में है' : 'Recovery Care Plan Under Clinical Review'}
+        </h2>
+        <p style={{ maxWidth: 560, margin: '0 auto 18px', fontSize: 13.5, color: 'var(--text-dim)', lineHeight: 1.6 }}>
+          {planLang === 'ta'
+            ? 'உங்கள் மருத்துவ பாதுகாப்பு நெறிமுறைகளை உங்கள் நியமிக்கப்பட்ட மருத்துவர் அல்லது செவிலியர் தற்போது மதிப்பாய்வு செய்து வருகின்றனர். அவர்கள் முழுமையாக சரிபார்த்து ஒப்புதல் அளித்தவுடன், உங்கள் தனிப்பயனாக்கப்பட்ட மீட்புத் திட்டம் இங்கே தோன்றும்.'
+            : planLang === 'hi'
+            ? 'आपकी सुरक्षा सुनिश्चित करने के लिए आपके निर्दिष्ट डॉक्टर या नर्स वर्तमान में आपके देखभाल निर्देशों की समीक्षा कर रहे हैं। उनके द्वारा अनुमोदित होते ही आपकी व्यक्तिगत योजना यहाँ दिखाई देगी।'
+            : 'To ensure your recovery safety, all discharge guidelines, dietary rules, and emergency indicators must be verified by your assigned doctor or attending nurse before being released. Your plan will become visible here immediately upon clinician approval.'}
+        </p>
       </div>
     );
   }
@@ -15641,17 +15754,17 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
           <div>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>
               {planLang === 'ta'
-                ? `உங்கள் மீட்புத் திட்டம் [v${plan.version_number || plan.version || 1}] உருவாக்கப்பட்டு அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் விருப்பமான மொழியில் உங்கள் மீட்புத் திட்டத்தைக் காணலாம்.`
+                ? `உங்கள் மீட்புத் திட்டம் [v${plan.version_number || plan.version || 1}] அங்கீகரிக்கப்பட்டுள்ளது.`
                 : planLang === 'hi'
-                ? `आपकी रिकवरी योजना [v${plan.version_number || plan.version || 1}] तैयार और स्वीकृत कर दी गई है। आप अपनी पसंदीदा भाषा में अपनी रिकवरी योजना देख सकते हैं।`
-                : `Your recovery plan [v${plan.version_number || plan.version || 1}] is generated and approved. You can view your recovery plan in your preferred language.`}
+                ? `आपकी रिकवरी योजना [v${plan.version_number || plan.version || 1}] अनुमोदित है।`
+                : `Your recovery plan [v${plan.version_number || plan.version || 1}] has been approved by your clinical care team.`}
             </div>
             <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
-              {planLang === 'ta'
-                ? 'உங்கள் மருத்துவர் அங்கீகரித்த முழுமையான வழிமுறைகள் கீழே கொடுக்கப்பட்டுள்ளன.'
-                : planLang === 'hi'
-                ? 'आपके चिकित्सक द्वारा अनुमोदित पूर्ण नैदानिक निर्देश नीचे दिए गए हैं।'
-                : 'Complete clinical care instructions approved by your physician presented below.'}
+              {plan.approver_name ? (
+                <span>Clinically verified & approved by <strong>{plan.approver_role === 'nurse' ? 'Nurse' : 'Dr.'} {plan.approver_name}</strong>{plan.approved_at ? ` on ${new Date(plan.approved_at).toLocaleDateString()}` : ''}.</span>
+              ) : (
+                <span>Complete clinical care instructions approved by your assigned clinician.</span>
+              )}
             </div>
           </div>
         </div>

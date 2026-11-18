@@ -34,63 +34,41 @@ def get_recovery_plan(
     enforce_patient_isolation(patient_id=pid, current_user=current_user, db=db)
 
     if current_user.role == Role.PATIENT.value:
-        # First query for latest published or approved plan
+        # STRICT CLINICAL RULE: Patient can ONLY view recovery plans that have been
+        # explicitly reviewed, approved, and published by their assigned doctor or nurse.
         plan = db.scalar(
             select(RecoveryPlan)
-            .where(RecoveryPlan.patient_id == pid, RecoveryPlan.status.in_([DocStatus.PUBLISHED.value, "approved", "active"]))
+            .where(
+                RecoveryPlan.patient_id == pid,
+                RecoveryPlan.status.in_([DocStatus.PUBLISHED.value, "approved"]),
+                RecoveryPlan.approved_by.isnot(None)
+            )
             .order_by(RecoveryPlan.version.desc(), RecoveryPlan.created_at.desc())
         )
         if not plan:
-            # Fallback to any latest plan with instructions and auto-publish so it doesn't vanish on login
-            plan = db.scalar(
-                select(RecoveryPlan)
-                .where(RecoveryPlan.patient_id == pid)
-                .order_by(RecoveryPlan.version.desc(), RecoveryPlan.created_at.desc())
+            raise HTTPException(
+                status_code=404,
+                detail="Your recovery plan is currently awaiting review and approval by your assigned care team (Doctor / Nurse). Please check back once your clinician has finalized and approved your care plan."
             )
-            if plan and plan.instructions:
-                plan.status = DocStatus.PUBLISHED.value
-                db.commit()
-                db.refresh(plan)
-            else:
-                # Check if patient has approved documents or medications and auto-generate initial plan
-                has_approved_docs = db.scalar(
-                    select(func.count(ClinicalDocument.id)).where(
-                        ClinicalDocument.patient_id == pid,
-                        ClinicalDocument.status == DocStatus.APPROVED.value
-                    )
-                ) or 0
-                has_active_meds = db.scalar(
-                    select(func.count(Medication.id)).where(
-                        Medication.patient_id == pid,
-                        Medication.status == "active"
-                    )
-                ) or 0
-                if has_approved_docs > 0 or has_active_meds > 0:
-                    try:
-                        plan = generate_plan_from_approved_documents(patient_id=pid, db=db, user_id=current_user.id, force=False)
-                        if plan:
-                            plan.status = DocStatus.PUBLISHED.value
-                            db.commit()
-                            db.refresh(plan)
-                    except Exception:
-                        pass
-
-                if not plan:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Your recovery plan is currently being prepared or updated by the clinical team. Please check back shortly."
-                    )
     else:
+        # Clinicians (Doctors, Nurses, Admins) view the latest plan (including drafts for review)
         plan = db.scalar(
             select(RecoveryPlan)
             .where(RecoveryPlan.patient_id == pid)
-            .order_by(RecoveryPlan.created_at.desc())
+            .order_by(RecoveryPlan.version.desc(), RecoveryPlan.created_at.desc())
         )
 
     if not plan:
         raise HTTPException(status_code=404, detail="No recovery plan found for this patient.")
 
-    return plan
+    plan_out = RecoveryPlanOut.model_validate(plan)
+    plan_out.is_approved = (plan.status in [DocStatus.PUBLISHED.value, "approved"]) and bool(plan.approved_by)
+    if plan.approved_by:
+        approver = db.get(User, plan.approved_by)
+        if approver:
+            plan_out.approver_name = approver.name
+            plan_out.approver_role = approver.role
+    return plan_out
 
 @router.post("/api/patients/{pid}/recovery-plan/generate", response_model=RecoveryPlanOut, status_code=status.HTTP_201_CREATED)
 def generate_recovery_plan(
@@ -102,7 +80,10 @@ def generate_recovery_plan(
     if not patient or not patient.active:
         raise HTTPException(status_code=404, detail="Patient not found.")
 
-    return generate_plan_from_approved_documents(patient_id=pid, db=db, user_id=current_user.id, force=True)
+    plan = generate_plan_from_approved_documents(patient_id=pid, db=db, user_id=current_user.id, force=True)
+    plan_out = RecoveryPlanOut.model_validate(plan)
+    plan_out.is_approved = (plan.status in [DocStatus.PUBLISHED.value, "approved"]) and bool(plan.approved_by)
+    return plan_out
 
 @router.put("/api/patients/{pid}/recovery-plan", response_model=RecoveryPlanOut)
 def update_recovery_plan(
@@ -128,12 +109,10 @@ def update_recovery_plan(
     if payload.warning_signs is not None:
         plan.warning_signs = payload.warning_signs
     if payload.status:
-        # Nurse cannot set status to published
-        if payload.status == DocStatus.PUBLISHED.value and current_user.role == Role.NURSE.value:
-            raise HTTPException(
-                status_code=403,
-                detail="Forbidden: Nurse cannot publish recovery plans. Doctor approval required."
-            )
+        # If transitioning to published/approved, record clinical approver
+        if payload.status in [DocStatus.PUBLISHED.value, "approved"]:
+            plan.approved_by = current_user.id
+            plan.approved_at = dt.datetime.utcnow()
         plan.status = payload.status
 
     plan.updated_at = dt.datetime.utcnow()
@@ -153,14 +132,22 @@ def update_recovery_plan(
     )
     db.commit()
     db.refresh(plan)
-    return plan
+
+    plan_out = RecoveryPlanOut.model_validate(plan)
+    plan_out.is_approved = (plan.status in [DocStatus.PUBLISHED.value, "approved"]) and bool(plan.approved_by)
+    if plan.approved_by:
+        approver = db.get(User, plan.approved_by)
+        if approver:
+            plan_out.approver_name = approver.name
+            plan_out.approver_role = approver.role
+    return plan_out
 
 @router.post("/api/patients/{pid}/recovery-plan/publish", response_model=RecoveryPlanOut)
 def publish_plan_endpoint(
     pid: str,
     payload: Optional[RecoveryPlanUpdate] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN.value, Role.DOCTOR.value))
+    current_user: User = Depends(require_role(Role.ADMIN.value, Role.DOCTOR.value, Role.NURSE.value))
 ):
     patient = db.get(Patient, pid)
     if not patient or not patient.active:
@@ -169,10 +156,15 @@ def publish_plan_endpoint(
     instructions = payload.instructions if payload else None
     warning_signs = payload.warning_signs if payload else None
 
-    return publish_recovery_plan(
+    plan = publish_recovery_plan(
         patient_id=pid,
         db=db,
         user=current_user,
         instructions=instructions,
         warning_signs=warning_signs
     )
+    plan_out = RecoveryPlanOut.model_validate(plan)
+    plan_out.is_approved = True
+    plan_out.approver_name = current_user.name
+    plan_out.approver_role = current_user.role
+    return plan_out

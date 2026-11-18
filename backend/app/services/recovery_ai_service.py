@@ -310,18 +310,24 @@ def gather_clinical_context(db: Session, user: User, patient_id: Optional[str] =
             })
         ctx["today_occurrences"] = today_doses
 
-        # Approved or Active Recovery Plan
+        # Clinically Approved Recovery Plan (Patients can only query approved care instructions)
         plan = db.scalar(
             select(RecoveryPlan)
             .where(
                 RecoveryPlan.patient_id == patient.id,
-                RecoveryPlan.status.in_([DocStatus.PUBLISHED.value, DocStatus.APPROVED.value, DocStatus.DRAFT.value, "published", "approved", "draft"])
+                RecoveryPlan.status.in_([DocStatus.PUBLISHED.value, DocStatus.APPROVED.value, "published", "approved"]),
+                RecoveryPlan.approved_by.isnot(None)
             )
             .order_by(RecoveryPlan.version.desc())
         )
         if plan:
             ctx["has_plan"] = True
             ctx["plan_version"] = plan.version
+            if plan.approved_by:
+                approver = db.get(User, plan.approved_by)
+                if approver:
+                    ctx["plan_approver_name"] = approver.name
+                    ctx["plan_approver_role"] = approver.role
             inst = plan.instructions if isinstance(plan.instructions, dict) else {}
             cnt = plan.content if isinstance(plan.content, dict) else {}
             ctx["dietary_guidelines"] = (
@@ -518,6 +524,11 @@ CRITICAL OPERATIONAL RULES & MEDICAL SAFETY GUARDRAILS:
 - Contextual next question 2
 - Contextual next question 3
 <<<END_SUGGESTIONS>>>
+
+8. UNAPPROVED RECOVERY PLAN INTEGRITY & PROTECTION:
+   - If `has_plan` is false or no approved recovery plan is present in the context below, and the patient asks about their recovery plan, discharge instructions, or convalescence protocol, you MUST state that their personalized recovery plan is currently being prepared and clinically reviewed by their assigned doctor or nurse, and will be made available in their portal as soon as clinical approval is granted.
+   - You MUST NEVER invent, hallucinate, or synthesize unapproved recovery instructions.
+
 
 =======================================================
 CURRENT IN-APP REAL-TIME CLINICAL DATABASE CONTEXT:
@@ -861,6 +872,89 @@ def generate_fallback_response(
                 "reply": reply,
                 "citations": citations,
                 "suggested_actions": sugg_meds,
+                "is_emergency": False,
+                "prescription_boundary": False,
+                "model_used": "Recovera Clinical Core (Offline-Safe Engine)"
+            }
+
+    # 4b. Recovery Plan / Care Protocol Inquiries (Requires Clinical Approval)
+    is_plan_query = matches_intent([
+        "recovery plan", "care plan", "treatment plan", "protocol", "discharge plan", "my plan",
+        "மீட்புத் திட்டம்", "சிகிச்சை திட்டம்", "திட்டம்", "रिकवरी योजना", "इलाज योजना", "योजना"
+    ])
+    if is_plan_query and ctx.get("user_role") == Role.PATIENT.value:
+        if ctx.get("has_plan"):
+            citations.append({"source": "Clinically Approved Recovery Plan", "snippet": f"Version {ctx.get('plan_version', 1)} signed off by clinical team"})
+            approver_str = f"{'Nurse' if ctx.get('plan_approver_role') == 'nurse' else 'Dr.'} {ctx.get('plan_approver_name')}" if ctx.get("plan_approver_name") else "your clinical care team"
+            diet = ctx.get("dietary_guidelines", "")
+            act = ctx.get("activity_restrictions", "")
+            care = ctx.get("care_instructions", "")
+            if lang == "ta":
+                reply = (
+                    f"📋 **உங்கள் அங்கீகரிக்கப்பட்ட மீட்புத் திட்டம் (பதிப்பு {ctx.get('plan_version', 1)}):**\n\n"
+                    f"இத்திட்டம் **{approver_str}** அவர்களால் சரிபார்க்கப்பட்டு அங்கீகரிக்கப்பட்டுள்ளது.\n\n"
+                    f"• **பொது பராமரிப்பு:** {care}\n"
+                    f"• **உணவு முறை:** {diet}\n"
+                    f"• **செயல்பாட்டு வரம்புகள்:** {act}\n\n"
+                    f"முழுமையான விவரங்களை உங்கள் நோயாளி போர்ட்டலில் 'மீட்புத் திட்டம்' (Recovery Plan) பக்கத்தில் காணலாம்."
+                )
+                sugg_plan = ["எனது உணவு முறை என்ன?", "எச்சரிக்கை அறிகுறிகள்", "மருந்துகள் விவரம்"]
+            elif lang == "hi":
+                reply = (
+                    f"📋 **आपकी स्वीकृत रिकवरी योजना (संस्करण {ctx.get('plan_version', 1)}):**\n\n"
+                    f"यह योजना **{approver_str}** द्वारा सत्यापित और अनुमोदित की गई है।\n\n"
+                    f"• **सामान्य देखभाल:** {care}\n"
+                    f"• **आहार निर्देश:** {diet}\n"
+                    f"• **गतिविधि सीमाएं:** {act}\n\n"
+                    f"विस्तृत जानकारी के लिए अपने पोर्टल पर 'Recovery Plan' अनुभाग देखें।"
+                )
+                sugg_plan = ["मेरा आहार क्या है?", "चेतावनी संकेत", "मेरी दवाएं"]
+            else:
+                reply = (
+                    f"📋 **Your Clinically Approved Recovery Plan (Version {ctx.get('plan_version', 1)}):**\n\n"
+                    f"This care protocol has been reviewed and officially approved by **{approver_str}**.\n\n"
+                    f"• **Care Routine:** {care}\n"
+                    f"• **Dietary Guidelines:** {diet}\n"
+                    f"• **Activity Restrictions:** {act}\n\n"
+                    f"You can view complete milestones and localized instructions in the 'Recovery Plan' section of your patient portal."
+                )
+                sugg_plan = ["What is my diet?", "Warning Signs", "My Medications Today"]
+            return {
+                "reply": reply,
+                "citations": citations,
+                "suggested_actions": sugg_plan,
+                "is_emergency": False,
+                "prescription_boundary": False,
+                "model_used": "Recovera Clinical Core (Offline-Safe Engine)"
+            }
+        else:
+            doc_name = ctx.get("attending_doctor", "your attending doctor")
+            nurse_name = ctx.get("assigned_nurse", "care coordinator")
+            if lang == "ta":
+                reply = (
+                    "⏳ **மீட்புத் திட்டம் மருத்துவக் குழுவின் பரிசீலனையில் உள்ளது:**\n\n"
+                    f"உங்கள் தனிப்பயனாக்கப்பட்ட மீட்புத் திட்டம் தற்போது உங்கள் மருத்துவர் (**{doc_name}**) அல்லது செவிலியர் (**{nurse_name}**) குழுவால் மருத்துவ பரிசீலனையில் உள்ளது.\n\n"
+                    "மருத்துவப் பாதுகாப்பு கருதி, மருத்துவர் அல்லது செவிலியர் முழுமையாக ஆய்வு செய்து ஒப்புதல் அளித்த பின்னரே வழிமுறைகள் உங்கள் போர்ட்டலில் வெளியிடப்படும். ஒப்புதல் வழங்கப்பட்டவுடன் உங்களுக்கு தானாகவே அறிவிப்பு வரும்."
+                )
+                sugg_plan = ["எனது மருந்துகள்", "அடுத்த சந்திப்பு எப்போது?", "மருத்துவரை தொடர்புகொள்ள"]
+            elif lang == "hi":
+                reply = (
+                    "⏳ **रिकवरी योजना मेडिकल टीम की समीक्षा में है:**\n\n"
+                    f"आपकी व्यक्तिगत देखभाल योजना वर्तमान में आपके डॉक्टर (**{doc_name}**) या नर्स (**{nurse_name}**) द्वारा समीक्षा की जा रही है।\n\n"
+                    "आपकी सुरक्षा के लिए, डॉक्टर या नर्स द्वारा अनुमोदित होने के बाद ही यह निर्देश आपके पोर्टल पर उपलब्ध कराए जाते हैं। स्वीकृति मिलते ही आपको सूचित कर दिया जाएगा।"
+                )
+                sugg_plan = ["मेरी दवाएं", "अगली अपॉइंटमेंट", "डॉक्टर से संपर्क"]
+            else:
+                reply = (
+                    "⏳ **Recovery Plan Under Clinical Review:**\n\n"
+                    f"Your personalized recovery plan is currently being reviewed and verified by your attending doctor (**{doc_name}**) and care team.\n\n"
+                    "To ensure patient safety, clinical instructions, dietary rules, and recovery milestones are only published to your portal once explicitly approved by your assigned clinician. You will be automatically notified once it is approved."
+                )
+                sugg_plan = ["My Medications Today", "Next Appointment", "Contact Care Team"]
+            return {
+                "reply": reply,
+                "citations": [{"source": "Clinical Protocol Governance", "snippet": "Awaiting clinician approval"}],
+                "suggested_actions": sugg_plan,
                 "is_emergency": False,
                 "prescription_boundary": False,
                 "model_used": "Recovera Clinical Core (Offline-Safe Engine)"

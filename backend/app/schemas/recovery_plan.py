@@ -24,6 +24,9 @@ class RecoveryPlanOut(BaseModel):
     content: Optional[Dict[str, Any]] = None
     approved_by: Optional[str] = None
     approved_at: Optional[dt.datetime] = None
+    approver_name: Optional[str] = None
+    approver_role: Optional[str] = None
+    is_approved: bool = False
     created_at: dt.datetime
     updated_at: dt.datetime
 
