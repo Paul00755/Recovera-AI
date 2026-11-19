@@ -3,8 +3,9 @@ import {
   Activity, ShieldCheck, RefreshCw, Layers, CheckCircle2,
   Clock, AlertTriangle, ArrowRight, User, Stethoscope, ChevronRight, FileText
 } from 'lucide-react';
+import { getApiBase } from '../../apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = getApiBase();
 
 export function DigitalTwinBenchmarkStudio({ session }) {
   const [loading, setLoading] = useState(true);

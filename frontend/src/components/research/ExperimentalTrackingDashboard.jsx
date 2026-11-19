@@ -4,8 +4,9 @@ import {
   CheckCircle2, ChevronRight, FileText, Cpu, Pill, HeartPulse,
   TrendingDown, TrendingUp, ShieldAlert, Sparkles, ExternalLink
 } from 'lucide-react';
+import { getApiBase } from '../../apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = getApiBase();
 
 export function ExperimentalTrackingDashboard({ session, navigate }) {
   const [loading, setLoading] = useState(true);

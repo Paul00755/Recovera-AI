@@ -5,10 +5,12 @@ import {
   Sliders, Layers, Check, X, ArrowLeft, ZoomIn, ZoomOut, Maximize2,
   Calendar, User, Stethoscope, Clock, ShieldCheck, BarChart3, HelpCircle
 } from 'lucide-react';
+import { getApiBase } from '../../apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = getApiBase();
 
 async function clientApi(path, options = {}) {
+  const base = getApiBase();
   const getStoredToken = () => {
     try {
       const stored = JSON.parse(sessionStorage.getItem('recovera_session') || localStorage.getItem('recovera_session') || '{}');
@@ -22,7 +24,7 @@ async function clientApi(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetch(`${base}${path}`, { ...options, headers });
   if (!res.ok) {
     let msg = 'Request failed';
     try {
@@ -219,8 +221,8 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
       formData.append('patient_id', selectedPatientId);
       formData.append('analysis_type', analysisType);
       formData.append('file', selectedFile);
-      if (anatomicalSite) formData.append('anatomical_site', anatomicalSite);
-      if (clinicalView) formData.append('clinical_view', clinicalView);
+      formData.append('anatomical_site', anatomicalSite || 'General Region');
+      formData.append('clinical_view', clinicalView || 'Standard View');
       formData.append('is_baseline', isBaseline ? 'true' : 'false');
       if (baselineImageId) formData.append('baseline_image_id', baselineImageId);
 
@@ -351,7 +353,12 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
   // Helper for rendering image artifact URLs
   const getRenderUrl = (relPath) => {
     if (!relPath) return null;
-    return `${API_BASE}${relPath}`;
+    if (relPath.startsWith('http://') || relPath.startsWith('https://') || relPath.startsWith('blob:') || relPath.startsWith('data:')) {
+      return relPath;
+    }
+    const base = getApiBase();
+    const cleanRel = relPath.startsWith('/') ? relPath : `/${relPath}`;
+    return `${base}${cleanRel}`;
   };
 
   return (
@@ -655,52 +662,6 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
               </div>
             </div>
 
-            {/* Anatomical Site & View */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div>
-                <label style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', display: 'block', marginBottom: 4 }}>
-                  Anatomical Site
-                </label>
-                <input
-                  type="text"
-                  value={anatomicalSite}
-                  onChange={(e) => setAnatomicalSite(e.target.value)}
-                  placeholder="e.g. Right Tibia"
-                  style={{
-                    width: '100%',
-                    padding: '7px 10px',
-                    borderRadius: 6,
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid var(--border-color, #223348)',
-                    color: 'var(--text-primary, #f1f5f9)',
-                    fontSize: 12,
-                    outline: 'none'
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', display: 'block', marginBottom: 4 }}>
-                  Clinical View
-                </label>
-                <input
-                  type="text"
-                  value={clinicalView}
-                  onChange={(e) => setClinicalView(e.target.value)}
-                  placeholder="e.g. AP / Lateral"
-                  style={{
-                    width: '100%',
-                    padding: '7px 10px',
-                    borderRadius: 6,
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid var(--border-color, #223348)',
-                    color: 'var(--text-primary, #f1f5f9)',
-                    fontSize: 12,
-                    outline: 'none'
-                  }}
-                />
-              </div>
-            </div>
-
             {/* Baseline Checkbox */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-primary, #f1f5f9)' }}>
               <input
@@ -913,36 +874,49 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
               flexWrap: 'wrap',
               gap: 8
             }}>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {[
-                  { id: 'gradcam_overlay', label: 'Grad-CAM Overlay', icon: <Layers size={13} /> },
-                  { id: 'gradcam_heatmap', label: 'Heatmap Only', icon: <Activity size={13} /> },
-                  { id: 'segmentation', label: activeAnalysis?.analysis_type === 'bone_fracture_xray' ? 'Edge Radiograph' : 'U-Net++ Segmentation', icon: <Sliders size={13} /> },
-                  { id: 'original', label: 'Original Clinical Image', icon: <Eye size={13} /> },
-                  { id: 'longitudinal', label: 'Longitudinal Comparison', icon: <Calendar size={13} /> },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveCanvasTab(tab.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '6px 11px',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      background: activeCanvasTab === tab.id ? '#00d4b8' : 'transparent',
-                      color: activeCanvasTab === tab.id ? '#041017' : 'var(--text-secondary, #94a3b8)',
-                      border: 'none',
-                      transition: 'all 0.15s'
-                    }}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button
+                  key="gradcam_overlay"
+                  onClick={() => setActiveCanvasTab('gradcam_overlay')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: activeCanvasTab === 'gradcam_overlay' ? '#00d4b8' : 'rgba(255,255,255,0.05)',
+                    color: activeCanvasTab === 'gradcam_overlay' ? '#041017' : 'var(--text-secondary, #94a3b8)',
+                    border: 'none',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <Layers size={13} />
+                  <span>Grad-CAM Overlay</span>
+                </button>
+                <button
+                  key="original"
+                  onClick={() => setActiveCanvasTab('original')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: activeCanvasTab === 'original' ? '#00d4b8' : 'rgba(255,255,255,0.05)',
+                    color: activeCanvasTab === 'original' ? '#041017' : 'var(--text-secondary, #94a3b8)',
+                    border: 'none',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <Eye size={13} />
+                  <span>Original Clinical Image</span>
+                </button>
               </div>
 
               {/* Zoom Controls */}
@@ -991,41 +965,6 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                     Select a patient from the left panel and upload an image, or click a historical record.
                   </div>
                 </div>
-              ) : activeCanvasTab === 'longitudinal' ? (
-                /* Side-by-Side Comparison */
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 8,
-                  width: '100%',
-                  height: '100%',
-                  padding: 12
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0f16', borderRadius: 8, padding: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary, #94a3b8)', marginBottom: 6 }}>
-                      Baseline Reference
-                    </div>
-                    <img
-                      src={getRenderUrl(activeAnalysis?.image?.url) || filePreview}
-                      alt="Baseline"
-                      style={{ maxHeight: 330, maxWidth: '100%', objectFit: 'contain', borderRadius: 6 }}
-                    />
-                    <div style={{ fontSize: 11, color: '#10b981', marginTop: 6, fontWeight: 600 }}>Baseline Verified</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0f16', borderRadius: 8, padding: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary, #94a3b8)', marginBottom: 6 }}>
-                      Current Follow-up Evaluation
-                    </div>
-                    <img
-                      src={getRenderUrl(activeAnalysis?.artifacts?.gradcam_overlay_url) || filePreview}
-                      alt="Current"
-                      style={{ maxHeight: 330, maxWidth: '100%', objectFit: 'contain', borderRadius: 6 }}
-                    />
-                    <div style={{ fontSize: 11, color: '#00d4b8', marginTop: 6, fontWeight: 600 }}>
-                      Grad-CAM Attribution Overlay
-                    </div>
-                  </div>
-                </div>
               ) : (
                 /* Single Image Mode with Zoom */
                 <div style={{
@@ -1041,10 +980,6 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                     let src = null;
                     if (activeCanvasTab === 'gradcam_overlay') {
                       src = getRenderUrl(activeAnalysis?.artifacts?.gradcam_overlay_url) || filePreview;
-                    } else if (activeCanvasTab === 'gradcam_heatmap') {
-                      src = getRenderUrl(activeAnalysis?.artifacts?.gradcam_heatmap_url) || filePreview;
-                    } else if (activeCanvasTab === 'segmentation') {
-                      src = getRenderUrl(activeAnalysis?.artifacts?.segmentation_overlay_url || activeAnalysis?.artifacts?.segmentation_mask_url) || filePreview;
                     } else {
                       src = getRenderUrl(activeAnalysis?.image?.url) || filePreview;
                     }
@@ -1065,19 +1000,28 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                   position: 'absolute',
                   bottom: 12,
                   left: 12,
-                  background: 'rgba(0,0,0,0.75)',
-                  backdropFilter: 'blur(4px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 6,
-                  padding: '4px 10px',
-                  fontSize: 11,
+                  background: 'rgba(0,0,0,0.85)',
+                  backdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(0, 212, 184, 0.3)',
+                  borderRadius: 8,
+                  padding: '6px 12px',
+                  fontSize: 11.5,
                   color: 'var(--text-secondary, #94a3b8)',
                   display: 'flex',
-                  gap: 8
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
                 }}>
-                  <span>Arch: <b style={{ color: '#fff' }}>{activeAnalysis.model_architecture}</b></span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#00d4b8', fontWeight: 700 }}>
+                    <Layers size={13} />
+                    <span>Grad-CAM</span>
+                  </span>
                   <span>&bull;</span>
-                  <span>Latency: <b style={{ color: '#00d4b8' }}>{activeAnalysis.processing_time_ms}ms</b></span>
+                  <span>Disease: <b style={{ color: '#fff' }}>{activeAnalysis.primary_prediction}</b></span>
+                  <span>&bull;</span>
+                  <span>Confidence: <b style={{ color: '#00d4b8' }}>{(activeAnalysis.confidence_score * 100).toFixed(1)}%</b></span>
+                  <span>&bull;</span>
+                  <span>Model: <b style={{ color: '#fff' }}>{activeAnalysis.model_architecture}</b></span>
                 </div>
               )}
             </div>

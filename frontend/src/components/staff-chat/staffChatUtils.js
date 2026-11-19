@@ -55,10 +55,12 @@ export const RTC_CONFIG = {
   ],
 };
 
-export const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { getApiBase } from '../../apiConfig';
+
+export const API = getApiBase();
 
 export function getWsBaseUrl() {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const apiUrl = getApiBase();
   try {
     const parsed = new URL(apiUrl, window.location.href);
     const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';

@@ -4,8 +4,9 @@ import {
   TrendingUp, TrendingDown, Info, CheckCircle2, ChevronRight,
   Clock, Calendar, FileText, Check, X, ShieldAlert, Cpu, Sparkles
 } from 'lucide-react';
+import { getApiBase } from '../../apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = getApiBase();
 
 export function DigitalTwinTab({ patientId, session }) {
   const [loading, setLoading] = useState(true);

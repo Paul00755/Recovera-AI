@@ -6,8 +6,9 @@ import {
   Eye, Edit3, X, Check, ShieldCheck, ChevronDown, ChevronUp,
   Sparkles, MessageSquare, ClipboardList, Pill
 } from 'lucide-react';
+import { getApiBase } from '../../apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = getApiBase();
 
 export function HighRiskCommandCenter({ session, navigate }) {
   const [loading, setLoading] = useState(true);

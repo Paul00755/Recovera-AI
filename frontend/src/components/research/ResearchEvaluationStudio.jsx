@@ -4,8 +4,9 @@ import {
   AlertTriangle, ShieldCheck, FileText, Layers, TrendingUp,
   Sliders, Award, Zap, HelpCircle, ArrowRight, Eye, Check, X
 } from 'lucide-react';
+import { getApiBase } from '../../apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = getApiBase();
 
 export function ResearchEvaluationStudio({ session, navigate }) {
   const [activeTab, setActiveTab] = useState('models'); // 'models' | 'ocr_nlp'

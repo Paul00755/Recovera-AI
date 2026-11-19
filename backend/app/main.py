@@ -40,7 +40,7 @@ origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if orig
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://([a-zA-Z0-9\-]+\.)*pages\.dev$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://([a-zA-Z0-9\-]+\.)*pages\.dev$|^https://([a-zA-Z0-9\-]+\.)*onrender\.com$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

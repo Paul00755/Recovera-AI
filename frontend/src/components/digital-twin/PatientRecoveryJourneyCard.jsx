@@ -3,8 +3,9 @@ import {
   CalendarDays, CheckCircle2, ChevronRight, Activity, HeartPulse,
   Clock, Award, ShieldCheck, Sparkles, XCircle, Pill, AlertTriangle
 } from 'lucide-react';
+import { getApiBase } from '../../apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = getApiBase();
 
 export function PatientRecoveryJourneyCard({ patientId, session, lang = 'en', onNavigate }) {
   const [data, setData] = useState(null);
