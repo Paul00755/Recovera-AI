@@ -8,7 +8,7 @@ services:
     plan: free
     region: oregon
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
@@ -24,10 +24,6 @@ services:
         value: /tmp/storage
       - key: ONEPLUS_GATEWAY_ENABLED
         value: "false"
-      - key: MALLOC_ARENA_MAX
-        value: "2"
-      - key: PYTHONMALLOC
-        value: malloc
 
   # --------------------------------------------------------------------------
   # 2. Recovera AI - React Frontend (Static Site - Global Free CDN)
