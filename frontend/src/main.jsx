@@ -31,10 +31,13 @@ import { ExperimentalTrackingDashboard } from './components/research/Experimenta
 import { HighRiskCommandCenter } from './components/risk/HighRiskCommandCenter';
 import { ImageAnalysisWorkspace } from './components/image-analysis/ImageAnalysisWorkspace';
 
-const RAW_API = import.meta.env.VITE_API_URL;
+let RAW_API = import.meta.env.VITE_API_URL;
+if (RAW_API && !RAW_API.includes('.') && !RAW_API.includes('localhost')) {
+  RAW_API = `${RAW_API}.onrender.com`;
+}
 const API = RAW_API
   ? (RAW_API.startsWith('http') ? RAW_API : `https://${RAW_API}`)
-  : (typeof window !== 'undefined' && window.location.origin.includes('localhost') ? 'http://localhost:8000' : '');
+  : (typeof window !== 'undefined' && window.location.origin.includes('localhost') ? 'http://localhost:8000' : 'https://recovera-ai-backend.onrender.com');
 
 const getSession = () => {
   try {

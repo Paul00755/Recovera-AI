@@ -39,7 +39,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: recovera-ai-backend
-          property: host
+        value: https://recovera-ai-backend.onrender.com
