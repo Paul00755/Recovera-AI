@@ -119,6 +119,14 @@ storage/*
 !storage/.gitkeep
 backend/storage/*
 !backend/storage/.gitkeep
+!backend/storage/models/
+!backend/storage/models/fracture_densenet121_best.onnx
+!backend/storage/models/fracture_densenet121_metadata.json
+!backend/storage/models/wound_resnet50_best.onnx
+!backend/storage/models/wound_resnet50_metadata.json
+!backend/storage/models/*.png
+!backend/storage/models/gradcam/
+!backend/storage/models/gradcam/*.jpg
 
 # ------------------------------------------------------------------------------
 # 7. Operating System & Local IDE Configuration
@@ -178,4 +186,6 @@ datasets/
 *.pt
 *.bin
 *.onnx
+!backend/storage/models/fracture_densenet121_best.onnx
+!backend/storage/models/wound_resnet50_best.onnx
 

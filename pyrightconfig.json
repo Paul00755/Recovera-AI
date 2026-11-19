@@ -1,0 +1,17 @@
+{
+  "include": [
+    "."
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv-gpu",
+    "backend/.venv"
+  ],
+  "venvPath": "d:\\Recovera AI",
+  "venv": ".venv-gpu",
+  "extraPaths": [
+    "d:\\Recovera AI\\.venv-gpu\\Lib\\site-packages"
+  ],
+  "typeCheckingMode": "off"
+}

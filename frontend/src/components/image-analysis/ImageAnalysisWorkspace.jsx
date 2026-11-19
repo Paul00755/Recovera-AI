@@ -1317,6 +1317,37 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
               <div style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.4, background: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 6 }}>
                 {activeAnalysis.findings_summary}
               </div>
+
+              {/* Differential Diagnosis / Class Probabilities Breakdown */}
+              {activeAnalysis.probabilities && Object.keys(activeAnalysis.probabilities).length > 1 && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary, #94a3b8)', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Differential Probabilities</span>
+                    <span style={{ color: '#00d4b8' }}>Top Predictions</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {Object.entries(activeAnalysis.probabilities)
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 4)
+                      .map(([className, prob]) => (
+                        <div key={className} style={{ fontSize: 11 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                            <span style={{ color: 'var(--text-primary, #f1f5f9)', fontWeight: 500 }}>{className}</span>
+                            <span style={{ color: '#00d4b8', fontWeight: 600 }}>{(prob * 100).toFixed(1)}%</span>
+                          </div>
+                          <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${Math.round(prob * 100)}%`,
+                              height: '100%',
+                              background: 'linear-gradient(90deg, #00d4b8, #38bdf8)',
+                              borderRadius: 2
+                            }} />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

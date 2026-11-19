@@ -205,7 +205,7 @@ def test_save_session_and_gemini_reassessment(client, doctor_headers, db_session
 
 def test_doctor_review_and_patient_visibility(client, doctor_headers, db_session):
     """Tests doctor reviewing, signing off, and toggling patient visibility."""
-    analysis = db_session.query(ImageAnalysis).first()
+    analysis = db_session.query(ImageAnalysis).join(Patient, ImageAnalysis.patient_id == Patient.id).filter(Patient.active == True).first()
     if not analysis:
         pytest.skip("No saved image analysis available.")
 
@@ -227,7 +227,7 @@ def test_doctor_review_and_patient_visibility(client, doctor_headers, db_session
 
 def test_export_pdf_and_csv(client, doctor_headers, db_session):
     """Tests ReportLab PDF clinical report generation and structured CSV export."""
-    analysis = db_session.query(ImageAnalysis).first()
+    analysis = db_session.query(ImageAnalysis).join(Patient, ImageAnalysis.patient_id == Patient.id).filter(Patient.active == True).first()
     if not analysis:
         pytest.skip("No saved image analysis available.")
 

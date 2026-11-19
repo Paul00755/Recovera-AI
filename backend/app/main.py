@@ -260,3 +260,26 @@ def health_check():
             "appointment_duration_minutes": settings.APPOINTMENT_DURATION_MINUTES
         }
     }
+
+
+# Optional Frontend Static Assets Serving (Single Fullstack Web Service on Render)
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+_dist_path = Path("frontend/dist")
+if not _dist_path.exists():
+    _dist_path = Path("../frontend/dist")
+
+if _dist_path.exists() and (_dist_path / "index.html").exists():
+    if (_dist_path / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(_dist_path / "assets")), name="static_assets")
+
+    @app.get("/{catchall:path}")
+    async def serve_frontend(catchall: str):
+        if catchall.startswith(("api", "docs", "openapi.json", "redoc", "ws")):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        target = _dist_path / catchall
+        if catchall and target.is_file():
+            return FileResponse(str(target))
+        return FileResponse(str(_dist_path / "index.html"))
