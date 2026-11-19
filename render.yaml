@@ -24,6 +24,10 @@ services:
         value: /tmp/storage
       - key: ONEPLUS_GATEWAY_ENABLED
         value: "false"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
+      - key: PYTHONMALLOC
+        value: malloc
 
   # --------------------------------------------------------------------------
   # 2. Recovera AI - React Frontend (Static Site - Global Free CDN)

@@ -153,7 +153,10 @@ def get_wound_inference_session():
         onnx_path = _resolve_model_path("wound_resnet50_best", "onnx")
         if onnx_path:
             opts = ort.SessionOptions()
-            opts.intra_op_num_threads = 2
+            opts.intra_op_num_threads = 1
+            opts.inter_op_num_threads = 1
+            opts.enable_cpu_mem_arena = False
+            opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
             opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
             _wound_session = ort.InferenceSession(str(onnx_path), sess_options=opts, providers=["CPUExecutionProvider"])
     return _wound_session
@@ -165,7 +168,10 @@ def get_fracture_inference_session():
         onnx_path = _resolve_model_path("fracture_densenet121_best", "onnx")
         if onnx_path:
             opts = ort.SessionOptions()
-            opts.intra_op_num_threads = 2
+            opts.intra_op_num_threads = 1
+            opts.inter_op_num_threads = 1
+            opts.enable_cpu_mem_arena = False
+            opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
             opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
             _fracture_session = ort.InferenceSession(str(onnx_path), sess_options=opts, providers=["CPUExecutionProvider"])
     return _fracture_session
