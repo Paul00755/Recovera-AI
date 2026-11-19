@@ -75,6 +75,7 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
   const [doctorFindings, setDoctorFindings] = useState('');
   const [isPatientVisible, setIsPatientVisible] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [editReviewMode, setEditReviewMode] = useState(false);
 
   // Benchmarks Modal
   const [benchmarksOpen, setBenchmarksOpen] = useState(false);
@@ -305,6 +306,7 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
         })
       });
       setActiveAnalysis(res.analysis);
+      setEditReviewMode(false);
       setFeedback({
         type: 'success',
         message: `Clinical review signed off as ${reviewStatus.toUpperCase()}.`
@@ -1346,143 +1348,180 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
             </div>
           )}
 
-          {/* Clinician Review & Doctor Sign-Off Card */}
+          {/* Streamlined Doctor Review & Sign-Off Hub */}
           {activeAnalysis && (
             <div style={{
               background: 'var(--card-bg, #0c131d)',
               border: '1px solid var(--border-color, #1a2636)',
               borderRadius: 12,
-              padding: 14
+              padding: 12
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                <Stethoscope size={14} color="#00d4b8" />
-                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-secondary, #94a3b8)' }}>
-                  Doctor Review & Sign-Off Hub
-                </span>
-              </div>
+              {/* If already reviewed and not in edit mode */}
+              {activeAnalysis.review_status && activeAnalysis.review_status !== 'pending_review' && !editReviewMode ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <CheckCircle2 size={15} color={activeAnalysis.review_status === 'approved' ? '#10b981' : (activeAnalysis.review_status === 'rejected' ? '#ef4444' : '#f59e0b')} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary, #f1f5f9)' }}>
+                        Doctor Sign-Off:{' '}
+                        <span style={{
+                          textTransform: 'capitalize',
+                          color: activeAnalysis.review_status === 'approved' ? '#10b981' : (activeAnalysis.review_status === 'rejected' ? '#ef4444' : '#f59e0b')
+                        }}>
+                          {activeAnalysis.review_status}
+                        </span>
+                      </span>
+                    </div>
+                    {(isDoctor || isAdmin) && (
+                      <button
+                        type="button"
+                        onClick={() => setEditReviewMode(true)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#00d4b8',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: '2px 6px',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                  {activeAnalysis.clinician_notes && (
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', background: 'rgba(0,0,0,0.25)', padding: '6px 8px', borderRadius: 6, marginTop: 4 }}>
+                      "{activeAnalysis.clinician_notes}"
+                    </div>
+                  )}
+                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>
+                    {activeAnalysis.reviewer?.name ? `Signed by Dr. ${activeAnalysis.reviewer.name}` : 'Signed into patient medical record'}
+                    {activeAnalysis.is_patient_visible ? ' • Visible to patient' : ''}
+                  </div>
+                </div>
+              ) : (
+                /* Simple, streamlined review form */
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Stethoscope size={14} color="#00d4b8" />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary, #f1f5f9)' }}>
+                        Doctor Sign-Off
+                      </span>
+                    </div>
+                    {/* Status Segmented Buttons */}
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {[
+                        { key: 'approved', label: 'Approve', color: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' },
+                        { key: 'amended', label: 'Amend', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' },
+                        { key: 'rejected', label: 'Reject', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.2)' }
+                      ].map(st => (
+                        <button
+                          key={st.key}
+                          type="button"
+                          disabled={!isDoctor && !isAdmin}
+                          onClick={() => {
+                            setReviewStatus(st.key);
+                            if (st.key === 'approved') setClinicianAgreed(true);
+                            else if (st.key === 'rejected') setClinicianAgreed(false);
+                          }}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: (!isDoctor && !isAdmin) ? 'not-allowed' : 'pointer',
+                            background: reviewStatus === st.key ? st.bg : 'rgba(0,0,0,0.2)',
+                            color: reviewStatus === st.key ? st.color : 'var(--text-secondary, #94a3b8)',
+                            border: `1px solid ${reviewStatus === st.key ? st.color : 'var(--border-color, #223348)'}`,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {st.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Status Select */}
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', display: 'block', marginBottom: 4 }}>
-                  Review Status
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                  {['approved', 'amended', 'rejected'].map(st => (
-                    <button
-                      key={st}
-                      type="button"
+                  {/* Compact Clinical Notes */}
+                  <div style={{ marginBottom: 8 }}>
+                    <textarea
+                      rows={2}
+                      value={clinicianNotes}
                       disabled={!isDoctor && !isAdmin}
-                      onClick={() => setReviewStatus(st)}
+                      onChange={(e) => setClinicianNotes(e.target.value)}
+                      placeholder="Doctor review notes (optional)..."
                       style={{
-                        padding: '6px',
+                        width: '100%',
+                        padding: '6px 8px',
                         borderRadius: 6,
+                        background: 'rgba(0,0,0,0.25)',
+                        border: '1px solid var(--border-color, #223348)',
+                        color: 'var(--text-primary, #f1f5f9)',
                         fontSize: 11,
-                        fontWeight: 600,
-                        textTransform: 'capitalize',
-                        cursor: (!isDoctor && !isAdmin) ? 'not-allowed' : 'pointer',
-                        background: reviewStatus === st ? (
-                          st === 'approved' ? 'rgba(16, 185, 129, 0.2)' : (st === 'rejected' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)')
-                        ) : 'rgba(0,0,0,0.2)',
-                        color: reviewStatus === st ? (
-                          st === 'approved' ? '#10b981' : (st === 'rejected' ? '#ef4444' : '#f59e0b')
-                        ) : 'var(--text-secondary, #94a3b8)',
-                        border: `1px solid ${reviewStatus === st ? 'currentColor' : 'var(--border-color, #223348)'}`
+                        outline: 'none',
+                        resize: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  {/* Inline Option & Cancel (if editing) */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary, #94a3b8)', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={isPatientVisible}
+                        disabled={!isDoctor && !isAdmin}
+                        onChange={(e) => setIsPatientVisible(e.target.checked)}
+                        style={{ accentColor: '#00d4b8' }}
+                      />
+                      <span>Visible to patient in portal</span>
+                    </label>
+
+                    {editReviewMode && (
+                      <button
+                        type="button"
+                        onClick={() => setEditReviewMode(false)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-secondary, #94a3b8)',
+                          fontSize: 11,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Clean Action Button */}
+                  {(isDoctor || isAdmin) ? (
+                    <button
+                      onClick={handleReviewSubmit}
+                      disabled={submittingReview}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        borderRadius: 6,
+                        background: reviewStatus === 'rejected' ? '#ef4444' : (reviewStatus === 'amended' ? '#f59e0b' : '#00d4b8'),
+                        border: 'none',
+                        color: reviewStatus === 'amended' || reviewStatus === 'approved' ? '#041017' : '#ffffff',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: submittingReview ? 'not-allowed' : 'pointer'
                       }}
                     >
-                      {st}
+                      {submittingReview ? 'Signing...' : (reviewStatus === 'approved' ? '✓ Approve & Sign Off' : `Sign Off (${reviewStatus.toUpperCase()})`)}
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Agreement toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 11, color: 'var(--text-primary, #f1f5f9)' }}>
-                <input
-                  type="checkbox"
-                  id="agreeAiChk"
-                  checked={clinicianAgreed}
-                  disabled={!isDoctor && !isAdmin}
-                  onChange={(e) => setClinicianAgreed(e.target.checked)}
-                  style={{ accentColor: '#00d4b8' }}
-                />
-                <label htmlFor="agreeAiChk">Treating physician agrees with AI assessment</label>
-              </div>
-
-              {/* Clinician Notes Textarea */}
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', display: 'block', marginBottom: 4 }}>
-                  Clinician Review Notes
-                </label>
-                <textarea
-                  rows={3}
-                  value={clinicianNotes}
-                  disabled={!isDoctor && !isAdmin}
-                  onChange={(e) => setClinicianNotes(e.target.value)}
-                  placeholder="Enter treating physician clinical assessment, instructions or dressing guidance..."
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: 6,
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid var(--border-color, #223348)',
-                    color: 'var(--text-primary, #f1f5f9)',
-                    fontSize: 12,
-                    outline: 'none',
-                    resize: 'none'
-                  }}
-                />
-              </div>
-
-              {/* Patient Visibility Toggle */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 10px',
-                borderRadius: 6,
-                background: 'rgba(0,0,0,0.2)',
-                border: '1px solid var(--border-color, #1a2636)',
-                marginBottom: 12
-              }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary, #f1f5f9)' }}>
-                    Patient Portal Visibility
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary, #94a3b8)' }}>
-                    Allow patient to view doctor-approved summary
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isPatientVisible}
-                  disabled={!isDoctor && !isAdmin}
-                  onChange={(e) => setIsPatientVisible(e.target.checked)}
-                  style={{ accentColor: '#00d4b8', width: 16, height: 16 }}
-                />
-              </div>
-
-              {/* Sign Off Button */}
-              {(isDoctor || isAdmin) ? (
-                <button
-                  onClick={handleReviewSubmit}
-                  disabled={submittingReview}
-                  style={{
-                    width: '100%',
-                    padding: '9px',
-                    borderRadius: 6,
-                    background: '#00d4b8',
-                    border: 'none',
-                    color: '#041017',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    cursor: submittingReview ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {submittingReview ? 'Signing...' : 'Sign Off & Update Record'}
-                </button>
-              ) : (
-                <div style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', fontStyle: 'italic', textAlign: 'center' }}>
-                  Restricted to treating physicians and administrators for formal sign-off.
+                  ) : (
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', fontStyle: 'italic', textAlign: 'center' }}>
+                      Restricted to treating physicians for formal sign-off.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

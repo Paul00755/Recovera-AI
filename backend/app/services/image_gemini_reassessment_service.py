@@ -320,7 +320,7 @@ def execute_offline_rule_reassessment(dossier: Dict[str, Any]) -> Dict[str, Any]
             "Clinical assessment based on photograph/radiograph telemetry; physical palpation and laboratory markers (CRP/ESR) recommended if fever persists."
         ],
         "processing_status": "fallback_rule_based",
-        "model_name": "Recovera Deterministic Clinical Rule Engine (Offline Safety Fallback)"
+        "model_name": "Recovera Fallback Engine"
     }
 
 
@@ -413,20 +413,23 @@ JSON SCHEMA:
         parsed_result = execute_offline_rule_reassessment(dossier)
 
     # Persist in GeminiReassessment table
+    raw_tier = str(parsed_result.get("recommended_risk_tier", "green")).lower().strip()
+    clean_tier = "red" if "red" in raw_tier else ("yellow" if "yellow" in raw_tier else "green")
+
     reassessment_record = GeminiReassessment(
         analysis_id=analysis.id,
         patient_id=analysis.patient_id,
-        model_name=parsed_result.get("model_name", "Google Gemini (gemini-3.5-flash-lite)"),
+        model_name=str(parsed_result.get("model_name", "Google Gemini"))[:200],
         model_version="v2026.1",
         reassessment_summary=parsed_result.get("reassessment_summary", "Clinical reassessment completed."),
         relevant_new_findings=parsed_result.get("relevant_new_findings", []),
         changes_vs_previous=parsed_result.get("changes_vs_previous", "Baseline alignment confirmed."),
         potential_concerns=parsed_result.get("potential_concerns", []),
         suggested_clinician_actions=parsed_result.get("suggested_clinician_actions", []),
-        recovery_plan_review_recommended=parsed_result.get("recovery_plan_review_recommended", False),
+        recovery_plan_review_recommended=bool(parsed_result.get("recovery_plan_review_recommended", False)),
         recovery_plan_proposed_notes=parsed_result.get("recovery_plan_proposed_notes"),
-        risk_review_recommended=parsed_result.get("risk_review_recommended", False),
-        recommended_risk_tier=parsed_result.get("recommended_risk_tier", "green"),
+        risk_review_recommended=bool(parsed_result.get("risk_review_recommended", False)),
+        recommended_risk_tier=clean_tier,
         risk_escalation_rationale=parsed_result.get("risk_escalation_rationale"),
         uncertainties_and_missing_data=parsed_result.get("uncertainties_and_missing_data", []),
         source_records_json={
@@ -434,7 +437,7 @@ JSON SCHEMA:
             "checkins_analyzed": len(dossier.get("recent_checkins", [])),
             "image_type": analysis.analysis_type
         },
-        processing_status=parsed_result.get("processing_status", "completed")
+        processing_status=str(parsed_result.get("processing_status", "completed"))[:50]
     )
     db.add(reassessment_record)
     db.commit()

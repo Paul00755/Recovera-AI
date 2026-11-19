@@ -149,6 +149,12 @@ def on_startup():
                 conn.execute(text("ALTER TABLE staff_conversations ADD COLUMN IF NOT EXISTS direct_key VARCHAR(75);"))
                 conn.execute(text("ALTER TABLE recovery_plans ADD COLUMN IF NOT EXISTS version_number INTEGER DEFAULT 1;"))
                 conn.execute(text("ALTER TABLE recovery_plans ADD COLUMN IF NOT EXISTS source_document_ids TEXT;"))
+                try:
+                    conn.execute(text("ALTER TABLE gemini_reassessments ALTER COLUMN model_name TYPE VARCHAR(255);"))
+                    conn.execute(text("ALTER TABLE gemini_reassessments ALTER COLUMN model_version TYPE VARCHAR(100);"))
+                    conn.execute(text("ALTER TABLE gemini_reassessments ALTER COLUMN processing_status TYPE VARCHAR(60);"))
+                except Exception:
+                    pass
     except Exception as e:
         pass
 

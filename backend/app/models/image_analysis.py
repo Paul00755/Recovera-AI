@@ -185,8 +185,8 @@ class GeminiReassessment(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     analysis_id: Mapped[str] = mapped_column(ForeignKey("image_analyses.id", ondelete="CASCADE"), unique=True, index=True)
     patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), index=True)
-    model_name: Mapped[str] = mapped_column(String(60), default="gemini-3.5-flash-lite")
-    model_version: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    model_name: Mapped[str] = mapped_column(String(255), default="gemini-3.5-flash-lite")
+    model_version: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Synthesis outputs
     reassessment_summary: Mapped[str] = mapped_column(Text)
@@ -204,7 +204,7 @@ class GeminiReassessment(Base):
 
     uncertainties_and_missing_data: Mapped[List[str]] = mapped_column(JSON, default=list)
     source_records_json: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
-    processing_status: Mapped[str] = mapped_column(String(30), default="completed")  # completed, fallback_rule_based, failed
+    processing_status: Mapped[str] = mapped_column(String(60), default="completed")  # completed, fallback_rule_based, failed
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow, index=True)
 
     # Relationships
