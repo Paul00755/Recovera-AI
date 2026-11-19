@@ -643,7 +643,34 @@ const EXACT_CLINICAL_MAP = {
     'Hygiene & Wound Care: Maintain proper personal hygiene by washing your hands frequently and keeping yourself clean and comfortable as you rest.':
       'சுகாதாரம் மற்றும் பராமரிப்பு: கைகளை அடிக்கடி கழுவி, ஓய்வெடுக்கும் போது உங்களை சுத்தமாகவும் வசதியாகவும் வைத்துக்கொண்டு முறையான தனிப்பட்ட சுகாதாரத்தை பேணுங்கள்.',
     'Medication Routine: Take all your prescribed medications, including Metformin and Lisinopril, punctually around your breakfast, lunch, and dinner times as instructed. Record every dose in your medication intake tracker and complete your daily check-in to keep your doctors informed.':
-      'மருந்து வழக்கம்: மருத்துவர் அறிவுறுத்தியபடி மெட்ஃபோர்மின் (Metformin) மற்றும் லிசினோபிரில் (Lisinopril) உட்பட பரிந்துரைக்கப்பட்ட அனைத்து மருந்துகளையும் காலை உணவு, மதிய உணவு மற்றும் இரவு உணவு நேரங்களில் தவறாமல் எடுத்துக் கொள்ளுங்கள். உட்கொண்ட ஒவ்வொரு மருந்தையும் டிராக்கரில் பதிவு செய்து, மருத்துவர்களுக்கு தகவல் தெரிவிக்க தினசரி செக்-இன் முடிக்கவும்.'
+      'மருந்து வழக்கம்: மருத்துவர் அறிவுறுத்தியபடி மெட்ஃபோர்மின் (Metformin) மற்றும் லிசினோபிரில் (Lisinopril) உட்பட பரிந்துரைக்கப்பட்ட அனைத்து மருந்துகளையும் காலை உணவு, மதிய உணவு மற்றும் இரவு உணவு நேரங்களில் தவறாமல் எடுத்துக் கொள்ளுங்கள். உட்கொண்ட ஒவ்வொரு மருந்தையும் டிராக்கரில் பதிவு செய்து, மருத்துவர்களுக்கு தகவல் தெரிவிக்க தினசரி செக்-இன் முடிக்கவும்.',
+    // Madhavan Dengue Recovery Care Guidelines
+    'Hello Madhavan. You are recovering from Dengue Fever, and your body needs gentle care, proper nourishment, and adequate rest to regain its full strength.':
+      'வணக்கம் மாதவன். நீங்கள் டெங்கு காய்ச்சலில் இருந்து குணமடைந்து வருகிறீர்கள், உங்கள் உடல் முழு வலிமையையும் மீண்டும் பெற மென்மையான கவனிப்பு, முறையான ஊட்டச்சத்து மற்றும் போதுமான ஓய்வு தேவைப்படுகிறது.',
+    'Stay well-hydrated by drinking warm or boiled water regularly throughout the day. Eat easily digestible, nutrient-dense foods such as warm milk, bread, porridge, soft rice, clear broths, and fresh fruits to restore your energy and prevent dizziness. Strictly avoid heavy, hard-to-digest meats like chicken, mutton, and beef, as well as greasy or spicy foods.':
+      'நாள் முழுவதும் சீரான இடைவெளியில் வெதுவெதுப்பான அல்லது காய்ச்சிய நீரைக் குடித்து நீரேற்றத்துடன் இருங்கள். உங்கள் ஆற்றலை மீட்டெடுக்கவும் மயக்கத்தைத் தவிர்க்கவும் சூடான பால், ரொட்டி, கஞ்சி, மென்மையான சாதம், தெளிவான சூப் மற்றும் புதிய பழங்கள் போன்ற எளிதில் செரிமானமாகும் சத்தான உணவுகளை உண்ணுங்கள். கோழி, ஆடு, மாடு போன்ற கனமான, செரிக்க கடினமான இறைச்சிகள் மற்றும் எண்ணெய் அல்லது காரமான உணவுகளை கண்டிப்பாகத் தவிர்க்கவும்.',
+    'Diet & Nutrition: Stay well-hydrated by drinking warm or boiled water regularly throughout the day. Eat easily digestible, nutrient-dense foods such as warm milk, bread, porridge, soft rice, clear broths, and fresh fruits to restore your energy and prevent dizziness. Strictly avoid heavy, hard-to-digest meats like chicken, mutton, and beef, as well as greasy or spicy foods.':
+      'உணவு மற்றும் ஊட்டச்சத்து: நாள் முழுவதும் சீரான இடைவெளியில் வெதுவெதுப்பான அல்லது காய்ச்சிய நீரைக் குடித்து நீரேற்றத்துடன் இருங்கள். உங்கள் ஆற்றலை மீட்டெடுக்கவும் மயக்கத்தைத் தவிர்க்கவும் சூடான பால், ரொட்டி, கஞ்சி, மென்மையான சாதம், தெளிவான சூப் மற்றும் புதிய பழங்கள் போன்ற எளிதில் செரிமானமாகும் சத்தான உணவுகளை உண்ணுங்கள். கோழி, ஆடு, மாடு போன்ற கனமான, செரிக்க கடினமான இறைச்சிகள் மற்றும் எண்ணெய் அல்லது காரமான உணவுகளை கண்டிப்பாகத் தவிர்க்கவும்.',
+    'உணவு மற்றும் ஊட்டச்சத்து: Stay well-hydrated by drinking warm or boiled water regularly throughout the day. Eat easily digestible, nutrient-dense foods such as warm milk, bread, porridge, soft rice, clear broths, and fresh fruits to restore your energy and prevent dizziness. Strictly avoid heavy, hard-to-digest meats like chicken, mutton, and beef, as well as greasy or spicy foods.':
+      'உணவு மற்றும் ஊட்டச்சத்து: நாள் முழுவதும் சீரான இடைவெளியில் வெதுவெதுப்பான அல்லது காய்ச்சிய நீரைக் குடித்து நீரேற்றத்துடன் இருங்கள். உங்கள் ஆற்றலை மீட்டெடுக்கவும் மயக்கத்தைத் தவிர்க்கவும் சூடான பால், ரொட்டி, கஞ்சி, மென்மையான சாதம், தெளிவான சூப் மற்றும் புதிய பழங்கள் போன்ற எளிதில் செரிமானமாகும் சத்தான உணவுகளை உண்ணுங்கள். கோழி, ஆடு, மாடு போன்ற கனமான, செரிக்க கடினமான இறைச்சிகள் மற்றும் எண்ணெய் அல்லது காரமான உணவுகளை கண்டிப்பாகத் தவிர்க்கவும்.',
+    'Prioritize plenty of restorative sleep and make sure to go to bed before 10 PM. Avoid heavy workouts and over-exertion, but do not lie in bed all day without movement. Keep your physical activity gentle and moderate, such as taking short, gentle walks indoors.':
+      'ஆழ்ந்த தூக்கத்திற்கு முன்னுரிமை கொடுங்கள் மற்றும் இரவு 10 மணிக்குள் உறங்கச் செல்வதை உறுதிப்படுத்திக் கொள்ளுங்கள். கடுமையான உடற்பயிற்சிகளையும் அதிக உழைப்பையும் தவிர்க்கவும், ஆனால் நாள் முழுவதும் அசையாமல் படுக்கையிலேயே கிடக்க வேண்டாம். வீட்டிற்குள் மெதுவாக குறுகிய தூரம் நடப்பது போன்ற மிதமான மற்றும் மென்மையான செயல்பாடுகளை மேற்கொள்ளுங்கள்.',
+    'Activity & Rest: Prioritize plenty of restorative sleep and make sure to go to bed before 10 PM. Avoid heavy workouts and over-exertion, but do not lie in bed all day without movement. Keep your physical activity gentle and moderate, such as taking short, gentle walks indoors.':
+      'உடற்பயிற்சி மற்றும் ஓய்வு: ஆழ்ந்த தூக்கத்திற்கு முன்னுரிமை கொடுங்கள் மற்றும் இரவு 10 மணிக்குள் உறங்கச் செல்வதை உறுதிப்படுத்திக் கொள்ளுங்கள். கடுமையான உடற்பயிற்சிகளையும் அதிக உழைப்பையும் தவிர்க்கவும், ஆனால் நாள் முழுவதும் அசையாமல் படுக்கையிலேயே கிடக்க வேண்டாம். வீட்டிற்குள் மெதுவாக குறுகிய தூரம் நடப்பது போன்ற மிதமான மற்றும் மென்மையான செயல்பாடுகளை மேற்கொள்ளுங்கள்.',
+    'உடற்பயிற்சி மற்றும் ஓய்வு: Prioritize plenty of restorative sleep and make sure to go to bed before 10 PM. Avoid heavy workouts and over-exertion, but do not lie in bed all day without movement. Keep your physical activity gentle and moderate, such as taking short, gentle walks indoors.':
+      'உடற்பயிற்சி மற்றும் ஓய்வு: ஆழ்ந்த தூக்கத்திற்கு முன்னுரிமை கொடுங்கள் மற்றும் இரவு 10 மணிக்குள் உறங்கச் செல்வதை உறுதிப்படுத்திக் கொள்ளுங்கள். கடுமையான உடற்பயிற்சிகளையும் அதிக உழைப்பையும் தவிர்க்கவும், ஆனால் நாள் முழுவதும் அசையாமல் படுக்கையிலேயே கிடக்க வேண்டாம். வீட்டிற்குள் மெதுவாக குறுகிய தூரம் நடப்பது போன்ற மிதமான மற்றும் மென்மையான செயல்பாடுகளை மேற்கொள்ளுங்கள்.',
+    'Maintain good personal hygiene, wash your hands frequently, and keep any sensitive areas clean and dry.':
+      'முறையான தனிப்பட்ட சுகாதாரத்தை பேணுங்கள், கைகளை அடிக்கடி கழுவுங்கள், மற்றும் உணர்திறன் வாய்ந்த பகுதிகளை சுத்தமாகவும் உலர்வாகவும் வைத்திருங்கள்.',
+    'Hygiene & Wound Care: Maintain good personal hygiene, wash your hands frequently, and keep any sensitive areas clean and dry.':
+      'சுகாதாரம் மற்றும் காயப் பராமரிப்பு: முறையான தனிப்பட்ட சுகாதாரத்தை பேணுங்கள், கைகளை அடிக்கடி கழுவுங்கள், மற்றும் உணர்திறன் வாய்ந்த பகுதிகளை சுத்தமாகவும் உலர்வாகவும் வைத்திருங்கள்.',
+    'சுகாதாரம் மற்றும் காயப் பராமரிப்பு: Maintain good personal hygiene, wash your hands frequently, and keep any sensitive areas clean and dry.':
+      'சுகாதாரம் மற்றும் காயப் பராமரிப்பு: முறையான தனிப்பட்ட சுகாதாரத்தை பேணுங்கள், கைகளை அடிக்கடி கழுவுங்கள், மற்றும் உணர்திறன் வாய்ந்த பகுதிகளை சுத்தமாகவும் உலர்வாகவும் வைத்திருங்கள்.',
+    'Take all your prescribed medicines punctually as scheduled around your meals. Remember to record every dose in your medication intake tracker and complete your daily check-in to keep your healthcare team informed.':
+      'பரிந்துரைக்கப்பட்ட அனைத்து மருந்துகளையும் உங்கள் உணவு வேளைகளில் தவறாமல் சரியான நேரத்தில் உட்கொள்ளுங்கள். உட்கொண்ட ஒவ்வொரு மருந்தையும் டிராக்கரில் பதிவு செய்து, மருத்துவக் குழுவிற்குத் தெரிவிக்க தினசரி செக்-இன் முடிக்க நினைவில் கொள்ளுங்கள்.',
+    'Medication Routine: Take all your prescribed medicines punctually as scheduled around your meals. Remember to record every dose in your medication intake tracker and complete your daily check-in to keep your healthcare team informed.':
+      'மருந்து வழக்கம்: பரிந்துரைக்கப்பட்ட அனைத்து மருந்துகளையும் உங்கள் உணவு வேளைகளில் தவறாமல் சரியான நேரத்தில் உட்கொள்ளுங்கள். உட்கொண்ட ஒவ்வொரு மருந்தையும் டிராக்கரில் பதிவு செய்து, மருத்துவக் குழுவிற்குத் தெரிவிக்க தினசரி செக்-இன் முடிக்க நினைவில் கொள்ளுங்கள்.',
+    'மருந்து வழக்கம்: Take all your prescribed medicines punctually as scheduled around your meals. Remember to record every dose in your medication intake tracker and complete your daily check-in to keep your healthcare team informed.':
+      'மருந்து வழக்கம்: பரிந்துரைக்கப்பட்ட அனைத்து மருந்துகளையும் உங்கள் உணவு வேளைகளில் தவறாமல் சரியான நேரத்தில் உட்கொள்ளுங்கள். உட்கொண்ட ஒவ்வொரு மருந்தையும் டிராக்கரில் பதிவு செய்து, மருத்துவக் குழுவிற்குத் தெரிவிக்க தினசரி செக்-இன் முடிக்க நினைவில் கொள்ளுங்கள்.'
   },
   hi: {
     'Persistent high fever above 102°F or not responding to care': '102°F से अधिक लगातार तेज बुखार या उपचार से आराम न मिलना',
@@ -682,7 +709,34 @@ const EXACT_CLINICAL_MAP = {
     'Hygiene & Wound Care: Maintain proper personal hygiene by washing your hands frequently and keeping yourself clean and comfortable as you rest.':
       'स्वच्छता और घाव की देखभाल: बार-बार हाथ धोकर व्यक्तिगत स्वच्छता बनाए रखें और आराम करते समय खुद को साफ और आरामदायक रखें।',
     'Medication Routine: Take all your prescribed medications, including Metformin and Lisinopril, punctually around your breakfast, lunch, and dinner times as instructed. Record every dose in your medication intake tracker and complete your daily check-in to keep your doctors informed.':
-      'दवा की दिनचर्या: डॉक्टर के निर्देशानुसार मेटफॉर्मिन और लिसिनोप्रिल सहित अपनी सभी निर्धारित दवाएं नाश्ते, दोपहर के भोजन और रात के खाने के समय नियमित रूप से लें। प्रत्येक खुराक को इनटेक ट्रैकर में दर्ज करें और अपने डॉक्टरों को सूचित रखने के लिए अपना दैनिक चेक-इन पूरा करें।'
+      'दवा की दिनचर्या: डॉक्टर के निर्देशानुसार मेटफॉर्मिन और लिसिनोप्रिल सहित अपनी सभी निर्धारित दवाएं नाश्ते, दोपहर के भोजन और रात के खाने के समय नियमित रूप से लें। प्रत्येक खुराक को इनटेक ट्रैकर में दर्ज करें और अपने डॉक्टरों को सूचित रखने के लिए अपना दैनिक चेक-इन पूरा करें।',
+    // Madhavan Dengue Recovery Care Guidelines (Hindi)
+    'Hello Madhavan. You are recovering from Dengue Fever, and your body needs gentle care, proper nourishment, and adequate rest to regain its full strength.':
+      'नमस्ते माधवन। आप डेंगू बुखार से उबर रहे हैं, और आपके शरीर को अपनी पूरी शक्ति वापस पाने के लिए कोमल देखभाल, उचित पोषण और पर्याप्त आराम की आवश्यकता है।',
+    'Stay well-hydrated by drinking warm or boiled water regularly throughout the day. Eat easily digestible, nutrient-dense foods such as warm milk, bread, porridge, soft rice, clear broths, and fresh fruits to restore your energy and prevent dizziness. Strictly avoid heavy, hard-to-digest meats like chicken, mutton, and beef, as well as greasy or spicy foods.':
+      'दिन भर नियमित रूप से गुनगुना या उबला हुआ पानी पीकर अच्छी तरह से हाइड्रेटेड रहें। अपनी ऊर्जा वापस पाने और चक्कर आने से बचने के लिए गर्म दूध, ब्रेड, दलिया, नरम चावल, पतला सूप और ताजे फल जैसे आसानी से पचने वाले पौष्टिक भोजन करें। चिकन, मटन और बीफ जैसे भारी, पचने में कठिन मांसाहार के साथ-साथ तैलीय या मसालेदार भोजन से पूरी तरह परहेज करें।',
+    'Diet & Nutrition: Stay well-hydrated by drinking warm or boiled water regularly throughout the day. Eat easily digestible, nutrient-dense foods such as warm milk, bread, porridge, soft rice, clear broths, and fresh fruits to restore your energy and prevent dizziness. Strictly avoid heavy, hard-to-digest meats like chicken, mutton, and beef, as well as greasy or spicy foods.':
+      'आहार और पोषण: दिन भर नियमित रूप से गुनगुना या उबला हुआ पानी पीकर अच्छी तरह से हाइड्रेटेड रहें। अपनी ऊर्जा वापस पाने और चक्कर आने से बचने के लिए गर्म दूध, ब्रेड, दलिया, नरम चावल, पतला सूप और ताजे फल जैसे आसानी से पचने वाले पौष्टिक भोजन करें। चिकन, मटन और बीफ जैसे भारी, पचने में कठिन मांसाहार के साथ-साथ तैलीय या मसालेदार भोजन से पूरी तरह परहेज करें।',
+    'आहार और पोषण: Stay well-hydrated by drinking warm or boiled water regularly throughout the day. Eat easily digestible, nutrient-dense foods such as warm milk, bread, porridge, soft rice, clear broths, and fresh fruits to restore your energy and prevent dizziness. Strictly avoid heavy, hard-to-digest meats like chicken, mutton, and beef, as well as greasy or spicy foods.':
+      'आहार और पोषण: दिन भर नियमित रूप से गुनगुना या उबला हुआ पानी पीकर अच्छी तरह से हाइड्रेटेड रहें। अपनी ऊर्जा वापस पाने और चक्कर आने से बचने के लिए गर्म दूध, ब्रेड, दलिया, नरम चावल, पतला सूप और ताजे फल जैसे आसानी से पचने वाले पौष्टिक भोजन करें। चिकन, मटन और बीफ जैसे भारी, पचने में कठिन मांसाहार के साथ-साथ तैलीय या मसालेदार भोजन से पूरी तरह परहेज करें।',
+    'Prioritize plenty of restorative sleep and make sure to go to bed before 10 PM. Avoid heavy workouts and over-exertion, but do not lie in bed all day without movement. Keep your physical activity gentle and moderate, such as taking short, gentle walks indoors.':
+      'भरपूर आरामदायक नींद को प्राथमिकता दें और सुनिश्चित करें कि रात 10 बजे से पहले सो जाएं। भारी कसरत और अत्यधिक परिश्रम से बचें, लेकिन पूरे दिन बिना हिले-डुले बिस्तर पर न रहें। अपनी शारीरिक गतिविधि को हल्का और मध्यम रखें, जैसे घर के अंदर छोटी-छोटी धीमी सैर करना।',
+    'Activity & Rest: Prioritize plenty of restorative sleep and make sure to go to bed before 10 PM. Avoid heavy workouts and over-exertion, but do not lie in bed all day without movement. Keep your physical activity gentle and moderate, such as taking short, gentle walks indoors.':
+      'गतिविधि और आराम: भरपूर आरामदायक नींद को प्राथमिकता दें और सुनिश्चित करें कि रात 10 बजे से पहले सो जाएं। भारी कसरत और अत्यधिक परिश्रम से बचें, लेकिन पूरे दिन बिना हिले-डुले बिस्तर पर न रहें। अपनी शारीरिक गतिविधि को हल्का और मध्यम रखें, जैसे घर के अंदर छोटी-छोटी धीमी सैर करना।',
+    'गतिविधि और आराम: Prioritize plenty of restorative sleep and make sure to go to bed before 10 PM. Avoid heavy workouts and over-exertion, but do not lie in bed all day without movement. Keep your physical activity gentle and moderate, such as taking short, gentle walks indoors.':
+      'गतिविधि और आराम: भरपूर आरामदायक नींद को प्राथमिकता दें और सुनिश्चित करें कि रात 10 बजे से पहले सो जाएं। भारी कसरत और अत्यधिक परिश्रम से बचें, लेकिन पूरे दिन बिना हिले-डुले बिस्तर पर न रहें। अपनी शारीरिक गतिविधि को हल्का और मध्यम रखें, जैसे घर के अंदर छोटी-छोटी धीमी सैर करना।',
+    'Maintain good personal hygiene, wash your hands frequently, and keep any sensitive areas clean and dry.':
+      'व्यक्तिगत स्वच्छता बनाए रखें, बार-बार हाथ धोएं, और किसी भी संवेदनशील हिस्से को साफ और सूखा रखें।',
+    'Hygiene & Wound Care: Maintain good personal hygiene, wash your hands frequently, and keep any sensitive areas clean and dry.':
+      'स्वच्छता और देखभाल: व्यक्तिगत स्वच्छता बनाए रखें, बार-बार हाथ धोएं, और किसी भी संवेदनशील हिस्से को साफ और सूखा रखें।',
+    'स्वच्छता और घाव की देखभाल: Maintain good personal hygiene, wash your hands frequently, and keep any sensitive areas clean and dry.':
+      'स्वच्छता और देखभाल: व्यक्तिगत स्वच्छता बनाए रखें, बार-बार हाथ धोएं, और किसी भी संवेदनशील हिस्से को साफ और सूखा रखें।',
+    'Take all your prescribed medicines punctually as scheduled around your meals. Remember to record every dose in your medication intake tracker and complete your daily check-in to keep your healthcare team informed.':
+      'अपनी सभी निर्धारित दवाएं अपने भोजन के समय के अनुसार नियमित रूप से समय पर लें। प्रत्येक खुराक को अपने इनटेक ट्रैकर में दर्ज करना याद रखें और अपनी हेल्थकेयर टीम को सूचित रखने के लिए अपना दैनिक चेक-इन पूरा करें।',
+    'Medication Routine: Take all your prescribed medicines punctually as scheduled around your meals. Remember to record every dose in your medication intake tracker and complete your daily check-in to keep your healthcare team informed.':
+      'दवा दिनचर्या: अपनी सभी निर्धारित दवाएं अपने भोजन के समय के अनुसार नियमित रूप से समय पर लें। प्रत्येक खुराक को अपने इनटेक ट्रैकर में दर्ज करना याद रखें और अपनी हेल्थकेयर टीम को सूचित रखने के लिए अपना दैनिक चेक-इन पूरा करें।',
+    'दवा दिनचर्या: Take all your prescribed medicines punctually as scheduled around your meals. Remember to record every dose in your medication intake tracker and complete your daily check-in to keep your healthcare team informed.':
+      'दवा दिनचर्या: अपनी सभी निर्धारित दवाएं अपने भोजन के समय के अनुसार नियमित रूप से समय पर लें। प्रत्येक खुराक को अपने इनटेक ट्रैकर में दर्ज करना याद रखें और अपनी हेल्थकेयर टीम को सूचित रखने के लिए अपना दैनिक चेक-इन पूरा करें।'
   }
 };
 
@@ -690,15 +744,16 @@ function translateClinicalSpeech(text, targetLang = 'en') {
   if (!text) return '';
   const lang = (targetLang || 'en').toLowerCase().slice(0, 2);
   if (lang === 'en') return text;
-  if (lang === 'ta' && /[\u0B80-\u0BFF]/.test(text)) return text;
-  if (lang === 'hi' && /[\u0900-\u097F]/.test(text)) return text;
+  // Only skip if already in target language AND doesn't have untranslated English sentences
+  if (lang === 'ta' && /[\u0B80-\u0BFF]/.test(text) && !/[a-zA-Z]{5,}/.test(text)) return text;
+  if (lang === 'hi' && /[\u0900-\u097F]/.test(text) && !/[a-zA-Z]{5,}/.test(text)) return text;
 
   const trimmed = text.trim();
   if (EXACT_CLINICAL_MAP[lang] && EXACT_CLINICAL_MAP[lang][trimmed]) {
     return EXACT_CLINICAL_MAP[lang][trimmed];
   }
 
-  // Greeting template pattern
+  // Greeting template pattern (Fever)
   const greetingMatch = trimmed.match(/^Hello\s+([^,]+),\s*as\s+you\s+are\s+managing\s+an\s+acute\s+high\s+fever\s+of\s+([^\s]+)\s+along\s+with\s+dehydration\s+and\s+fatigue,\s*this\s+personalized\s+recovery\s+plan\s+is\s+designed\s+to\s+help\s+you\s+rest,\s*rehydrate,\s*and\s+heal\s+safely\./i);
   if (greetingMatch) {
     const ptName = greetingMatch[1];
@@ -708,6 +763,23 @@ function translateClinicalSpeech(text, targetLang = 'en') {
     }
     if (lang === 'hi') {
       return `नमस्ते ${ptName}, चूंकि आप ${feverVal} के तेज बुखार के साथ निर्जलीकरण और थकान का सामना कर रहे हैं, यह व्यक्तिगत रिकवरी योजना आपको सुरक्षित रूप से आराम करने, पुनर्जलीकरण और ठीक होने में मदद करने के लिए बनाई गई है।`;
+    }
+  }
+
+  // General recovery greeting pattern
+  const generalRecoveryMatch = trimmed.match(/^Hello\s+([^.]+)\.\s*You\s+are\s+recovering\s+from\s+([^,]+),\s*and\s+your\s+body\s+needs\s+gentle\s+care,\s*proper\s+nourishment,\s*and\s+adequate\s+rest\s+to\s+regain\s+its\s+full\s+strength\./i);
+  if (generalRecoveryMatch) {
+    const ptName = generalRecoveryMatch[1].trim();
+    const cond = generalRecoveryMatch[2].trim();
+    if (lang === 'ta') {
+      const nameTa = ptName.toLowerCase() === 'madhavan' ? 'மாதவன்' : ptName;
+      const condTa = cond.toLowerCase().includes('dengue') ? 'டெங்கு காய்ச்சலில்' : `${cond} பாதிப்பில்`;
+      return `வணக்கம் ${nameTa}. நீங்கள் ${condTa} இருந்து குணமடைந்து வருகிறீர்கள், உங்கள் உடல் முழு வலிமையையும் மீண்டும் பெற மென்மையான கவனிப்பு, முறையான ஊட்டச்சத்து மற்றும் போதுமான ஓய்வு தேவைப்படுகிறது.`;
+    }
+    if (lang === 'hi') {
+      const nameHi = ptName.toLowerCase() === 'madhavan' ? 'माधवन' : ptName;
+      const condHi = cond.toLowerCase().includes('dengue') ? 'डेंगू बुखार' : cond;
+      return `नमस्ते ${nameHi}। आप ${condHi} से उबर रहे हैं, और आपके शरीर को अपनी पूरी शक्ति वापस पाने के लिए कोमल देखभाल, उचित पोषण और पर्याप्त आराम की आवश्यकता है।`;
     }
   }
 
@@ -725,6 +797,15 @@ function translateClinicalSpeech(text, targetLang = 'en') {
       .replace(/^Hygiene & Wound Care:\s*/i, 'சுகாதாரம் மற்றும் காயப் பராமரிப்பு: ')
       .replace(/^Medication Routine:\s*/i, 'மருந்து வழக்கம்: ')
       .replace(/^Warning Signs?:\s*/i, 'எச்சரிக்கை அறிகுறிகள்: ')
+      .replace(/Stay well-hydrated by drinking warm or boiled water regularly throughout the day\./gi, 'நாள் முழுவதும் சீரான இடைவெளியில் வெதுவெதுப்பான அல்லது காய்ச்சிய நீரைக் குடித்து நீரேற்றத்துடன் இருங்கள்.')
+      .replace(/Eat easily digestible, nutrient-dense foods such as warm milk, bread, porridge, soft rice, clear broths, and fresh fruits to restore your energy and prevent dizziness\./gi, 'உங்கள் ஆற்றலை மீட்டெடுக்கவும் மயக்கத்தைத் தவிர்க்கவும் சூடான பால், ரொட்டி, கஞ்சி, மென்மையான சாதம், தெளிவான சூப் மற்றும் புதிய பழங்கள் போன்ற எளிதில் செரிமானமாகும் சத்தான உணவுகளை உண்ணுங்கள்.')
+      .replace(/Strictly avoid heavy, hard-to-digest meats like chicken, mutton, and beef, as well as greasy or spicy foods\./gi, 'கோழி, ஆடு, மாடு போன்ற கனமான, செரிக்க கடினமான இறைச்சிகள் மற்றும் எண்ணெய் அல்லது காரமான உணவுகளை கண்டிப்பாகத் தவிர்க்கவும்.')
+      .replace(/Prioritize plenty of restorative sleep and make sure to go to bed before 10 PM\./gi, 'ஆழ்ந்த தூக்கத்திற்கு முன்னுரிமை கொடுங்கள் மற்றும் இரவு 10 மணிக்குள் உறங்கச் செல்வதை உறுதிப்படுத்திக் கொள்ளுங்கள்.')
+      .replace(/Avoid heavy workouts and over-exertion, but do not lie in bed all day without movement\./gi, 'கடுமையான உடற்பயிற்சிகளையும் அதிக உழைப்பையும் தவிர்க்கவும், ஆனால் நாள் முழுவதும் அசையாமல் படுக்கையிலேயே கிடக்க வேண்டாம்.')
+      .replace(/Keep your physical activity gentle and moderate, such as taking short, gentle walks indoors\./gi, 'வீட்டிற்குள் மெதுவாக குறுகிய தூரம் நடப்பது போன்ற மிதமான மற்றும் மென்மையான செயல்பாடுகளை மேற்கொள்ளுங்கள்.')
+      .replace(/Maintain good personal hygiene, wash your hands frequently, and keep any sensitive areas clean and dry\./gi, 'முறையான தனிப்பட்ட சுகாதாரத்தை பேணுங்கள், கைகளை அடிக்கடி கழுவுங்கள், மற்றும் உணர்திறன் வாய்ந்த பகுதிகளை சுத்தமாகவும் உலர்வாகவும் வைத்திருங்கள்.')
+      .replace(/Take all your prescribed medicines punctually as scheduled around your meals\./gi, 'பரிந்துரைக்கப்பட்ட அனைத்து மருந்துகளையும் உங்கள் உணவு வேளைகளில் தவறாமல் சரியான நேரத்தில் உட்கொள்ளுங்கள்.')
+      .replace(/Remember to record every dose in your medication intake tracker and complete your daily check-in to keep your healthcare team informed\./gi, 'உட்கொண்ட ஒவ்வொரு மருந்தையும் டிராக்கரில் பதிவு செய்து, மருத்துவக் குழுவிற்குத் தெரிவிக்க தினசரி செக்-இன் முடிக்க நினைவில் கொள்ளுங்கள்.')
       .replace(/Drink warm or boiled water regularly throughout the day/gi, 'நாள் முழுவதும் சீரான இடைவெளியில் வெதுவெதுப்பான அல்லது காய்ச்சிய நீரைக் குடிக்கவும்')
       .replace(/Strictly avoid heavy, hard-to-digest meats/gi, 'கனமான, ஜீரணிக்க கடினமான இறைச்சிகளை கண்டிப்பாகத் தவிர்க்கவும்')
       .replace(/Prioritize plenty of restorative sleep/gi, 'ஆழ்ந்த தூக்கத்திற்கு முன்னுரிமை அளியுங்கள்')
@@ -750,8 +831,17 @@ function translateClinicalSpeech(text, targetLang = 'en') {
       .replace(/^Diet & Nutrition:\s*/i, 'आहार और पोषण: ')
       .replace(/^Activity & Rest:\s*/i, 'गतिविधि और आराम: ')
       .replace(/^Hygiene & Wound Care:\s*/i, 'स्वच्छता और घाव की देखभाल: ')
-      .replace(/^Medication Routine:\s*/i, 'दवा की दिनचर्या: ')
+      .replace(/^Medication Routine:\s*/i, 'दवा दिनचर्या: ')
       .replace(/^Warning Signs?:\s*/i, 'चेतावनी संकेत: ')
+      .replace(/Stay well-hydrated by drinking warm or boiled water regularly throughout the day\./gi, 'दिन भर नियमित रूप से गुनगुना या उबला हुआ पानी पीकर अच्छी तरह से हाइड्रेटेड रहें।')
+      .replace(/Eat easily digestible, nutrient-dense foods such as warm milk, bread, porridge, soft rice, clear broths, and fresh fruits to restore your energy and prevent dizziness\./gi, 'अपनी ऊर्जा वापस पाने और चक्कर आने से बचने के लिए गर्म दूध, ब्रेड, दलिया, नरम चावल, पतला सूप और ताजे फल जैसे आसानी से पचने वाले पौष्टिक भोजन करें।')
+      .replace(/Strictly avoid heavy, hard-to-digest meats like chicken, mutton, and beef, as well as greasy or spicy foods\./gi, 'चिकन, मटन और बीफ जैसे भारी, पचने में कठिन मांसाहार के साथ-साथ तैलीय या मसालेदार भोजन से पूरी तरह परहेज करें।')
+      .replace(/Prioritize plenty of restorative sleep and make sure to go to bed before 10 PM\./gi, 'भरपूर आरामदायक नींद को प्राथमिकता दें और सुनिश्चित करें कि रात 10 बजे से पहले सो जाएं।')
+      .replace(/Avoid heavy workouts and over-exertion, but do not lie in bed all day without movement\./gi, 'भारी कसरत और अत्यधिक परिश्रम से बचें, लेकिन पूरे दिन बिना हिले-डुले बिस्तर पर न रहें।')
+      .replace(/Keep your physical activity gentle and moderate, such as taking short, gentle walks indoors\./gi, 'अपनी शारीरिक गतिविधि को हल्का और मध्यम रखें, जैसे घर के अंदर छोटी-छोटी धीमी सैर करना।')
+      .replace(/Maintain good personal hygiene, wash your hands frequently, and keep any sensitive areas clean and dry\./gi, 'व्यक्तिगत स्वच्छता बनाए रखें, बार-बार हाथ धोएं, और किसी भी संवेदनशील हिस्से को साफ और सूखा रखें।')
+      .replace(/Take all your prescribed medicines punctually as scheduled around your meals\./gi, 'अपनी सभी निर्धारित दवाएं अपने भोजन के समय के अनुसार नियमित रूप से समय पर लें।')
+      .replace(/Remember to record every dose in your medication intake tracker and complete your daily check-in to keep your healthcare team informed\./gi, 'प्रत्येक खुराक को अपने इनटेक ट्रैकर में दर्ज करना याद रखें और अपनी हेल्थकेयर टीम को सूचित रखने के लिए अपना दैनिक चेक-इन पूरा करें।')
       .replace(/Drink warm or boiled water regularly throughout the day/gi, 'दिन भर नियमित रूप से गुनगुना या उबला हुआ पानी पिएं')
       .replace(/Strictly avoid heavy, hard-to-digest meats/gi, 'पचाने में भारी मांसाहार से पूरी तरह परहेज करें')
       .replace(/Prioritize plenty of restorative sleep/gi, 'अच्छी और गहरी नींद को प्राथमिकता दें')
@@ -11675,7 +11765,9 @@ function RiskAnalyticsTab({ patientId, session }) {
 
 function getInstructionsList(raw, langCode = 'en') {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (Array.isArray(raw)) {
+    return raw.filter(Boolean).map(item => (langCode !== 'en' ? translateClinicalSpeech(item, langCode) : item));
+  }
   if (typeof raw === 'object') {
     const list = [];
     const prefixes = {
@@ -11699,23 +11791,43 @@ function getInstructionsList(raw, langCode = 'en') {
       }
     };
     const p = prefixes[langCode] || prefixes.en;
-    if (raw.general) list.push(raw.general);
-    if (raw.diet) list.push(`${p.diet}${raw.diet}`);
-    if (raw.activity) list.push(`${p.activity}${raw.activity}`);
-    if (raw.wound_care) list.push(`${p.wound}${raw.wound_care}`);
-    if (raw.medications_summary) list.push(`${p.med}${raw.medications_summary}`);
+    if (raw.general) {
+      list.push(langCode !== 'en' ? translateClinicalSpeech(raw.general, langCode) : raw.general);
+    }
+    if (raw.diet) {
+      const content = langCode !== 'en' ? translateClinicalSpeech(raw.diet, langCode) : raw.diet;
+      list.push(`${p.diet}${content}`);
+    }
+    if (raw.activity) {
+      const content = langCode !== 'en' ? translateClinicalSpeech(raw.activity, langCode) : raw.activity;
+      list.push(`${p.activity}${content}`);
+    }
+    if (raw.wound_care) {
+      const content = langCode !== 'en' ? translateClinicalSpeech(raw.wound_care, langCode) : raw.wound_care;
+      list.push(`${p.wound}${content}`);
+    }
+    if (raw.medications_summary) {
+      const content = langCode !== 'en' ? translateClinicalSpeech(raw.medications_summary, langCode) : raw.medications_summary;
+      list.push(`${p.med}${content}`);
+    }
     if (Array.isArray(raw.hospital_specific)) {
-      raw.hospital_specific.forEach(s => list.push(s));
+      raw.hospital_specific.forEach(s => {
+        list.push(langCode !== 'en' ? translateClinicalSpeech(s, langCode) : s);
+      });
     }
     return list;
   }
-  return [String(raw)];
+  const str = String(raw);
+  return [langCode !== 'en' ? translateClinicalSpeech(str, langCode) : str];
 }
 
-function getWarningSignsList(raw) {
+function getWarningSignsList(raw, langCode = 'en') {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.filter(Boolean);
-  return [String(raw)];
+  if (Array.isArray(raw)) {
+    return raw.filter(Boolean).map(item => (langCode !== 'en' ? translateClinicalSpeech(item, langCode) : item));
+  }
+  const str = String(raw);
+  return [langCode !== 'en' ? translateClinicalSpeech(str, langCode) : str];
 }
 
 function ClinicalConditionModal({ patient, onClose, onUpdated }) {
@@ -15660,7 +15772,7 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
     const pre = plan?.content?.translations?.[planLang]?.instructions;
     if (Array.isArray(pre) && pre.length) return pre;
     const dyn = translatedMap[planLang]?.instructions;
-    if (Array.isArray(dyn) && dyn.length) return dyn;
+    if (Array.isArray(dyn) && dyn.length && !dyn.some(s => /[a-zA-Z]{5,}/.test(s))) return dyn;
     return instructions.map(inst => translateClinicalSpeech(inst, planLang));
   }, [instructions, planLang, plan, translatedMap]);
 
@@ -15669,7 +15781,7 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
     const pre = plan?.content?.translations?.[planLang]?.warning_signs;
     if (Array.isArray(pre) && pre.length) return pre;
     const dyn = translatedMap[planLang]?.warning_signs;
-    if (Array.isArray(dyn) && dyn.length) return dyn;
+    if (Array.isArray(dyn) && dyn.length && !dyn.some(s => /[a-zA-Z]{5,}/.test(s))) return dyn;
     return warningSigns.map(w => translateClinicalSpeech(w, planLang));
   }, [warningSigns, planLang, plan, translatedMap]);
 
@@ -15827,9 +15939,9 @@ function PatientRecoveryView({ patientId, lang = 'en' }) {
               <AlertTriangle size={16} /> {getTranslation('warning_signs', planLang)}
             </h3>
             {activeWarningSigns.map((w, i) => (
-              <div key={i} className="card-inner" style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-dim)', borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(239, 68, 68, 0.05)' }}>
-                <AlertTriangle size={14} color="var(--danger)" style={{ display: 'inline', marginRight: 6 }} />
-                <span>{w}</span>
+              <div key={i} className="card-inner" style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-dim)', borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(239, 68, 68, 0.05)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <AlertTriangle size={14} color="var(--danger)" style={{ flexShrink: 0, marginTop: 2 }} />
+                <span style={{ flex: 1, lineHeight: 1.5 }}>{w}</span>
               </div>
             ))}
           </div>
