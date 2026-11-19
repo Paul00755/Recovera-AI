@@ -15,7 +15,7 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: DATABASE_URL
-        sync: false # Neon PostgreSQL Connection String (e.g. postgresql://user:pass@ep-xyz.neon.tech/neondb?sslmode=require)
+        sync: false # Set in Render Dashboard with your Neon PostgreSQL connection string
       - key: SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
@@ -26,13 +26,11 @@ services:
         value: "false"
 
   # --------------------------------------------------------------------------
-  # 2. Recovera AI - React Frontend (Free Static Site)
+  # 2. Recovera AI - React Frontend (Static Site - Global Free CDN)
   # --------------------------------------------------------------------------
   - type: web
     name: recovera-ai-frontend
     runtime: static
-    plan: free
-    region: oregon
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     routes:

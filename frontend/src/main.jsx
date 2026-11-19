@@ -31,7 +31,10 @@ import { ExperimentalTrackingDashboard } from './components/research/Experimenta
 import { HighRiskCommandCenter } from './components/risk/HighRiskCommandCenter';
 import { ImageAnalysisWorkspace } from './components/image-analysis/ImageAnalysisWorkspace';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const RAW_API = import.meta.env.VITE_API_URL;
+const API = RAW_API
+  ? (RAW_API.startsWith('http') ? RAW_API : `https://${RAW_API}`)
+  : (typeof window !== 'undefined' && window.location.origin.includes('localhost') ? 'http://localhost:8000' : '');
 
 const getSession = () => {
   try {
