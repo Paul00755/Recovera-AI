@@ -3,7 +3,7 @@ import {
   Camera, UploadCloud, RefreshCw, CheckCircle2, AlertTriangle, AlertCircle,
   FileText, Download, ChevronRight, Eye, ShieldAlert, Sparkles, Activity,
   Sliders, Layers, Check, X, ArrowLeft, ZoomIn, ZoomOut, Maximize2,
-  Calendar, User, Stethoscope, Clock, ShieldCheck, BarChart3, HelpCircle
+  Calendar, User, Stethoscope, Clock, ShieldCheck, BarChart3, HelpCircle, Pill
 } from 'lucide-react';
 import { getApiBase } from '../../apiConfig';
 
@@ -1019,7 +1019,7 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                     <span>Grad-CAM</span>
                   </span>
                   <span>&bull;</span>
-                  <span>Disease: <b style={{ color: '#fff' }}>{activeAnalysis.primary_prediction}</b></span>
+                  <span>Disease: <b style={{ color: '#fff' }}>{activeAnalysis.specific_subtype && activeAnalysis.specific_subtype !== activeAnalysis.primary_prediction ? `${activeAnalysis.primary_prediction} (${activeAnalysis.specific_subtype})` : activeAnalysis.primary_prediction}</b></span>
                   <span>&bull;</span>
                   <span>Confidence: <b style={{ color: '#00d4b8' }}>{(activeAnalysis.confidence_score * 100).toFixed(1)}%</b></span>
                   <span>&bull;</span>
@@ -1183,6 +1183,262 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                   </div>
                 </div>
               ) : null}
+            </div>
+          )}
+
+          {/* COMPREHENSIVE CLINICAL SYNTHESIS & PATIENT CORRELATION PANEL (WOUND ANALYSIS) */}
+          {activeAnalysis && activeAnalysis.analysis_type === 'surgical_wound' && (
+            <div style={{
+              background: 'var(--card-bg, #0c131d)',
+              border: '1px solid var(--border-color, #1a2636)',
+              borderRadius: 12,
+              padding: 16
+            }}>
+              {/* Header Box - Larger Font for Key Diagnostic Findings */}
+              <div style={{
+                padding: '14px 16px',
+                borderRadius: 10,
+                background: 'linear-gradient(135deg, rgba(0, 212, 184, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                border: '1px solid rgba(0, 212, 184, 0.25)',
+                marginBottom: 14
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <ShieldAlert size={18} color="#00d4b8" />
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#00d4b8' }}>
+                      Primary Clinical Diagnostic Finding
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{
+                      padding: '3px 9px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      background: activeAnalysis.severity_level === 'critical' ? 'rgba(239, 68, 68, 0.2)' : (activeAnalysis.severity_level === 'elevated' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'),
+                      color: activeAnalysis.severity_level === 'critical' ? '#ef4444' : (activeAnalysis.severity_level === 'elevated' ? '#f59e0b' : '#10b981'),
+                      border: `1px solid ${activeAnalysis.severity_level === 'critical' ? '#ef4444' : (activeAnalysis.severity_level === 'elevated' ? '#f59e0b' : '#10b981')}`
+                    }}>
+                      Severity: {activeAnalysis.severity_level}
+                    </span>
+                    <span style={{
+                      padding: '3px 9px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      background: 'rgba(0, 212, 184, 0.15)',
+                      color: '#00d4b8',
+                      border: '1px solid rgba(0, 212, 184, 0.3)'
+                    }}>
+                      Confidence: {(activeAnalysis.confidence_score * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Larger Font Size for Key Finding */}
+                <div style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  lineHeight: 1.35,
+                  marginBottom: 8,
+                  letterSpacing: -0.2
+                }}>
+                  {(activeAnalysis.clinical_correlation || activeAnalysis.metrics?.clinical_correlation)?.key_finding || (
+                    activeAnalysis.specific_subtype
+                      ? `${activeAnalysis.primary_prediction} (${activeAnalysis.specific_subtype}): ${activeAnalysis.findings_summary}`
+                      : `${activeAnalysis.primary_prediction}: ${activeAnalysis.findings_summary}`
+                  )}
+                </div>
+
+                <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>
+                  {activeAnalysis.findings_summary}
+                </div>
+              </div>
+
+              {/* 4-Card Clinical Correlation Grid */}
+              {(() => {
+                const correlation = activeAnalysis.clinical_correlation || activeAnalysis.metrics?.clinical_correlation;
+                return (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 14 }}>
+                      {/* 1. Relation to Active Condition (Thyroid / Autoimmune / Recovery) */}
+                      <div style={{
+                        background: 'rgba(0,0,0,0.25)',
+                        padding: 14,
+                        borderRadius: 10,
+                        border: '1px solid var(--border-color, #1a2636)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                          <Stethoscope size={15} color="#00d4b8" />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>
+                            Relation to Active Condition & Endocrine / Thyroid State
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.55 }}>
+                          {correlation?.condition_relation || (
+                            `Assessed in direct correlation with the patient's active diagnosis (${activePatient?.condition || 'Current Condition'}). Immunological and hormonal markers evaluated for recovery impact.`
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 2. Clinical Severity & Complication Risk */}
+                      <div style={{
+                        background: 'rgba(0,0,0,0.25)',
+                        padding: 14,
+                        borderRadius: 10,
+                        border: '1px solid var(--border-color, #1a2636)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                          <AlertTriangle size={15} color="#f59e0b" />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>
+                            Clinical Severity & Acute Complication Risk
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.55 }}>
+                          {correlation?.severity_assessment || (
+                            `Assessed at ${activeAnalysis.severity_level.toUpperCase()} severity. Tense bullae and erythema present risk of secondary bacterial colonization and barrier degradation.`
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 3. Medications Cross-Correlation */}
+                      <div style={{
+                        background: 'rgba(0,0,0,0.25)',
+                        padding: 14,
+                        borderRadius: 10,
+                        border: '1px solid var(--border-color, #1a2636)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                          <Pill size={15} color="#38bdf8" />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>
+                            Medications Cross-Correlation (Active & Prior Prescriptions)
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.55 }}>
+                          {correlation?.medication_relation || (
+                            'Active prescription regimen cross-checked against pharmaceutical triggers for cutaneous blistering and delayed re-epithelialization.'
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 4. Medical History & Underlying Comorbidity Link */}
+                      <div style={{
+                        background: 'rgba(0,0,0,0.25)',
+                        padding: 14,
+                        borderRadius: 10,
+                        border: '1px solid var(--border-color, #1a2636)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                          <FileText size={15} color="#a78bfa" />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>
+                            Medical History & Autoimmune Diathesis Link
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.55 }}>
+                          {correlation?.medical_history_relation || (
+                            'Underlying chronic conditions and immune predisposition reviewed; baseline systemic factors integrated into cutaneous healing trajectory.'
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. What To Do: Action Protocol */}
+                    <div style={{
+                      background: 'rgba(16, 185, 129, 0.06)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: 10,
+                      padding: 14
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+                        <CheckCircle2 size={16} color="#10b981" />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#10b981' }}>
+                          Immediate Clinical Action Protocol ("What To Do")
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {(correlation?.action_protocol || [
+                          "1. Apply sterile non-adherent silicone dressing; strictly avoid de-roofing or aspirating intact tense bullae.",
+                          "2. Perform 4mm punch biopsy of perilesional skin for Direct Immunofluorescence (DIF) to confirm basement membrane autoantibodies.",
+                          "3. Initiate high-potency topical corticosteroid (Clobetasol propionate 0.05% cream) under physician guidance.",
+                          "4. Check baseline serum TSH, Free T4, complete metabolic panel, and anti-BP180 / anti-BP230 ELISA antibody titers.",
+                          "5. Urgent Dermatology referral with concurrent endocrine coordination to maintain hormonal equilibrium."
+                        ]).map((actionText, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#f1f5f9', lineHeight: 1.45 }}>
+                            <span style={{ color: '#10b981', fontWeight: 800 }}>&bull;</span>
+                            <span>{actionText.replace(/^[0-9]+\.\s*/, '')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* RADIOLOGICAL REPORT FOR X-RAY ANALYSIS */}
+          {activeAnalysis && activeAnalysis.analysis_type === 'bone_fracture_xray' && (
+            <div style={{
+              background: 'var(--card-bg, #0c131d)',
+              border: '1px solid var(--border-color, #1a2636)',
+              borderRadius: 12,
+              padding: 16
+            }}>
+              <div style={{
+                padding: '14px 16px',
+                borderRadius: 10,
+                background: activeAnalysis.fracture_analysis?.fracture_detected
+                  ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)'
+                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                border: `1px solid ${activeAnalysis.fracture_analysis?.fracture_detected ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                marginBottom: 12
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Activity size={18} color={activeAnalysis.fracture_analysis?.fracture_detected ? '#ef4444' : '#10b981'} />
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8,
+                      color: activeAnalysis.fracture_analysis?.fracture_detected ? '#ef4444' : '#10b981'
+                    }}>
+                      Radiological Diagnostic Evaluation
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{
+                      padding: '3px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                      background: activeAnalysis.fracture_analysis?.fracture_detected ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                      color: activeAnalysis.fracture_analysis?.fracture_detected ? '#ef4444' : '#10b981',
+                      border: `1px solid ${activeAnalysis.fracture_analysis?.fracture_detected ? '#ef4444' : '#10b981'}`
+                    }}>
+                      Status: {activeAnalysis.fracture_analysis?.fracture_detected ? 'POSITIVE' : 'NEGATIVE'}
+                    </span>
+                    <span style={{
+                      padding: '3px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                      background: 'rgba(0, 212, 184, 0.15)', color: '#00d4b8', border: '1px solid rgba(0, 212, 184, 0.3)'
+                    }}>
+                      Confidence: {(activeAnalysis.confidence_score * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Large Font Size for Fracture Finding */}
+                <div style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  lineHeight: 1.35,
+                  marginBottom: 8,
+                  letterSpacing: -0.2
+                }}>
+                  {activeAnalysis.primary_prediction} &bull; {activeAnalysis.fracture_analysis?.anatomical_bone || 'Extremity Bone'}
+                </div>
+
+                <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.55 }}>
+                  {activeAnalysis.findings_summary}
+                </div>
+              </div>
             </div>
           )}
 

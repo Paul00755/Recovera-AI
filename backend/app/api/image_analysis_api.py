@@ -108,9 +108,11 @@ def _format_analysis_response(analysis: ImageAnalysis, db: Session) -> Dict[str,
         "model_architecture": analysis.model_architecture,
         "weights_provenance": analysis.weights_provenance,
         "primary_prediction": analysis.primary_prediction,
+        "specific_subtype": (analysis.metrics_json or {}).get("specific_subtype"),
         "confidence_score": analysis.confidence_score,
         "probabilities": analysis.probabilities_json or {},
         "findings_summary": analysis.findings_summary,
+        "clinical_correlation": (analysis.metrics_json or {}).get("clinical_correlation"),
         "severity_level": analysis.severity_level,
         "processing_time_ms": analysis.processing_time_ms,
         "review_status": analysis.review_status,
@@ -355,12 +357,47 @@ async def create_image_analysis_session(
         if auto_base and os.path.exists(auto_base.file_path):
             baseline_img_path = auto_base.file_path
 
+    # Build comprehensive clinical patient profile for cross-correlation
+    active_rx = []
+    try:
+        from app.models.medication import Medication
+        meds = db.scalars(select(Medication).where(Medication.patient_id == patient.id, Medication.active == True)).all()
+        for m in meds:
+            active_rx.append({"name": f"{m.name} {m.dosage or ''}".strip(), "frequency": m.frequency or "daily", "instructions": m.instructions})
+    except Exception:
+        pass
+
+    med_hist = []
+    past_meds = []
+    try:
+        from app.models.patient import MedicalHistory
+        mh = db.scalar(select(MedicalHistory).where(MedicalHistory.patient_id == patient.id))
+        if mh:
+            if isinstance(mh.conditions, list):
+                med_hist.extend(mh.conditions)
+            if isinstance(mh.past_medications, list):
+                past_meds.extend(mh.past_medications)
+    except Exception:
+        pass
+
+    patient_context = {
+        "patient_name": patient.name,
+        "age": getattr(patient, "age", 50),
+        "active_condition": patient.active_condition or "General Recovery",
+        "condition_stage": patient.condition_stage or "active",
+        "condition_notes": patient.condition_notes or "",
+        "chronic_conditions": med_hist,
+        "allergies": getattr(patient, "allergies", []),
+        "active_medications": active_rx,
+        "past_medications": past_meds
+    }
+
     # Execute Deep Learning Vision Pipeline
     try:
         if analysis_type == "surgical_wound":
-            pipeline_result = analyze_surgical_wound(str(dest_path), baseline_image_path=baseline_img_path)
+            pipeline_result = analyze_surgical_wound(str(dest_path), baseline_image_path=baseline_img_path, patient_context=patient_context)
         else:
-            pipeline_result = analyze_bone_fracture(str(dest_path), baseline_image_path=baseline_img_path)
+            pipeline_result = analyze_bone_fracture(str(dest_path), baseline_image_path=baseline_img_path, patient_context=patient_context)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Deep learning vision pipeline error: {str(exc)}")
 
@@ -415,7 +452,11 @@ async def create_image_analysis_session(
         gradcam_overlay_path=pipeline_result.get("gradcam_overlay_path"),
         segmentation_mask_path=pipeline_result.get("segmentation_mask_path"),
         segmentation_overlay_path=pipeline_result.get("segmentation_overlay_path"),
-        metrics_json=pipeline_result.get("wound_metrics") or pipeline_result.get("fracture_metrics") or {},
+        metrics_json={
+            **(pipeline_result.get("wound_metrics") or pipeline_result.get("fracture_metrics") or {}),
+            **({"clinical_correlation": pipeline_result["clinical_correlation"]} if pipeline_result.get("clinical_correlation") else {}),
+            **({"specific_subtype": pipeline_result["specific_subtype"]} if pipeline_result.get("specific_subtype") else {})
+        },
         processing_time_ms=pipeline_result.get("processing_time_ms", 0),
         review_status="pending_review",
         is_patient_visible=False
