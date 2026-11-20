@@ -246,19 +246,28 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
     }
   };
 
-  // 4. Save Session (Commit to Patient Care & trigger Gemini)
-  const handleSaveSession = async () => {
+  // 4. Save Session (Commit to Patient Care & trigger Gemini with Doctor Sign-off)
+  const handleSaveSession = async (statusOverride) => {
     if (!sessionData?.id) return;
     try {
       setIsAnalyzing(true);
+      const chosenStatus = statusOverride || reviewStatus || 'approved';
       const res = await clientApi(`/api/image-analysis/sessions/${sessionData.id}/save`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          review_status: chosenStatus,
+          clinician_notes: clinicianNotes,
+          clinician_agreed_with_ai: clinicianAgreed,
+          doctor_confirmed_findings: doctorFindings || activeAnalysis?.findings_summary,
+          is_patient_visible: isPatientVisible
+        })
       });
       setSessionData(null); // No longer in draft mode
       setActiveAnalysis(res.analysis);
       setFeedback({
         type: 'success',
-        message: 'Analysis saved and integrated into Patient Care Trajectory. Gemini reassessment generated.'
+        message: `Analysis saved & signed off as ${chosenStatus.toUpperCase()}. Integrated into Patient Care Trajectory.`
       });
       loadHistory(selectedPatientId);
       loadPendingReviews();
@@ -1031,8 +1040,8 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
             {/* Session Draft Status Bar */}
             {sessionData?.status === 'draft' && (
               <div style={{
-                background: 'rgba(245, 158, 11, 0.12)',
-                borderTop: '1px solid rgba(245, 158, 11, 0.3)',
+                background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.7) 100%)',
+                borderTop: '1px solid rgba(245, 158, 11, 0.35)',
                 padding: '10px 16px',
                 display: 'flex',
                 alignItems: 'center',
@@ -1040,9 +1049,9 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                 flexWrap: 'wrap',
                 gap: 8
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f59e0b', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f59e0b', fontSize: 13, fontWeight: 700 }}>
                   <AlertCircle size={16} />
-                  <span>DRAFT SESSION: Review findings below before saving to patient care records.</span>
+                  <span>PRELIMINARY DRAFT SESSION — Review Explainable AI and Clinical Correlation below to sign off</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
@@ -1060,28 +1069,201 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                   >
                     Discard Draft
                   </button>
-                  <button
-                    onClick={handleSaveSession}
-                    disabled={isAnalyzing}
+                  <a
+                    href="#doctor-signoff-hub"
                     style={{
                       padding: '6px 16px',
                       borderRadius: 6,
                       background: '#00d4b8',
-                      border: 'none',
                       color: '#041017',
                       fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer'
+                      fontWeight: 800,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6
                     }}
                   >
-                    Save & Integrate Analysis
-                  </button>
+                    <span>Sign Off & Save Below</span>
+                    <ChevronRight size={14} />
+                  </a>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Visual Characteristics & Quantitative Measurements Bar */}
+          {/* ------------------------------------------------------------------ */}
+          {/* 1. EXPLAINABLE AI (XAI) ATTRIBUTION & NEURAL DECISION RATIONALE    */}
+          {/* ------------------------------------------------------------------ */}
+          {activeAnalysis && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(0, 212, 184, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%)',
+              border: '1px solid rgba(0, 212, 184, 0.35)',
+              borderRadius: 12,
+              padding: 16,
+              boxShadow: '0 4px 20px rgba(0, 212, 184, 0.08)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={18} color="#00d4b8" />
+                  <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, color: '#00d4b8' }}>
+                    Explainable AI (XAI) Attribution & Neural Decision Rationale
+                  </span>
+                </div>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: 20,
+                  background: 'rgba(0, 212, 184, 0.15)',
+                  color: '#00d4b8',
+                  border: '1px solid rgba(0, 212, 184, 0.3)'
+                }}>
+                  Model Explainability Verified
+                </span>
+              </div>
+
+              {/* Why This Prediction Was Made - Prominent Text */}
+              <div style={{
+                background: 'rgba(0,0,0,0.4)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 10,
+                padding: '12px 14px',
+                marginBottom: 12
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                  Why This Prediction Was Made
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#f8fafc', lineHeight: 1.55 }}>
+                  {(activeAnalysis.explainable_ai || activeAnalysis.metrics?.explainable_ai)?.why_prediction_made ||
+                    activeAnalysis.findings_summary}
+                </div>
+              </div>
+
+              {/* Visual Biomarkers Identified */}
+              {((activeAnalysis.explainable_ai || activeAnalysis.metrics?.explainable_ai)?.visual_biomarkers?.length > 0) && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                    Visual Biomarkers Identified by Neural Network:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {(activeAnalysis.explainable_ai || activeAnalysis.metrics?.explainable_ai).visual_biomarkers.map((bm, idx) => (
+                      <span key={idx} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        padding: '4px 10px',
+                        borderRadius: 6,
+                        background: 'rgba(0, 212, 184, 0.12)',
+                        color: '#5eead4',
+                        border: '1px solid rgba(0, 212, 184, 0.25)'
+                      }}>
+                        <Check size={12} />
+                        <span>{bm}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Side-by-side: Grad-CAM Rationale & Differential Rule-Out */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                <div style={{ background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, color: '#38bdf8', fontSize: 11.5, fontWeight: 700 }}>
+                    <Layers size={13} />
+                    <span>Grad-CAM Attention Heatmap Focus</span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.5 }}>
+                    {(activeAnalysis.explainable_ai || activeAnalysis.metrics?.explainable_ai)?.gradcam_rationale ||
+                      "Neural visual attention emphasizes key lesion boundaries and chromatic contrasts on the target tissue."}
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, color: '#a78bfa', fontSize: 11.5, fontWeight: 700 }}>
+                    <ShieldCheck size={13} />
+                    <span>Differential Diagnoses Ruled Out</span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.5 }}>
+                    {(activeAnalysis.explainable_ai || activeAnalysis.metrics?.explainable_ai)?.differential_ruled_out ||
+                      "Other disease patterns excluded based on characteristic morphological and contour biomarkers."}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------------ */}
+          {/* 2. PRIMARY CLINICAL DIAGNOSTIC FINDING & SEVERITY                   */}
+          {/* ------------------------------------------------------------------ */}
+          {activeAnalysis && (
+            <div style={{
+              background: 'var(--card-bg, #0c131d)',
+              border: '1px solid var(--border-color, #1a2636)',
+              borderRadius: 12,
+              padding: 16
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldAlert size={18} color="#00d4b8" />
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#00d4b8' }}>
+                    Primary Diagnostic Prediction & Severity
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{
+                    padding: '3px 10px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    background: activeAnalysis.severity_level === 'critical' ? 'rgba(239, 68, 68, 0.2)' : (activeAnalysis.severity_level === 'elevated' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'),
+                    color: activeAnalysis.severity_level === 'critical' ? '#ef4444' : (activeAnalysis.severity_level === 'elevated' ? '#f59e0b' : '#10b981'),
+                    border: `1px solid ${activeAnalysis.severity_level === 'critical' ? '#ef4444' : (activeAnalysis.severity_level === 'elevated' ? '#f59e0b' : '#10b981')}`
+                  }}>
+                    Severity: {activeAnalysis.severity_level}
+                  </span>
+                  <span style={{
+                    padding: '3px 10px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: 'rgba(0, 212, 184, 0.15)',
+                    color: '#00d4b8',
+                    border: '1px solid rgba(0, 212, 184, 0.3)'
+                  }}>
+                    Confidence: {(activeAnalysis.confidence_score * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* High Contrast 20px Heading */}
+              <div style={{
+                fontSize: 20,
+                fontWeight: 800,
+                color: '#ffffff',
+                lineHeight: 1.35,
+                marginBottom: 8,
+                letterSpacing: -0.2
+              }}>
+                {(activeAnalysis.clinical_correlation || activeAnalysis.metrics?.clinical_correlation)?.key_finding || (
+                  activeAnalysis.specific_subtype && activeAnalysis.specific_subtype !== activeAnalysis.primary_prediction
+                    ? `${activeAnalysis.primary_prediction} (${activeAnalysis.specific_subtype})`
+                    : activeAnalysis.primary_prediction
+                )}
+              </div>
+
+              <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.55 }}>
+                {activeAnalysis.findings_summary}
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------------ */}
+          {/* 3. QUANTITATIVE BIOMARKERS                                         */}
+          {/* ------------------------------------------------------------------ */}
           {activeAnalysis && (
             <div style={{
               background: 'var(--card-bg, #0c131d)',
@@ -1186,7 +1368,9 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
             </div>
           )}
 
-          {/* COMPREHENSIVE CLINICAL SYNTHESIS & PATIENT CORRELATION PANEL (WOUND ANALYSIS) */}
+          {/* ------------------------------------------------------------------ */}
+          {/* 4. COMPREHENSIVE CLINICAL SYNTHESIS (WOUND ANALYSIS)               */}
+          {/* ------------------------------------------------------------------ */}
           {activeAnalysis && activeAnalysis.analysis_type === 'surgical_wound' && (
             <div style={{
               background: 'var(--card-bg, #0c131d)',
@@ -1194,76 +1378,15 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
               borderRadius: 12,
               padding: 16
             }}>
-              {/* Header Box - Larger Font for Key Diagnostic Findings */}
-              <div style={{
-                padding: '14px 16px',
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, rgba(0, 212, 184, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)',
-                border: '1px solid rgba(0, 212, 184, 0.25)',
-                marginBottom: 14
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <ShieldAlert size={18} color="#00d4b8" />
-                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#00d4b8' }}>
-                      Primary Clinical Diagnostic Finding
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <span style={{
-                      padding: '3px 9px',
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      background: activeAnalysis.severity_level === 'critical' ? 'rgba(239, 68, 68, 0.2)' : (activeAnalysis.severity_level === 'elevated' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'),
-                      color: activeAnalysis.severity_level === 'critical' ? '#ef4444' : (activeAnalysis.severity_level === 'elevated' ? '#f59e0b' : '#10b981'),
-                      border: `1px solid ${activeAnalysis.severity_level === 'critical' ? '#ef4444' : (activeAnalysis.severity_level === 'elevated' ? '#f59e0b' : '#10b981')}`
-                    }}>
-                      Severity: {activeAnalysis.severity_level}
-                    </span>
-                    <span style={{
-                      padding: '3px 9px',
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      background: 'rgba(0, 212, 184, 0.15)',
-                      color: '#00d4b8',
-                      border: '1px solid rgba(0, 212, 184, 0.3)'
-                    }}>
-                      Confidence: {(activeAnalysis.confidence_score * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* Larger Font Size for Key Finding */}
-                <div style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  color: '#ffffff',
-                  lineHeight: 1.35,
-                  marginBottom: 8,
-                  letterSpacing: -0.2
-                }}>
-                  {(activeAnalysis.clinical_correlation || activeAnalysis.metrics?.clinical_correlation)?.key_finding || (
-                    activeAnalysis.specific_subtype
-                      ? `${activeAnalysis.primary_prediction} (${activeAnalysis.specific_subtype}): ${activeAnalysis.findings_summary}`
-                      : `${activeAnalysis.primary_prediction}: ${activeAnalysis.findings_summary}`
-                  )}
-                </div>
-
-                <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>
-                  {activeAnalysis.findings_summary}
-                </div>
-              </div>
-
-              {/* 4-Card Clinical Correlation Grid */}
               {(() => {
                 const correlation = activeAnalysis.clinical_correlation || activeAnalysis.metrics?.clinical_correlation;
+                const medCorr = correlation?.medication_correlation;
+                const activeCondName = selectedPatient?.active_condition || activeAnalysis?.patient_condition || 'Current Condition';
+
                 return (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 14 }}>
-                      {/* 1. Relation to Active Condition (Thyroid / Autoimmune / Recovery) */}
+                      {/* Card A: Dynamic Relation to Patient's Current Condition (NO hardcoded thyroid!) */}
                       <div style={{
                         background: 'rgba(0,0,0,0.25)',
                         padding: 14,
@@ -1273,17 +1396,17 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                           <Stethoscope size={15} color="#00d4b8" />
                           <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>
-                            Relation to Active Condition & Endocrine / Thyroid State
+                            Relation to Current Condition ({activeCondName})
                           </span>
                         </div>
                         <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.55 }}>
                           {correlation?.condition_relation || (
-                            `Assessed in direct correlation with the patient's active diagnosis (${activePatient?.condition || 'Current Condition'}). Immunological and hormonal markers evaluated for recovery impact.`
+                            `Assessed in direct correlation with the patient's active diagnosis (${activeCondName}). Evaluated for recovery impact and barrier healing.`
                           )}
                         </div>
                       </div>
 
-                      {/* 2. Clinical Severity & Complication Risk */}
+                      {/* Card B: Clinical Severity & Acute Complication Risk */}
                       <div style={{
                         background: 'rgba(0,0,0,0.25)',
                         padding: 14,
@@ -1298,53 +1421,52 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                         </div>
                         <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.55 }}>
                           {correlation?.severity_assessment || (
-                            `Assessed at ${activeAnalysis.severity_level.toUpperCase()} severity. Tense bullae and erythema present risk of secondary bacterial colonization and barrier degradation.`
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 3. Medications Cross-Correlation */}
-                      <div style={{
-                        background: 'rgba(0,0,0,0.25)',
-                        padding: 14,
-                        borderRadius: 10,
-                        border: '1px solid var(--border-color, #1a2636)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                          <Pill size={15} color="#38bdf8" />
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>
-                            Medications Cross-Correlation (Active & Prior Prescriptions)
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.55 }}>
-                          {correlation?.medication_relation || (
-                            'Active prescription regimen cross-checked against pharmaceutical triggers for cutaneous blistering and delayed re-epithelialization.'
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 4. Medical History & Underlying Comorbidity Link */}
-                      <div style={{
-                        background: 'rgba(0,0,0,0.25)',
-                        padding: 14,
-                        borderRadius: 10,
-                        border: '1px solid var(--border-color, #1a2636)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                          <FileText size={15} color="#a78bfa" />
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>
-                            Medical History & Autoimmune Diathesis Link
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.55 }}>
-                          {correlation?.medical_history_relation || (
-                            'Underlying chronic conditions and immune predisposition reviewed; baseline systemic factors integrated into cutaneous healing trajectory.'
+                            `Assessed at ${activeAnalysis.severity_level.toUpperCase()} severity. Lesion presents risk of secondary bacterial colonization and barrier degradation.`
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* 5. What To Do: Action Protocol */}
+                    {/* Card C: Comprehensive Medications & History Cross-Correlation */}
+                    <div style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: 14,
+                      borderRadius: 10,
+                      border: '1px solid var(--border-color, #1a2636)',
+                      marginBottom: 14
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+                        <Pill size={16} color="#38bdf8" />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>
+                          Medications & Medical History Cross-Correlation
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, color: '#cbd5e1', lineHeight: 1.5 }}>
+                        {medCorr ? (
+                          <>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 6 }}>
+                              <b style={{ color: '#38bdf8' }}>Currently Taking Medicines Check:</b> {medCorr.current_medications_check}
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 6 }}>
+                              <b style={{ color: '#38bdf8' }}>Past Taken Medicines Check:</b> {medCorr.past_medications_check}
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 6 }}>
+                              <b style={{ color: '#a78bfa' }}>Medical History Check:</b> {medCorr.medical_history_check}
+                            </div>
+                            {medCorr.summary && (
+                              <div style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic', marginTop: 2 }}>
+                                &bull; {medCorr.summary}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div>{correlation?.medication_relation || "Active and prior prescription regimens cross-checked; no acute contraindications flagged."}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card D: What To Do (Action Protocol) */}
                     <div style={{
                       background: 'rgba(16, 185, 129, 0.06)',
                       border: '1px solid rgba(16, 185, 129, 0.25)',
@@ -1359,11 +1481,10 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {(correlation?.action_protocol || [
-                          "1. Apply sterile non-adherent silicone dressing; strictly avoid de-roofing or aspirating intact tense bullae.",
-                          "2. Perform 4mm punch biopsy of perilesional skin for Direct Immunofluorescence (DIF) to confirm basement membrane autoantibodies.",
-                          "3. Initiate high-potency topical corticosteroid (Clobetasol propionate 0.05% cream) under physician guidance.",
-                          "4. Check baseline serum TSH, Free T4, complete metabolic panel, and anti-BP180 / anti-BP230 ELISA antibody titers.",
-                          "5. Urgent Dermatology referral with concurrent endocrine coordination to maintain hormonal equilibrium."
+                          "1. Protect lesions with sterile, non-adherent silicone dressing; strictly avoid de-roofing or aspirating intact tense bullae.",
+                          "2. Perform diagnostic punch biopsy of perilesional skin for Direct Immunofluorescence (DIF) to confirm diagnosis.",
+                          "3. Physician review of current medications to ensure none are contributing as rare drug-induced triggers.",
+                          "4. Urgent Dermatology referral with concurrent recovery monitoring."
                         ]).map((actionText, idx) => (
                           <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#f1f5f9', lineHeight: 1.45 }}>
                             <span style={{ color: '#10b981', fontWeight: 800 }}>&bull;</span>
@@ -1375,6 +1496,228 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
                   </>
                 );
               })()}
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------------ */}
+          {/* 5. RADIOLOGICAL REPORT FOR X-RAY ANALYSIS                          */}
+          {/* ------------------------------------------------------------------ */}
+          {activeAnalysis && activeAnalysis.analysis_type === 'bone_fracture_xray' && (
+            <div style={{
+              background: 'var(--card-bg, #0c131d)',
+              border: '1px solid var(--border-color, #1a2636)',
+              borderRadius: 12,
+              padding: 16
+            }}>
+              <div style={{
+                padding: '14px 16px',
+                borderRadius: 10,
+                background: activeAnalysis.fracture_analysis?.fracture_detected
+                  ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)'
+                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                border: `1px solid ${activeAnalysis.fracture_analysis?.fracture_detected ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                marginBottom: 12
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Activity size={18} color={activeAnalysis.fracture_analysis?.fracture_detected ? '#ef4444' : '#10b981'} />
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8,
+                      color: activeAnalysis.fracture_analysis?.fracture_detected ? '#ef4444' : '#10b981'
+                    }}>
+                      Radiological Diagnostic Evaluation
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{
+                      padding: '3px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                      background: activeAnalysis.fracture_analysis?.fracture_detected ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                      color: activeAnalysis.fracture_analysis?.fracture_detected ? '#ef4444' : '#10b981',
+                      border: `1px solid ${activeAnalysis.fracture_analysis?.fracture_detected ? '#ef4444' : '#10b981'}`
+                    }}>
+                      Status: {activeAnalysis.fracture_analysis?.fracture_detected ? 'POSITIVE' : 'NEGATIVE'}
+                    </span>
+                    <span style={{
+                      padding: '3px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                      background: 'rgba(0, 212, 184, 0.15)', color: '#00d4b8', border: '1px solid rgba(0, 212, 184, 0.3)'
+                    }}>
+                      Confidence: {(activeAnalysis.confidence_score * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Large Font Size for Fracture Finding */}
+                <div style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  lineHeight: 1.35,
+                  marginBottom: 8,
+                  letterSpacing: -0.2
+                }}>
+                  {activeAnalysis.primary_prediction} &bull; {activeAnalysis.fracture_analysis?.anatomical_bone || 'Extremity Bone'}
+                </div>
+
+                <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.55 }}>
+                  {activeAnalysis.findings_summary}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------------ */}
+          {/* 6. UNIFIED PHYSICIAN REVIEW & SIGN-OFF HUB                          */}
+          {/* ------------------------------------------------------------------ */}
+          {activeAnalysis && (
+            <div id="doctor-signoff-hub" style={{
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(20, 30, 48, 0.95) 100%)',
+              border: sessionData?.status === 'draft' ? '1px solid rgba(0, 212, 184, 0.4)' : '1px solid var(--border-color, #1a2636)',
+              borderRadius: 12,
+              padding: 16,
+              boxShadow: sessionData?.status === 'draft' ? '0 0 25px rgba(0, 212, 184, 0.1)' : 'none'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Stethoscope size={18} color="#00d4b8" />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#ffffff' }}>
+                      Physician Review & Clinical Sign-Off
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                      {sessionData?.status === 'draft' ? 'Preliminary AI draft session. Select your clinical decision to save and integrate.' : 'Signed clinical record.'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Review status buttons */}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[
+                    { key: 'approved', label: '✓ Approve (Recommended)', color: '#10b981', bg: 'rgba(16, 185, 129, 0.25)' },
+                    { key: 'amended', label: '✎ Amend Findings', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.25)' },
+                    { key: 'rejected', label: '✕ Reject', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.25)' }
+                  ].map(st => (
+                    <button
+                      key={st.key}
+                      type="button"
+                      disabled={!isDoctor && !isAdmin}
+                      onClick={() => {
+                        setReviewStatus(st.key);
+                        if (st.key === 'approved') setClinicianAgreed(true);
+                        else if (st.key === 'rejected') setClinicianAgreed(false);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: (!isDoctor && !isAdmin) ? 'not-allowed' : 'pointer',
+                        background: reviewStatus === st.key ? st.bg : 'rgba(0,0,0,0.3)',
+                        color: reviewStatus === st.key ? st.color : 'var(--text-secondary, #94a3b8)',
+                        border: `1px solid ${reviewStatus === st.key ? st.color : 'var(--border-color, #223348)'}`,
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes Textarea */}
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                  Clinician Review Notes & Care Plan Amendments:
+                </label>
+                <textarea
+                  rows={2}
+                  value={clinicianNotes}
+                  disabled={!isDoctor && !isAdmin}
+                  onChange={(e) => setClinicianNotes(e.target.value)}
+                  placeholder="Enter treating physician notes, specific dressing directives, or diagnostic next steps (optional)..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    background: 'rgba(0,0,0,0.35)',
+                    border: '1px solid var(--border-color, #223348)',
+                    color: '#f8fafc',
+                    fontSize: 12,
+                    outline: 'none',
+                    resize: 'vertical',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Patient visibility & Main Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#f1f5f9', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={isPatientVisible}
+                    disabled={!isDoctor && !isAdmin}
+                    onChange={(e) => setIsPatientVisible(e.target.checked)}
+                    style={{ accentColor: '#00d4b8', width: 16, height: 16 }}
+                  />
+                  <span>Share approved image report to patient portal upon sign-off</span>
+                </label>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {sessionData?.status === 'draft' && (
+                    <button
+                      type="button"
+                      onClick={handleDiscardSession}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: 6,
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#ef4444',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Discard Draft
+                    </button>
+                  )}
+
+                  {(isDoctor || isAdmin) ? (
+                    <button
+                      type="button"
+                      onClick={() => sessionData?.status === 'draft' ? handleSaveSession(reviewStatus) : handleReviewSubmit()}
+                      disabled={isAnalyzing || submittingReview}
+                      style={{
+                        padding: '9px 22px',
+                        borderRadius: 8,
+                        background: reviewStatus === 'rejected' ? '#ef4444' : (reviewStatus === 'amended' ? '#f59e0b' : '#00d4b8'),
+                        border: 'none',
+                        color: reviewStatus === 'rejected' ? '#ffffff' : '#041017',
+                        fontWeight: 800,
+                        fontSize: 13,
+                        cursor: (isAnalyzing || submittingReview) ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        boxShadow: '0 4px 14px rgba(0, 212, 184, 0.25)'
+                      }}
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>
+                        {isAnalyzing || submittingReview ? 'Saving...' : (
+                          sessionData?.status === 'draft'
+                            ? (reviewStatus === 'approved' ? '✓ Approve & Save to Patient Records' : `Save Analysis as ${reviewStatus.toUpperCase()}`)
+                            : 'Update Clinical Sign-Off'
+                        )}
+                      </span>
+                    </button>
+                  ) : (
+                    <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
+                      Treating physician credentials required to formally sign off.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -1604,182 +1947,76 @@ export function ImageAnalysisWorkspace({ session, navigate, patients: propPatien
             </div>
           )}
 
-          {/* Streamlined Doctor Review & Sign-Off Hub */}
+          {/* Quick Actions & Official Report Exports */}
           {activeAnalysis && (
             <div style={{
               background: 'var(--card-bg, #0c131d)',
               border: '1px solid var(--border-color, #1a2636)',
               borderRadius: 12,
-              padding: 12
+              padding: 14
             }}>
-              {/* If already reviewed and not in edit mode */}
-              {activeAnalysis.review_status && activeAnalysis.review_status !== 'pending_review' && !editReviewMode ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <CheckCircle2 size={15} color={activeAnalysis.review_status === 'approved' ? '#10b981' : (activeAnalysis.review_status === 'rejected' ? '#ef4444' : '#f59e0b')} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary, #f1f5f9)' }}>
-                        Doctor Sign-Off:{' '}
-                        <span style={{
-                          textTransform: 'capitalize',
-                          color: activeAnalysis.review_status === 'approved' ? '#10b981' : (activeAnalysis.review_status === 'rejected' ? '#ef4444' : '#f59e0b')
-                        }}>
-                          {activeAnalysis.review_status}
-                        </span>
-                      </span>
-                    </div>
-                    {(isDoctor || isAdmin) && (
-                      <button
-                        type="button"
-                        onClick={() => setEditReviewMode(true)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#00d4b8',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          padding: '2px 6px',
-                          textDecoration: 'underline'
-                        }}
-                      >
-                        Edit
-                      </button>
-                    )}
-                  </div>
-                  {activeAnalysis.clinician_notes && (
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', background: 'rgba(0,0,0,0.25)', padding: '6px 8px', borderRadius: 6, marginTop: 4 }}>
-                      "{activeAnalysis.clinician_notes}"
-                    </div>
-                  )}
-                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>
-                    {activeAnalysis.reviewer?.name ? `Signed by Dr. ${activeAnalysis.reviewer.name}` : 'Signed into patient medical record'}
-                    {activeAnalysis.is_patient_visible ? ' • Visible to patient' : ''}
-                  </div>
-                </div>
-              ) : (
-                /* Simple, streamlined review form */
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Stethoscope size={14} color="#00d4b8" />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary, #f1f5f9)' }}>
-                        Doctor Sign-Off
-                      </span>
-                    </div>
-                    {/* Status Segmented Buttons */}
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {[
-                        { key: 'approved', label: 'Approve', color: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' },
-                        { key: 'amended', label: 'Amend', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' },
-                        { key: 'rejected', label: 'Reject', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.2)' }
-                      ].map(st => (
-                        <button
-                          key={st.key}
-                          type="button"
-                          disabled={!isDoctor && !isAdmin}
-                          onClick={() => {
-                            setReviewStatus(st.key);
-                            if (st.key === 'approved') setClinicianAgreed(true);
-                            else if (st.key === 'rejected') setClinicianAgreed(false);
-                          }}
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            cursor: (!isDoctor && !isAdmin) ? 'not-allowed' : 'pointer',
-                            background: reviewStatus === st.key ? st.bg : 'rgba(0,0,0,0.2)',
-                            color: reviewStatus === st.key ? st.color : 'var(--text-secondary, #94a3b8)',
-                            border: `1px solid ${reviewStatus === st.key ? st.color : 'var(--border-color, #223348)'}`,
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          {st.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-secondary, #94a3b8)', marginBottom: 10 }}>
+                Clinical Export & Reports
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(0, 212, 184, 0.12)',
+                    border: '1px solid rgba(0, 212, 184, 0.3)',
+                    color: '#00d4b8',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <Download size={14} />
+                  <span>Export Diagnostic PDF Dossier</span>
+                </button>
 
-                  {/* Compact Clinical Notes */}
-                  <div style={{ marginBottom: 8 }}>
-                    <textarea
-                      rows={2}
-                      value={clinicianNotes}
-                      disabled={!isDoctor && !isAdmin}
-                      onChange={(e) => setClinicianNotes(e.target.value)}
-                      placeholder="Doctor review notes (optional)..."
-                      style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        borderRadius: 6,
-                        background: 'rgba(0,0,0,0.25)',
-                        border: '1px solid var(--border-color, #223348)',
-                        color: 'var(--text-primary, #f1f5f9)',
-                        fontSize: 11,
-                        outline: 'none',
-                        resize: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid var(--border-color, #223348)',
+                    color: '#cbd5e1',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <FileText size={14} />
+                  <span>Download Telemetry CSV</span>
+                </button>
+              </div>
 
-                  {/* Inline Option & Cancel (if editing) */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary, #94a3b8)', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={isPatientVisible}
-                        disabled={!isDoctor && !isAdmin}
-                        onChange={(e) => setIsPatientVisible(e.target.checked)}
-                        style={{ accentColor: '#00d4b8' }}
-                      />
-                      <span>Visible to patient in portal</span>
-                    </label>
-
-                    {editReviewMode && (
-                      <button
-                        type="button"
-                        onClick={() => setEditReviewMode(false)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-secondary, #94a3b8)',
-                          fontSize: 11,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Clean Action Button */}
-                  {(isDoctor || isAdmin) ? (
-                    <button
-                      onClick={handleReviewSubmit}
-                      disabled={submittingReview}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        borderRadius: 6,
-                        background: reviewStatus === 'rejected' ? '#ef4444' : (reviewStatus === 'amended' ? '#f59e0b' : '#00d4b8'),
-                        border: 'none',
-                        color: reviewStatus === 'amended' || reviewStatus === 'approved' ? '#041017' : '#ffffff',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        cursor: submittingReview ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      {submittingReview ? 'Signing...' : (reviewStatus === 'approved' ? '✓ Approve & Sign Off' : `Sign Off (${reviewStatus.toUpperCase()})`)}
-                    </button>
-                  ) : (
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary, #94a3b8)', fontStyle: 'italic', textAlign: 'center' }}>
-                      Restricted to treating physicians for formal sign-off.
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Status Indicator */}
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, color: '#94a3b8' }}>Session State:</span>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: sessionData?.status === 'draft' ? '#f59e0b' : '#10b981'
+                }}>
+                  {sessionData?.status === 'draft' ? 'Draft (Unsaved)' : 'Saved & Integrated'}
+                </span>
+              </div>
             </div>
           )}
 

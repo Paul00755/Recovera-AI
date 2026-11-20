@@ -69,6 +69,14 @@ class ClinicianReviewIn(BaseModel):
     is_patient_visible: bool = False
 
 
+class SaveSessionIn(BaseModel):
+    review_status: Optional[str] = "approved"
+    clinician_notes: Optional[str] = None
+    clinician_agreed_with_ai: Optional[bool] = True
+    doctor_confirmed_findings: Optional[str] = None
+    is_patient_visible: Optional[bool] = True
+
+
 class DiscardSessionIn(BaseModel):
     reason: Optional[str] = "Clinical assessment discarded by user."
 
@@ -112,6 +120,7 @@ def _format_analysis_response(analysis: ImageAnalysis, db: Session) -> Dict[str,
         "confidence_score": analysis.confidence_score,
         "probabilities": analysis.probabilities_json or {},
         "findings_summary": analysis.findings_summary,
+        "explainable_ai": (analysis.metrics_json or {}).get("explainable_ai"),
         "clinical_correlation": (analysis.metrics_json or {}).get("clinical_correlation"),
         "severity_level": analysis.severity_level,
         "processing_time_ms": analysis.processing_time_ms,
@@ -455,7 +464,8 @@ async def create_image_analysis_session(
         metrics_json={
             **(pipeline_result.get("wound_metrics") or pipeline_result.get("fracture_metrics") or {}),
             **({"clinical_correlation": pipeline_result["clinical_correlation"]} if pipeline_result.get("clinical_correlation") else {}),
-            **({"specific_subtype": pipeline_result["specific_subtype"]} if pipeline_result.get("specific_subtype") else {})
+            **({"specific_subtype": pipeline_result["specific_subtype"]} if pipeline_result.get("specific_subtype") else {}),
+            **({"explainable_ai": pipeline_result["explainable_ai"]} if pipeline_result.get("explainable_ai") else {})
         },
         processing_time_ms=pipeline_result.get("processing_time_ms", 0),
         review_status="pending_review",
@@ -562,16 +572,17 @@ def discard_image_analysis_session(
 @router.post("/sessions/{session_id}/save")
 def save_image_analysis_session(
     session_id: str,
+    body: Optional[SaveSessionIn] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN.value, Role.DOCTOR.value, Role.NURSE.value))
 ):
     """
-    Saves the analysis session:
+    Saves the analysis session and applies doctor sign-off in a single streamlined action:
     1. Locks the session state as 'saved'.
-    2. Triggers Google Gemini API clinical reassessment cross-evaluating medical history.
-    3. Re-evaluates clinical risk classification.
-    4. Recomputes Digital Twin state trajectory.
-    5. Dispatches alerts to treating doctor if review is recommended.
+    2. Directly updates review status (approved/amended/rejected), clinician notes, and patient portal visibility.
+    3. Triggers Google Gemini API clinical reassessment cross-evaluating medical history.
+    4. Re-evaluates clinical risk classification and recomputes Digital Twin state trajectory.
+    5. Dispatches notifications to patient if approved and visible.
     """
     session = db.get(ImageAnalysisSession, session_id)
     if not session:
@@ -593,8 +604,20 @@ def save_image_analysis_session(
     session.saved_at = dt.datetime.utcnow()
     session.saved_by = current_user.id
 
-    # Update Analysis review status
-    analysis.review_status = "pending_review"
+    # Unified Sign-off: Apply clinician review details directly
+    req = body or SaveSessionIn()
+    if current_user.role in (Role.DOCTOR.value, Role.ADMIN.value):
+        analysis.review_status = req.review_status or "approved"
+        analysis.reviewed_by = current_user.id
+        analysis.reviewed_at = dt.datetime.utcnow()
+        analysis.clinician_notes = req.clinician_notes
+        analysis.clinician_agreed_with_ai = req.clinician_agreed_with_ai if req.clinician_agreed_with_ai is not None else True
+        analysis.doctor_confirmed_findings = req.doctor_confirmed_findings
+        analysis.is_patient_visible = bool(req.is_patient_visible)
+    else:
+        # Nurse saving session leaves it for doctor review
+        analysis.review_status = "pending_review"
+        analysis.is_patient_visible = False
 
     # Trigger Google Gemini API Multimodal Reassessment
     reassessment = perform_gemini_image_reassessment(db, analysis)
@@ -649,6 +672,20 @@ def save_image_analysis_session(
                     category="alert",
                     link=f"#/staff/image-analysis?patientId={patient.id}&analysisId={analysis.id}"
                 )
+        except Exception:
+            pass
+
+    # 5. Notify Patient if approved and marked visible
+    if analysis.review_status == "approved" and analysis.is_patient_visible and patient.user_id:
+        try:
+            create_in_app_notification(
+                db=db,
+                user_id=patient.user_id,
+                title="Clinical Image Review Available",
+                message="Your treating physician has reviewed and approved your recent recovery image analysis.",
+                category="document",
+                link="#/patient/documents"
+            )
         except Exception:
             pass
 

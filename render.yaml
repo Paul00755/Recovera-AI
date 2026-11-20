@@ -24,6 +24,8 @@ services:
         value: /tmp/storage
       - key: ONEPLUS_GATEWAY_ENABLED
         value: "false"
+      - key: GEMINI_API_KEY
+        sync: false
 
   # --------------------------------------------------------------------------
   # 2. Recovera AI - React Frontend (Static Site - Global Free CDN)

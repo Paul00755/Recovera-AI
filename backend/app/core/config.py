@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Gemini AI Assistant & Clinical Intelligence
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-3-flash-preview"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     GEMINI_FALLBACK_MODEL: str = "gemini-flash-lite-latest"
 
 def _resolve_canonical_upload_dir(raw_dir: str) -> str:
