@@ -3421,5 +3421,172 @@ h3 {
   background: rgba(0, 229, 192, 0.08);
 }
 
+/* ==========================================================================
+   Image Analysis Workspace Theme & Light Mode Adaptations
+   ========================================================================== */
+
+:root, [data-theme=dark] {
+  --card-bg: #0c1824;
+  --card-bg-elevated: #0f1f30;
+  --subcard-bg: rgba(0, 0, 0, 0.35);
+  --border-color: rgba(255, 255, 255, 0.09);
+  --border-color-strong: rgba(255, 255, 255, 0.16);
+  --border-color-subtle: rgba(255, 255, 255, 0.05);
+  --text-primary: #f1f7fa;
+  --text-secondary: #9eb2c0;
+  --text-muted: #5f7b8d;
+  --input-bg: rgba(0, 0, 0, 0.35);
+  --input-border: rgba(255, 255, 255, 0.12);
+  --btn-subtle-bg: rgba(255, 255, 255, 0.05);
+  --btn-subtle-color: #9eb2c0;
+  --xai-banner-bg: linear-gradient(135deg, rgba(0, 212, 184, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%);
+  --doctor-hub-bg: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(20, 30, 48, 0.95) 100%);
+  --draft-bar-bg: linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.7) 100%);
+  --modal-bg: #0c131d;
+}
+
+[data-theme=light] {
+  --card-bg: #ffffff;
+  --card-bg-elevated: #f8fafc;
+  --subcard-bg: #f8fafc;
+  --border-color: #e2e8f0;
+  --border-color-strong: #cbd5e1;
+  --border-color-subtle: #edf2f7;
+  --text-primary: #091724;
+  --text-secondary: #475569;
+  --text-muted: #648296;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --btn-subtle-bg: #f1f5f9;
+  --btn-subtle-color: #334155;
+  --xai-banner-bg: linear-gradient(135deg, rgba(0, 168, 150, 0.08) 0%, #ffffff 100%);
+  --doctor-hub-bg: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  --draft-bar-bg: linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, #ffffff 100%);
+  --modal-bg: #ffffff;
+}
+
+/* Image Analysis Component Classes */
+.image-analysis-workspace {
+  color: var(--text-primary);
+}
+
+.image-analysis-card {
+  background: var(--card-bg, #0c1824);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.09));
+  border-radius: 12px;
+  color: var(--text-primary, #f1f7fa);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme=light] .image-analysis-card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+
+.image-analysis-subcard {
+  background: var(--subcard-bg, rgba(0, 0, 0, 0.3));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  color: var(--text-primary, #f1f7fa);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme=light] .image-analysis-subcard {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #091724 !important;
+}
+
+.image-analysis-input {
+  background: var(--input-bg, rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
+  color: var(--text-primary, #f1f7fa);
+  border-radius: 8px;
+  outline: none;
+}
+
+[data-theme=light] .image-analysis-input,
+[data-theme=light] select.image-analysis-input,
+[data-theme=light] textarea.image-analysis-input {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme=light] .image-analysis-input option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.image-analysis-btn-subtle {
+  background: var(--btn-subtle-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  color: var(--text-secondary, #9eb2c0);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+[data-theme=light] .image-analysis-btn-subtle {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+[data-theme=light] .image-analysis-btn-subtle:hover {
+  background: #e2e8f0 !important;
+  color: #091724 !important;
+}
+
+.image-analysis-dropzone {
+  background: var(--subcard-bg, rgba(0, 0, 0, 0.2));
+  border: 2px dashed var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+[data-theme=light] .image-analysis-dropzone {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme=light] .image-analysis-dropzone:hover {
+  background: #f1f5f9 !important;
+  border-color: #0d9488 !important;
+}
+
+.image-analysis-xai-card {
+  background: var(--xai-banner-bg);
+  border: 1px solid rgba(0, 212, 184, 0.35);
+}
+
+[data-theme=light] .image-analysis-xai-card {
+  background: linear-gradient(135deg, rgba(0, 168, 150, 0.08) 0%, #ffffff 100%) !important;
+  border-color: rgba(0, 168, 150, 0.35) !important;
+  box-shadow: 0 4px 16px rgba(0, 168, 150, 0.06) !important;
+}
+
+.image-analysis-doctor-hub {
+  background: var(--doctor-hub-bg);
+}
+
+[data-theme=light] .image-analysis-doctor-hub {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05) !important;
+}
+
+.image-analysis-benchmark-modal {
+  background: var(--modal-bg, #0c131d);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+}
+
+[data-theme=light] .image-analysis-benchmark-modal {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15) !important;
+}
+
 
 
